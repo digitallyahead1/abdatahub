@@ -1,0 +1,58 @@
+{
+    "name": "ab-data-hub",
+    "version": "1.0.0",
+    "description": "AB Data Hub - Premium VTU and Fintech Platform",
+    "private": true,
+    "workspaces": [
+        "frontend",
+        "backend",
+        "shared"
+    ],
+    "scripts": {
+        "install:all": "npm install --workspaces",
+        "dev": "npx concurrently \"npm run dev --workspace=frontend\" \"npm run start:dev --workspace=backend\"",
+        "dev:frontend": "npm run dev --workspace=frontend",
+        "dev:backend": "npm run start:dev --workspace=backend",
+        "build": "npm run build --workspaces",
+        "build:frontend": "npm run build --workspace=frontend",
+        "build:backend": "npm run build --workspace=backend",
+        "lint": "npm run lint --workspaces",
+        "lint:fix": "npm run lint:fix --workspaces",
+        "type-check": "npm run type-check --workspaces",
+        "test": "npm run test --workspaces",
+        "test:watch": "npm run test:watch --workspaces",
+        "test:e2e": "npm run test:e2e --workspace=backend",
+        "docker:up": "docker-compose up -d",
+        "docker:down": "docker-compose down",
+        "docker:logs": "docker-compose logs -f",
+        "docker:ps": "docker-compose ps",
+        "db:migrate": "npm run migrate --workspace=backend",
+        "db:seed": "npm run seed --workspace=backend",
+        "db:reset": "npm run db:reset --workspace=backend",
+        "api:docs": "echo 'API Docs available at: http://localhost:3001/api/docs'",
+        "health:check": "node scripts/health-check.js"
+    },
+    "devDependencies": {
+        "concurrently": "^8.2.0"
+    },
+    "engines": {
+        "node": ">=18.0.0",
+        "npm": ">=9.0.0"
+    },
+    "keywords": [
+        "vtu",
+        "fintech",
+        "data",
+        "airtime",
+        "cable",
+        "electricity",
+        "nigeria",
+        "payment"
+    ],
+    "author": "AB Data Hub Team",
+    "license": "MIT",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/yourusername/ab-data-hub.git"
+    }
+}

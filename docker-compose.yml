@@ -1,0 +1,139 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: ab-datahub-postgres
+    environment:
+      POSTGRES_USER: abdatahub_user
+      POSTGRES_PASSWORD: Abdatahub@
+      POSTGRES_DB: ab_data_hub
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/src/database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U abdatahub_user -d ab_data_hub"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ab-datahub-network
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: ab-datahub-redis
+    command: redis-server --appendonly yes --requirepass abdatahub_redis_password
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - ab-datahub-network
+
+  # NestJS Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ab-datahub-backend
+    environment:
+      NODE_ENV: development
+      PORT: 3001
+      DATABASE_URL: postgresql://abdatahub_user:Abdatahub@@postgres:5432/ab_data_hub
+      REDIS_URL: redis://:abdatahub_redis_password@redis:6379
+      JWT_SECRET: ${JWT_SECRET:-your-super-secret-jwt-key-change-in-production}
+      JWT_EXPIRATION: 24h
+      OTP_EXPIRATION: 5m
+      LOG_LEVEL: debug
+    ports:
+      - "3001:3001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app
+      - /app/node_modules
+    networks:
+      - ab-datahub-network
+    command: npm run start:dev
+
+  # Next.js Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: ab-datahub-frontend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:3001/api
+      NEXT_PUBLIC_APP_NAME: AB Data Hub
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - ab-datahub-network
+    command: npm run dev
+
+  # PgAdmin (Database UI)
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: ab-datahub-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@abdatahub.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgres
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    networks:
+      - ab-datahub-network
+
+  # Redis Commander (Redis UI)
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: ab-datahub-redis-commander
+    environment:
+      REDIS_HOSTS: local:redis:6379:0:abdatahub_redis_password
+    ports:
+      - "8081:8081"
+    depends_on:
+      - redis
+    networks:
+      - ab-datahub-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  pgadmin_data:
+    driver: local
+
+networks:
+  ab-datahub-network:
+    driver: bridge
+
+# Access Points:
+# Frontend: http://localhost:3000
+# Backend API: http://localhost:3001
+# PgAdmin: http://localhost:5050 (admin@abdatahub.com / admin)
+# Redis Commander: http://localhost:8081
