@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/wallet_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/pin_input_dialog.dart';
 
 class BuyDataScreen extends StatefulWidget {
-  const BuyDataScreen({Key? key}) : super(key: key);
+  const BuyDataScreen({super.key});
 
   @override
   State<BuyDataScreen> createState() => _BuyDataScreenState();
@@ -97,6 +98,15 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
       final unit = validityMatch.group(2) ?? 'Day';
       final capitalizedUnit = unit[0].toUpperCase() + unit.substring(1).toLowerCase();
       validity = '$num $capitalizedUnit${num > 1 ? 's' : ''}';
+    } else {
+      final lowerName = name.toLowerCase();
+      if (lowerName.contains('monthly')) {
+        validity = '30 Days';
+      } else if (lowerName.contains('weekly')) {
+        validity = '7 Days';
+      } else if (lowerName.contains('daily')) {
+        validity = '1 Day';
+      }
     }
 
     return {'size': size, 'type': type, 'validity': validity};
@@ -131,6 +141,12 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
       return;
     }
 
+    final pin = await showDialog<String>(
+      context: context,
+      builder: (_) => const PinInputDialog(),
+    );
+    if (pin == null || pin.length != 4) return;
+
     final wallet = Provider.of<WalletProvider>(context, listen: false);
     final response = await wallet.purchaseService(
       serviceType: 'data',
@@ -138,6 +154,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
         'phoneNumber': _phoneController.text.trim(),
         'network': _selectedNetwork.toLowerCase(),
         'planId': _selectedPlan!['id'],
+        'pin': pin,
       },
     );
 
@@ -161,7 +178,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
             ),
             content: Text(
               'Your subscription is processing!\n\nReference: ${response['reference']}\nRecipient: ${response['phoneNumber']}\nPlan: ${response['planName']}',
-              style: const TextStyle(color: AppColors.silverLight),
+              style: TextStyle(color: AppColors.silverLight),
             ),
             actions: [
               TextButton(
@@ -229,7 +246,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Wallet Balance:',
                       style: TextStyle(color: AppColors.silverMuted, fontSize: 13),
                     ),
@@ -252,7 +269,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Network select row
-                    const Text(
+                    Text(
                       'Select Mobile Network',
                       style: TextStyle(
                         color: AppColors.silverLight,
@@ -280,7 +297,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                               color: isSel ? AppColors.primaryBlue : AppColors.darkBgSecondary,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: isSel ? AppColors.primaryBlue : AppColors.silverMuted.withOpacity(0.1),
+                                color: isSel ? AppColors.primaryBlue : AppColors.silverMuted.withValues(alpha: 0.1),
                               ),
                             ),
                             child: Text(
@@ -302,7 +319,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                     TextFormField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Recipient Phone Number',
                         prefixIcon: Icon(Icons.phone, color: AppColors.silverMuted),
                         hintText: 'e.g. 08031234567',
@@ -320,7 +337,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                     const SizedBox(height: 20),
 
                     // Plan selection grid
-                    const Text(
+                    Text(
                       'Select Data Plan',
                       style: TextStyle(
                         color: AppColors.silverLight,
@@ -344,7 +361,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                                   color: AppColors.darkBgSecondary,
                                   borderRadius: BorderRadius.circular(12),
                                   border: Border.all(
-                                    color: AppColors.silverMuted.withOpacity(0.1),
+                                    color: AppColors.silverMuted.withValues(alpha: 0.1),
                                   ),
                                 ),
                                 child: Center(
@@ -352,7 +369,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                                     activePlans.isEmpty
                                         ? 'No plans available for this network'
                                         : 'No plans match the selected category',
-                                    style: const TextStyle(
+                                    style: TextStyle(
                                       color: AppColors.silverMuted,
                                       fontSize: 14,
                                     ),
@@ -382,7 +399,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                                                 color: isSel ? AppColors.primaryBlue : AppColors.darkBgSecondary,
                                                 borderRadius: BorderRadius.circular(20),
                                                 border: Border.all(
-                                                  color: isSel ? AppColors.primaryBlue : AppColors.silverMuted.withOpacity(0.1),
+                                                  color: isSel ? AppColors.primaryBlue : AppColors.silverMuted.withValues(alpha: 0.1),
                                                 ),
                                               ),
                                               child: Text(
@@ -414,7 +431,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                                     itemCount: filteredPlans.length,
                                     itemBuilder: (context, idx) {
                                       final item = filteredPlans[idx];
-                                      final plan = item['plan'];
+                                      final plan = item['plan'] as Map<String, dynamic>;
                                       final parsed = item['parsed'] as Map<String, String>;
                                       final price = double.tryParse(plan['sellingPrice'].toString()) ?? 0.0;
                                       final isSelected = _selectedPlan != null && _selectedPlan!['id'] == plan['id'];
@@ -430,18 +447,18 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                                           padding: const EdgeInsets.all(8),
                                           decoration: BoxDecoration(
                                             color: isSelected 
-                                                ? AppColors.primaryBlue.withOpacity(0.12) 
+                                                ? AppColors.primaryBlue.withValues(alpha: 0.12) 
                                                 : AppColors.darkBgSecondary,
                                             borderRadius: BorderRadius.circular(12),
                                             border: Border.all(
                                               color: isSelected 
                                                   ? AppColors.primaryBlue 
-                                                  : AppColors.silverMuted.withOpacity(0.1),
+                                                  : AppColors.silverMuted.withValues(alpha: 0.1),
                                               width: isSelected ? 2 : 1,
                                             ),
                                             boxShadow: isSelected ? [
                                               BoxShadow(
-                                                color: AppColors.primaryBlue.withOpacity(0.25),
+                                                color: AppColors.primaryBlue.withValues(alpha: 0.25),
                                                 blurRadius: 8,
                                                 offset: const Offset(0, 2),
                                               )
@@ -457,9 +474,9 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                                                   Container(
                                                     padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
                                                     decoration: BoxDecoration(
-                                                      color: typeColor.withOpacity(0.1),
+                                                      color: typeColor.withValues(alpha: 0.1),
                                                       borderRadius: BorderRadius.circular(4),
-                                                      border: Border.all(color: typeColor.withOpacity(0.2)),
+                                                      border: Border.all(color: typeColor.withValues(alpha: 0.2)),
                                                     ),
                                                     child: Text(
                                                       parsed['type'] ?? '',
@@ -475,7 +492,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                                                       parsed['validity'] ?? '',
                                                       overflow: TextOverflow.ellipsis,
                                                       style: TextStyle(
-                                                        color: AppColors.silverMuted.withOpacity(0.5),
+                                                        color: AppColors.silverMuted.withValues(alpha: 0.5),
                                                         fontSize: 8,
                                                       ),
                                                     ),
@@ -519,14 +536,14 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryBlue.withOpacity(0.05),
+                          color: AppColors.primaryBlue.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.primaryBlue.withOpacity(0.2)),
+                          border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.2)),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               'Total Cost:',
                               style: TextStyle(color: AppColors.silverLight, fontWeight: FontWeight.bold),
                             ),

@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
+import '../providers/theme_provider.dart';
 import '../theme/app_theme.dart';
 import 'login_screen.dart';
 
+
 class ProfileTab extends StatelessWidget {
-  const ProfileTab({Key? key}) : super(key: key);
+  const ProfileTab({super.key});
 
   void _copyToClipboard(BuildContext context, String text, String message) {
     Clipboard.setData(ClipboardData(text: text));
@@ -25,6 +28,18 @@ class ProfileTab extends StatelessWidget {
       Navigator.of(context).pushAndRemoveUntil(
         MaterialPageRoute(builder: (_) => const LoginScreen()),
         (route) => false,
+      );
+    }
+  }
+
+  void _launchURL(BuildContext context, String urlString) async {
+    final Uri url = Uri.parse(urlString);
+    if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not launch $urlString'),
+          backgroundColor: AppColors.error,
+        ),
       );
     }
   }
@@ -68,7 +83,7 @@ class ProfileTab extends StatelessWidget {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primaryBlue.withOpacity(0.25),
+                            color: AppColors.primaryBlue.withValues(alpha: 0.25),
                             blurRadius: 15,
                             offset: const Offset(0, 5),
                           )
@@ -88,7 +103,7 @@ class ProfileTab extends StatelessWidget {
                     const SizedBox(height: 16),
                     Text(
                       name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.silverLight,
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -98,7 +113,7 @@ class ProfileTab extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       email,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.silverMuted,
                         fontSize: 13,
                       ),
@@ -113,21 +128,21 @@ class ProfileTab extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.darkBgSecondary, Color(0xFF0F172A)],
+                  gradient: LinearGradient(
+                    colors: [AppColors.darkBgSecondary, const Color(0xFF0F172A)],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: AppColors.accentGlow.withOpacity(0.15),
+                    color: AppColors.accentGlow.withValues(alpha: 0.15),
                   ),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Row(
-                      children: const [
+                    const Row(
+                      children: [
                         Icon(Icons.card_giftcard, color: AppColors.accentGlow, size: 20),
                         SizedBox(width: 8),
                         Text(
@@ -141,7 +156,7 @@ class ProfileTab extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    const Text(
+                    Text(
                       'Share your unique referral link below. Get ₦500 immediately when your friend signs up and funds their wallet for the first time.',
                       style: TextStyle(
                         color: AppColors.silverMuted,
@@ -155,7 +170,7 @@ class ProfileTab extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: AppColors.darkBg,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.silverMuted.withOpacity(0.1)),
+                        border: Border.all(color: AppColors.silverMuted.withValues(alpha: 0.1)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -178,7 +193,7 @@ class ProfileTab extends StatelessWidget {
                               refLink,
                               'Referral link copied to clipboard!',
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.copy,
                               color: AppColors.silverLight,
                               size: 18,
@@ -191,7 +206,7 @@ class ProfileTab extends StatelessWidget {
                     Center(
                       child: Text(
                         'Your Referral Code: $refCode',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.silverLight,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -208,10 +223,21 @@ class ProfileTab extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.darkBgSecondary,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.silverMuted.withOpacity(0.05)),
+                  border: Border.all(color: AppColors.silverMuted.withValues(alpha: 0.05)),
                 ),
                 child: Column(
                   children: [
+                    _buildProfileTile(
+                      icon: Provider.of<ThemeProvider>(context).themeMode == ThemeMode.dark
+                          ? Icons.dark_mode_outlined
+                          : Icons.light_mode_outlined,
+                      title: 'Theme Mode',
+                      value: Provider.of<ThemeProvider>(context).themeMode == ThemeMode.dark
+                          ? 'Dark Mode'
+                          : 'Light Mode',
+                      onTap: () => Provider.of<ThemeProvider>(context, listen: false).toggleTheme(),
+                    ),
+                    const Divider(height: 1, color: Color(0xFF1F2937)),
                     _buildProfileTile(
                       icon: Icons.phone_android,
                       title: 'Phone Number',
@@ -227,6 +253,20 @@ class ProfileTab extends StatelessWidget {
                         '07045357195',
                         'Customer Care line copied!',
                       ),
+                    ),
+                    const Divider(height: 1, color: Color(0xFF1F2937)),
+                    _buildProfileTile(
+                      icon: Icons.alternate_email_outlined,
+                      title: 'Twitter / X',
+                      value: '@asserdiq360',
+                      onTap: () => _launchURL(context, 'https://x.com/asserdiq360'),
+                    ),
+                    const Divider(height: 1, color: Color(0xFF1F2937)),
+                    _buildProfileTile(
+                      icon: Icons.facebook_outlined,
+                      title: 'Facebook Page',
+                      value: 'AB Data Hub',
+                      onTap: () => _launchURL(context, 'https://www.facebook.com/share/1JD9G8vaVH/'),
                     ),
                     const Divider(height: 1, color: Color(0xFF1F2937)),
                     _buildProfileTile(
@@ -280,7 +320,7 @@ class ProfileTab extends StatelessWidget {
       leading: Icon(icon, color: AppColors.primaryBlue),
       title: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.silverMuted,
           fontSize: 12,
         ),
@@ -290,7 +330,7 @@ class ProfileTab extends StatelessWidget {
         children: [
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.silverLight,
               fontWeight: FontWeight.bold,
               fontSize: 13,
@@ -300,7 +340,7 @@ class ProfileTab extends StatelessWidget {
             const SizedBox(width: 8),
             Icon(
               Icons.chevron_right,
-              color: AppColors.silverMuted.withOpacity(0.5),
+              color: AppColors.silverMuted.withValues(alpha: 0.5),
               size: 16,
             )
           ]

@@ -11,12 +11,23 @@ class WalletProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
 
+  // Payment gateways state
+  Map<String, dynamic>? _monnifyAccount;
+  Map<String, dynamic>? _gafiapayAccount;
+  bool _isMonnifyLoading = false;
+  bool _isGafiapayLoading = false;
+
   double get balance => _balance;
   double get ledgerBalance => _ledgerBalance;
   double get referralEarnings => _referralEarnings;
   List<dynamic> get transactions => _transactions;
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+
+  Map<String, dynamic>? get monnifyAccount => _monnifyAccount;
+  Map<String, dynamic>? get gafiapayAccount => _gafiapayAccount;
+  bool get isMonnifyLoading => _isMonnifyLoading;
+  bool get isGafiapayLoading => _isGafiapayLoading;
 
   Future<void> fetchWalletData() async {
     _isLoading = true;
@@ -83,6 +94,95 @@ class WalletProvider extends ChangeNotifier {
     return false;
   }
 
+  // ================= MONNIFY & GAFIAPAY METHODS =================
+
+  Future<void> fetchMonnifyAccount() async {
+    _isMonnifyLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final response = await _apiService.get('/user/monnify-account');
+      if (response.data != null && response.data['success'] == true) {
+        if (response.data['exists'] == true) {
+          _monnifyAccount = response.data['account'];
+        } else {
+          _monnifyAccount = null;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching Monnify account: $e');
+    } finally {
+      _isMonnifyLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> generateMonnifyAccount() async {
+    _isMonnifyLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final response = await _apiService.post('/user/monnify-account/generate');
+      if (response.data != null && response.data['success'] == true) {
+        _monnifyAccount = response.data['account'];
+        return true;
+      }
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+    } finally {
+      _isMonnifyLoading = false;
+      notifyListeners();
+    }
+    return false;
+  }
+
+  Future<void> fetchActiveGafiapayAccount() async {
+    _isGafiapayLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final response = await _apiService.get('/user/gafiapay/active');
+      if (response.data != null && response.data['success'] == true) {
+        if (response.data['exists'] == true) {
+          _gafiapayAccount = response.data['account'];
+        } else {
+          _gafiapayAccount = null;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching active Gafiapay account: $e');
+    } finally {
+      _isGafiapayLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> generateGafiapayAccount() async {
+    _isGafiapayLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final response = await _apiService.post('/user/gafiapay/generate');
+      if (response.data != null && response.data['success'] == true) {
+        _gafiapayAccount = response.data['account'];
+        return true;
+      }
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+    } finally {
+      _isGafiapayLoading = false;
+      notifyListeners();
+    }
+    return false;
+  }
+
+  void clearGafiapayAccount() {
+    _gafiapayAccount = null;
+    notifyListeners();
+  }
+
+  // ================= END MONNIFY & GAFIAPAY METHODS =================
+
   Future<Map<String, dynamic>?> purchaseService({
     required String serviceType, // 'data', 'airtime', 'electricity', 'cable', 'exam-pin'
     required Map<String, dynamic> payload,
@@ -108,6 +208,31 @@ class WalletProvider extends ChangeNotifier {
     } finally {
       _isLoading = false;
       notifyListeners();
+    }
+    return null;
+  }
+
+  Future<Map<String, dynamic>?> verifyCustomer({
+    required String customerId,
+    required String serviceId,
+    required String variationId,
+  }) async {
+    try {
+      final response = await _apiService.post(
+        '/services/verify-customer',
+        data: {
+          'customerId': customerId,
+          'serviceId': serviceId,
+          'variationId': variationId,
+        },
+      );
+
+      if (response.data != null && response.data['success'] == true) {
+        return response.data['data'] != null ? Map<String, dynamic>.from(response.data['data']) : null;
+      }
+    } catch (e) {
+      debugPrint('Error verifying customer: $e');
+      rethrow;
     }
     return null;
   }

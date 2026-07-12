@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/wallet_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/transaction_details_sheet.dart';
+
 
 class TransactionsTab extends StatefulWidget {
-  const TransactionsTab({Key? key}) : super(key: key);
+  const TransactionsTab({super.key});
 
   @override
   State<TransactionsTab> createState() => _TransactionsTabState();
@@ -66,7 +68,7 @@ class _TransactionsTabState extends State<TransactionsTab> {
                         ? ListView(
                             children: [
                               SizedBox(height: MediaQuery.of(context).size.height * 0.25),
-                              const Center(
+                              Center(
                                 child: Column(
                                   children: [
                                     Icon(
@@ -74,7 +76,7 @@ class _TransactionsTabState extends State<TransactionsTab> {
                                       size: 64,
                                       color: AppColors.silverMuted,
                                     ),
-                                    SizedBox(height: 16),
+                                    const SizedBox(height: 16),
                                     Text(
                                       'No transactions found',
                                       style: TextStyle(
@@ -93,7 +95,10 @@ class _TransactionsTabState extends State<TransactionsTab> {
                             separatorBuilder: (_, __) => const SizedBox(height: 10),
                             itemBuilder: (context, index) {
                               final tx = filteredTxs[index];
-                              return _buildTransactionRow(tx);
+                              return GestureDetector(
+                                onTap: () => TransactionDetailsSheet.show(context, tx as Map<String, dynamic>),
+                                child: _buildTransactionRow(tx),
+                              );
                             },
                           ),
               ),
@@ -122,7 +127,7 @@ class _TransactionsTabState extends State<TransactionsTab> {
             border: Border.all(
               color: isSelected
                   ? AppColors.primaryBlue
-                  : AppColors.silverMuted.withOpacity(0.1),
+                  : AppColors.silverMuted.withValues(alpha: 0.1),
             ),
           ),
           child: Text(
@@ -159,7 +164,7 @@ class _TransactionsTabState extends State<TransactionsTab> {
       decoration: BoxDecoration(
         color: AppColors.darkBgSecondary,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.silverMuted.withOpacity(0.05)),
+        border: Border.all(color: AppColors.silverMuted.withValues(alpha: 0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -170,8 +175,8 @@ class _TransactionsTabState extends State<TransactionsTab> {
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: isCredit
-                      ? AppColors.success.withOpacity(0.1)
-                      : AppColors.error.withOpacity(0.1),
+                      ? AppColors.success.withValues(alpha: 0.1)
+                      : AppColors.error.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -187,7 +192,7 @@ class _TransactionsTabState extends State<TransactionsTab> {
                   children: [
                     Text(
                       desc,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.silverLight,
                         fontSize: 14,
                         fontWeight: FontWeight.bold,
@@ -197,7 +202,7 @@ class _TransactionsTabState extends State<TransactionsTab> {
                     Text(
                       dateStr,
                       style: TextStyle(
-                        color: AppColors.silverMuted.withOpacity(0.5),
+                        color: AppColors.silverMuted.withValues(alpha: 0.5),
                         fontSize: 10,
                       ),
                     ),
@@ -222,14 +227,14 @@ class _TransactionsTabState extends State<TransactionsTab> {
               Text(
                 'Reference: $ref',
                 style: TextStyle(
-                  color: AppColors.silverMuted.withOpacity(0.6),
+                  color: AppColors.silverMuted.withValues(alpha: 0.6),
                   fontSize: 10,
                 ),
               ),
               Text(
                 'Bal: ₦${previousBalance.toStringAsFixed(2)} ➔ ₦${newBalance.toStringAsFixed(2)}',
                 style: TextStyle(
-                  color: AppColors.silverMuted.withOpacity(0.6),
+                  color: AppColors.silverMuted.withValues(alpha: 0.6),
                   fontSize: 10,
                 ),
               ),

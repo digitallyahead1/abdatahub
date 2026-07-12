@@ -6,7 +6,7 @@ class ServiceCard extends StatelessWidget {
   final String icon;
   final VoidCallback onTap;
 
-  const ServiceCard({
+  const ServiceCard({super.key, 
     required this.title,
     required this.icon,
     required this.onTap,
@@ -21,7 +21,7 @@ class ServiceCard extends StatelessWidget {
           color: AppColors.darkBgSecondary,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: AppColors.silverMuted.withOpacity(0.1),
+            color: AppColors.silverMuted.withValues(alpha: 0.1),
           ),
         ),
         child: Column(
@@ -35,7 +35,7 @@ class ServiceCard extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.silverLight,
                 fontSize: 14,
                 fontWeight: FontWeight.w600,

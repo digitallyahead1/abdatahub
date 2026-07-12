@@ -170,6 +170,19 @@ export class ServicesService {
         phoneNumber,
         status: finalStatus,
       };
+    } else if (result && result.isTransientError) {
+      // Transient error (timeout / gateway error) - do NOT refund, keep status pending
+      dataTx.status = 'pending';
+      await this.dataTransactionRepository.save(dataTx);
+
+      systemTx.status = 'pending';
+      systemTx.metadata = {
+        ...(systemTx.metadata || {}),
+        error: result.msg || 'Gateway timeout or server error. Processing status is pending.',
+      };
+      await this.transactionRepository.save(systemTx);
+
+      throw new BadRequestException('Your transaction is currently processing on the network. Please check your transaction history shortly to verify status.');
     } else {
       // Hard failure - rollback wallet debit
       dataTx.status = 'failed';
@@ -319,6 +332,19 @@ export class ServicesService {
         chargedAmount: sellingPrice,
         status: finalStatus,
       };
+    } else if (result && result.isTransientError) {
+      // Transient error (timeout / gateway error) - do NOT refund, keep status pending
+      airtimeTx.status = 'pending';
+      await this.airtimeTransactionRepository.save(airtimeTx);
+
+      systemTx.status = 'pending';
+      systemTx.metadata = {
+        ...(systemTx.metadata || {}),
+        error: result.msg || 'Gateway timeout or server error. Processing status is pending.',
+      };
+      await this.transactionRepository.save(systemTx);
+
+      throw new BadRequestException('Your transaction is currently processing on the network. Please check your transaction history shortly to verify status.');
     } else {
       // Hard failure - rollback wallet debit
       airtimeTx.status = 'failed';
@@ -463,6 +489,16 @@ export class ServicesService {
         band: result.data.band || '',
         customerName: result.data.customer_name || '',
       };
+    } else if (result && result.isTransientError) {
+      // Transient error (timeout / gateway error) - do NOT refund, keep status pending
+      systemTx.status = 'pending';
+      systemTx.metadata = {
+        ...(systemTx.metadata || {}),
+        error: result.msg || 'Gateway timeout or server error. Processing status is pending.',
+      };
+      await this.transactionRepository.save(systemTx);
+
+      throw new BadRequestException('Your transaction is currently processing on the network. Please check your transaction history shortly to retrieve your token.');
     } else {
       // Failure flow
       systemTx.status = 'failed';
@@ -557,6 +593,16 @@ export class ServicesService {
         customerName: result.data.customer_name || '',
         bouquet: result.data.bouquet || '',
       };
+    } else if (result && result.isTransientError) {
+      // Transient error (timeout / gateway error) - do NOT refund, keep status pending
+      systemTx.status = 'pending';
+      systemTx.metadata = {
+        ...(systemTx.metadata || {}),
+        error: result.msg || 'Gateway timeout or server error. Processing status is pending.',
+      };
+      await this.transactionRepository.save(systemTx);
+
+      throw new BadRequestException('Your transaction is currently processing on the network. Please check your transaction history shortly to verify renewal.');
     } else {
       // Failure flow
       systemTx.status = 'failed';

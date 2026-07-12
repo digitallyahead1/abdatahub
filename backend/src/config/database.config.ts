@@ -14,6 +14,8 @@ import { SystemSetting } from '../entities/system-setting.entity';
 import { ExamCategory } from '../entities/exam-category.entity';
 import { ExamPin } from '../entities/exam-pin.entity';
 import { PasswordResetOtp } from '../entities/password-reset-otp.entity';
+import { UserVirtualAccount } from '../entities/user-virtual-account.entity';
+import { GafiapayVirtualAccount } from '../entities/gafiapay-virtual-account.entity';
 
 export const DatabaseConfig: TypeOrmModuleOptions = {
   type: 'postgres',
@@ -37,12 +39,14 @@ export const DatabaseConfig: TypeOrmModuleOptions = {
     ExamCategory,
     ExamPin,
     PasswordResetOtp,
+    UserVirtualAccount,
+    GafiapayVirtualAccount,
   ],
   synchronize: process.env.NODE_ENV !== 'production',
   logging: process.env.NODE_ENV === 'development',
   connectTimeoutMS: 20000,
   extra: {
-    max: 10,
+    max: 50,
     idleTimeoutMillis: 30000,
     connectionTimeoutMillis: 2000,
   },

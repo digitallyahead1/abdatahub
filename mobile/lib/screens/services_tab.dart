@@ -7,7 +7,7 @@ import 'cable_screen.dart';
 import 'exam_pins_screen.dart';
 
 class ServicesTab extends StatelessWidget {
-  const ServicesTab({Key? key}) : super(key: key);
+  const ServicesTab({super.key});
 
   void _navigateToScreen(BuildContext context, Widget screen) {
     Navigator.of(context).push(
@@ -27,7 +27,7 @@ class ServicesTab extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
+            Text(
               'Utility & Telecommunications',
               style: TextStyle(
                 color: AppColors.silverLight,
@@ -54,7 +54,7 @@ class ServicesTab extends StatelessWidget {
               const BuyAirtimeScreen(),
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'Bills & Subscriptions',
               style: TextStyle(
                 color: AppColors.silverLight,
@@ -81,7 +81,7 @@ class ServicesTab extends StatelessWidget {
               const ElectricityScreen(),
             ),
             const SizedBox(height: 24),
-            const Text(
+            Text(
               'Education & Business',
               style: TextStyle(
                 color: AppColors.silverLight,
@@ -120,7 +120,7 @@ class ServicesTab extends StatelessWidget {
           color: AppColors.darkBgSecondary,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: AppColors.silverMuted.withOpacity(0.05),
+            color: AppColors.silverMuted.withValues(alpha: 0.05),
           ),
         ),
         child: Row(
@@ -128,7 +128,7 @@ class ServicesTab extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Icon(
@@ -144,7 +144,7 @@ class ServicesTab extends StatelessWidget {
                 children: [
                   Text(
                     title,
-                    style: const TextStyle(
+                    style: TextStyle(
                       color: AppColors.silverLight,
                       fontSize: 14,
                       fontWeight: FontWeight.bold,
@@ -154,7 +154,7 @@ class ServicesTab extends StatelessWidget {
                   Text(
                     description,
                     style: TextStyle(
-                      color: AppColors.silverMuted.withOpacity(0.8),
+                      color: AppColors.silverMuted.withValues(alpha: 0.8),
                       fontSize: 11,
                     ),
                   ),
@@ -164,7 +164,7 @@ class ServicesTab extends StatelessWidget {
             const SizedBox(width: 8),
             Icon(
               Icons.chevron_right,
-              color: AppColors.silverMuted.withOpacity(0.6),
+              color: AppColors.silverMuted.withValues(alpha: 0.6),
             ),
           ],
         ),

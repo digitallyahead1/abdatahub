@@ -36,6 +36,14 @@ export default function PinModal({
     }
   }, [isOpen])
 
+  // Automatically submit once all 4 digits are entered
+  useEffect(() => {
+    const fullPin = pin.join('')
+    if (fullPin.length === 4 && isOpen && !loading) {
+      onConfirm(fullPin)
+    }
+  }, [pin, isOpen, loading, onConfirm])
+
   if (!isOpen) return null
 
   const handleChange = (val: string, index: number) => {

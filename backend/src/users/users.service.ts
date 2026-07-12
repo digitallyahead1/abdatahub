@@ -89,14 +89,21 @@ export class UsersService {
   }
 
   async verifyTransactionPin(userId: string, pin: string): Promise<boolean> {
+    if (!pin) {
+      throw new BadRequestException('Transaction PIN is required.');
+    }
     const user = await this.findOneById(userId);
     if (!user) throw new NotFoundException('User not found');
     if (!user.transactionPin) {
-      throw new BadRequestException('Transaction pin is not set. Please set it in your account settings.');
+      throw new BadRequestException('Transaction PIN is not set. Please set it in your account settings.');
     }
-    const isMatch = await bcrypt.compare(pin, user.transactionPin);
-    if (!isMatch) {
-      throw new BadRequestException('Invalid transaction pin.');
+    try {
+      const isMatch = await bcrypt.compare(pin, user.transactionPin);
+      if (!isMatch) {
+        throw new BadRequestException('Invalid transaction PIN.');
+      }
+    } catch (e) {
+      throw new BadRequestException('Invalid transaction PIN format.');
     }
     return true;
   }

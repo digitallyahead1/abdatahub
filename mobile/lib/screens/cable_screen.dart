@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/wallet_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/pin_input_dialog.dart';
 
 class CableScreen extends StatefulWidget {
-  const CableScreen({Key? key}) : super(key: key);
+  const CableScreen({super.key});
 
   @override
   State<CableScreen> createState() => _CableScreenState();
@@ -52,6 +53,12 @@ class _CableScreenState extends State<CableScreen> {
       return;
     }
 
+    final pin = await showDialog<String>(
+      context: context,
+      builder: (_) => const PinInputDialog(),
+    );
+    if (pin == null || pin.length != 4) return;
+
     final wallet = Provider.of<WalletProvider>(context, listen: false);
     final response = await wallet.purchaseService(
       serviceType: 'cable',
@@ -60,6 +67,7 @@ class _CableScreenState extends State<CableScreen> {
         'smartCardNumber': _smartCardController.text.trim(),
         'packageName': _selectedPackage!['name'],
         'amount': _selectedPackage!['price'],
+        'pin': pin,
       },
     );
 
@@ -83,7 +91,7 @@ class _CableScreenState extends State<CableScreen> {
             ),
             content: Text(
               'Your Cable TV subscription renewed successfully!\n\nReference: ${response['reference']}\nProvider: ${response['provider']}\nSmartCard/IUC: ${response['smartCardNumber']}\nBouquet: ${response['packageName']}',
-              style: const TextStyle(color: AppColors.silverLight),
+              style: TextStyle(color: AppColors.silverLight),
             ),
             actions: [
               TextButton(
@@ -134,7 +142,7 @@ class _CableScreenState extends State<CableScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Wallet Balance:',
                       style: TextStyle(color: AppColors.silverMuted, fontSize: 13),
                     ),
@@ -157,7 +165,7 @@ class _CableScreenState extends State<CableScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Provider select row
-                    const Text(
+                    Text(
                       'Select Cable Service Provider',
                       style: TextStyle(
                         color: AppColors.silverLight,
@@ -184,7 +192,7 @@ class _CableScreenState extends State<CableScreen> {
                               color: isSel ? AppColors.primaryBlue : AppColors.darkBgSecondary,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: isSel ? AppColors.primaryBlue : AppColors.silverMuted.withOpacity(0.1),
+                                color: isSel ? AppColors.primaryBlue : AppColors.silverMuted.withValues(alpha: 0.1),
                               ),
                             ),
                             child: Text(
@@ -206,7 +214,7 @@ class _CableScreenState extends State<CableScreen> {
                     TextFormField(
                       controller: _smartCardController,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'SmartCard / IUC / Decoder Number',
                         prefixIcon: Icon(Icons.credit_card, color: AppColors.silverMuted),
                         hintText: 'Enter decoder identification code',
@@ -224,7 +232,7 @@ class _CableScreenState extends State<CableScreen> {
                     const SizedBox(height: 24),
 
                     // Package selection dropdown
-                    const Text(
+                    Text(
                       'Select Bouquet Package',
                       style: TextStyle(
                         color: AppColors.silverLight,
@@ -244,12 +252,12 @@ class _CableScreenState extends State<CableScreen> {
                         child: DropdownButton<Map<String, dynamic>>(
                           isExpanded: true,
                           value: _selectedPackage,
-                          hint: const Text(
+                          hint: Text(
                             'Choose bouquet package',
                             style: TextStyle(color: AppColors.silverMuted, fontSize: 14),
                           ),
                           dropdownColor: AppColors.darkBgSecondary,
-                          style: const TextStyle(color: AppColors.silverLight),
+                          style: TextStyle(color: AppColors.silverLight),
                           onChanged: (Map<String, dynamic>? pkg) {
                             setState(() {
                               _selectedPackage = pkg;
@@ -274,14 +282,14 @@ class _CableScreenState extends State<CableScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryBlue.withOpacity(0.05),
+                          color: AppColors.primaryBlue.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.primaryBlue.withOpacity(0.2)),
+                          border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.2)),
                         ),
                         child: Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            const Text(
+                            Text(
                               'Bouquet Cost:',
                               style: TextStyle(color: AppColors.silverLight, fontWeight: FontWeight.bold),
                             ),

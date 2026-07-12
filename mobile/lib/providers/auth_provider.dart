@@ -79,6 +79,7 @@ class AuthProvider extends ChangeNotifier {
     required String email,
     required String phoneNumber,
     required String password,
+    required String transactionPin,
     String? referralCode,
   }) async {
     _isLoading = true;
@@ -93,6 +94,7 @@ class AuthProvider extends ChangeNotifier {
           'email': email,
           'phoneNumber': phoneNumber,
           'password': password,
+          'transactionPin': transactionPin,
           if (referralCode != null && referralCode.isNotEmpty) 'referralCode': referralCode,
         },
       );

@@ -8,9 +8,12 @@ import 'buy_airtime_screen.dart';
 import 'electricity_screen.dart';
 import 'cable_screen.dart';
 import 'exam_pins_screen.dart';
+import 'wallet_tab.dart';
+import '../widgets/transaction_details_sheet.dart';
+
 
 class HomeTab extends StatelessWidget {
-  const HomeTab({Key? key}) : super(key: key);
+  const HomeTab({super.key});
 
   void _navigateToService(BuildContext context, Widget screen) {
     Navigator.of(context).push(
@@ -49,7 +52,7 @@ class HomeTab extends StatelessWidget {
                       children: [
                         Text(
                           'Hi, $userName 👋',
-                          style: const TextStyle(
+                          style: TextStyle(
                             color: AppColors.silverLight,
                             fontSize: 20,
                             fontWeight: FontWeight.bold,
@@ -62,9 +65,9 @@ class HomeTab extends StatelessWidget {
                             Container(
                               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                               decoration: BoxDecoration(
-                                color: AppColors.primaryBlue.withOpacity(0.15),
+                                color: AppColors.primaryBlue.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(6),
-                                border: Border.all(color: AppColors.primaryBlue.withOpacity(0.3)),
+                                border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.3)),
                               ),
                               child: Text(
                                 userRole.toUpperCase(),
@@ -76,7 +79,7 @@ class HomeTab extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(width: 8),
-                            const Text(
+                            Text(
                               'Always Connected',
                               style: TextStyle(
                                 color: AppColors.silverMuted,
@@ -94,16 +97,13 @@ class HomeTab extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: AppColors.darkBgSecondary,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.silverMuted.withOpacity(0.1)),
+                        border: Border.all(color: AppColors.silverMuted.withValues(alpha: 0.1)),
                       ),
-                      child: const Center(
-                        child: Text(
-                          'AB',
-                          style: TextStyle(
-                            color: AppColors.accentGlow,
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          fit: BoxFit.cover,
                         ),
                       ),
                     ),
@@ -123,12 +123,12 @@ class HomeTab extends StatelessWidget {
                     ),
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
-                      color: AppColors.accentGlow.withOpacity(0.3),
+                      color: AppColors.accentGlow.withValues(alpha: 0.3),
                       width: 1.5,
                     ),
                     boxShadow: [
                       BoxShadow(
-                        color: AppColors.primaryBlue.withOpacity(0.2),
+                        color: AppColors.primaryBlue.withValues(alpha: 0.2),
                         blurRadius: 25,
                         spreadRadius: -5,
                         offset: const Offset(0, 10),
@@ -138,7 +138,7 @@ class HomeTab extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'AVAILABLE BALANCE',
                         style: TextStyle(
                           color: AppColors.silverMuted,
@@ -170,7 +170,7 @@ class HomeTab extends StatelessWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Text(
+                              Text(
                                 'Ledger Balance',
                                 style: TextStyle(
                                   color: AppColors.silverMuted,
@@ -180,7 +180,7 @@ class HomeTab extends StatelessWidget {
                               const SizedBox(height: 4),
                               Text(
                                 '₦${walletProvider.ledgerBalance.toStringAsFixed(2)}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   color: AppColors.silverLight,
                                   fontSize: 14,
                                   fontWeight: FontWeight.bold,
@@ -191,7 +191,7 @@ class HomeTab extends StatelessWidget {
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.end,
                             children: [
-                              const Text(
+                              Text(
                                 'Referral Commission',
                                 style: TextStyle(
                                   color: AppColors.silverMuted,
@@ -217,7 +217,7 @@ class HomeTab extends StatelessWidget {
                 const SizedBox(height: 28),
 
                 // Quick Services Section
-                const Text(
+                Text(
                   'Quick Services',
                   style: TextStyle(
                     color: AppColors.silverLight,
@@ -234,6 +234,13 @@ class HomeTab extends StatelessWidget {
                   mainAxisSpacing: 12,
                   childAspectRatio: 0.95,
                   children: [
+                    _buildServiceItem(
+                      context,
+                      'Fund Wallet',
+                      Icons.account_balance_wallet_rounded,
+                      Colors.teal,
+                      const WalletTab(),
+                    ),
                     _buildServiceItem(
                       context,
                       'Buy Data',
@@ -277,7 +284,7 @@ class HomeTab extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Recent Activity',
                       style: TextStyle(
                         color: AppColors.silverLight,
@@ -286,7 +293,7 @@ class HomeTab extends StatelessWidget {
                       ),
                     ),
                     if (walletProvider.transactions.isNotEmpty)
-                      const Text(
+                      Text(
                         'Swipe to refresh',
                         style: TextStyle(
                           color: AppColors.silverMuted,
@@ -313,11 +320,11 @@ class HomeTab extends StatelessWidget {
                               color: AppColors.darkBgSecondary,
                               borderRadius: BorderRadius.circular(16),
                             ),
-                            child: const Column(
+                            child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [
                                 Icon(Icons.receipt_long, size: 48, color: AppColors.silverMuted),
-                                SizedBox(height: 12),
+                                const SizedBox(height: 12),
                                 Text(
                                   'No transactions yet',
                                   style: TextStyle(color: AppColors.silverMuted),
@@ -334,7 +341,10 @@ class HomeTab extends StatelessWidget {
                             separatorBuilder: (_, __) => const SizedBox(height: 10),
                             itemBuilder: (context, index) {
                               final tx = walletProvider.transactions[index];
-                              return _buildTransactionCard(tx);
+                              return GestureDetector(
+                                onTap: () => TransactionDetailsSheet.show(context, tx as Map<String, dynamic>),
+                                child: _buildTransactionCard(tx),
+                              );
                             },
                           ),
               ],
@@ -359,7 +369,7 @@ class HomeTab extends StatelessWidget {
           color: AppColors.darkBgSecondary,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(
-            color: AppColors.silverMuted.withOpacity(0.05),
+            color: AppColors.silverMuted.withValues(alpha: 0.05),
           ),
         ),
         child: Column(
@@ -368,7 +378,7 @@ class HomeTab extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.12),
+                color: color.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -381,7 +391,7 @@ class HomeTab extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: const TextStyle(
+              style: TextStyle(
                 color: AppColors.silverLight,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -407,7 +417,7 @@ class HomeTab extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.darkBgSecondary,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.silverMuted.withOpacity(0.05)),
+        border: Border.all(color: AppColors.silverMuted.withValues(alpha: 0.05)),
       ),
       child: Row(
         children: [
@@ -415,8 +425,8 @@ class HomeTab extends StatelessWidget {
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
               color: isCredit
-                  ? AppColors.success.withOpacity(0.1)
-                  : AppColors.error.withOpacity(0.1),
+                  ? AppColors.success.withValues(alpha: 0.1)
+                  : AppColors.error.withValues(alpha: 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -434,7 +444,7 @@ class HomeTab extends StatelessWidget {
                   desc,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
+                  style: TextStyle(
                     color: AppColors.silverLight,
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
@@ -444,7 +454,7 @@ class HomeTab extends StatelessWidget {
                 Text(
                   'Ref: $ref  •  $dateStr',
                   style: TextStyle(
-                    color: AppColors.silverMuted.withOpacity(0.6),
+                    color: AppColors.silverMuted.withValues(alpha: 0.6),
                     fontSize: 10,
                   ),
                 ),

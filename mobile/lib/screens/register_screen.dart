@@ -5,7 +5,7 @@ import '../theme/app_theme.dart';
 import 'dashboard_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
-  const RegisterScreen({Key? key}) : super(key: key);
+  const RegisterScreen({super.key});
 
   @override
   State<RegisterScreen> createState() => _RegisterScreenState();
@@ -18,9 +18,13 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+  final _pinController = TextEditingController();
+  final _confirmPinController = TextEditingController();
   final _referralController = TextEditingController();
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
+  bool _obscurePin = true;
+  bool _obscureConfirmPin = true;
 
   @override
   void dispose() {
@@ -29,6 +33,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _pinController.dispose();
+    _confirmPinController.dispose();
     _referralController.dispose();
     super.dispose();
   }
@@ -46,12 +52,33 @@ class _RegisterScreenState extends State<RegisterScreen> {
       return;
     }
 
+    if (_pinController.text != _confirmPinController.text) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Transaction PINs do not match'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (_pinController.text.length != 4 || int.tryParse(_pinController.text) == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Transaction PIN must be exactly 4 digits'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     final auth = Provider.of<AuthProvider>(context, listen: false);
     final success = await auth.register(
       fullName: _nameController.text.trim(),
       email: _emailController.text.trim(),
       phoneNumber: _phoneController.text.trim(),
       password: _passwordController.text,
+      transactionPin: _pinController.text,
       referralCode: _referralController.text.trim().isNotEmpty
           ? _referralController.text.trim()
           : null,
@@ -104,7 +131,44 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Center(
+                child: Column(
+                  children: [
+                    Container(
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppColors.accentGlow.withValues(alpha: 0.15),
+                            blurRadius: 15,
+                            offset: const Offset(0, 5),
+                          )
+                        ],
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(18),
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          fit: BoxFit.cover,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      'AB Data Hub',
+                      style: TextStyle(
+                        color: AppColors.silverLight,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+              Text(
                 'Join AB Data Hub',
                 style: TextStyle(
                   color: AppColors.silverLight,
@@ -113,7 +177,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Get fast, secure and reliable VTU services.',
                 style: TextStyle(
                   color: AppColors.silverMuted,
@@ -127,7 +191,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   children: [
                     TextFormField(
                       controller: _nameController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Full Name',
                         prefixIcon: Icon(Icons.person_outline, color: AppColors.silverMuted),
                       ),
@@ -142,7 +206,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     TextFormField(
                       controller: _emailController,
                       keyboardType: TextInputType.emailAddress,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Email Address',
                         prefixIcon: Icon(Icons.email_outlined, color: AppColors.silverMuted),
                       ),
@@ -160,7 +224,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     TextFormField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Phone Number',
                         prefixIcon: Icon(Icons.phone_outlined, color: AppColors.silverMuted),
                       ),
@@ -177,7 +241,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
                         labelText: 'Password',
-                        prefixIcon: const Icon(Icons.lock_outline, color: AppColors.silverMuted),
+                        prefixIcon: Icon(Icons.lock_outline, color: AppColors.silverMuted),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword ? Icons.visibility_off : Icons.visibility,
@@ -201,12 +265,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
                       },
                     ),
                     const SizedBox(height: 16),
-                    TextFormField(
+                     TextFormField(
                       controller: _confirmPasswordController,
                       obscureText: _obscureConfirmPassword,
                       decoration: InputDecoration(
                         labelText: 'Confirm Password',
-                        prefixIcon: const Icon(Icons.lock_outline, color: AppColors.silverMuted),
+                        prefixIcon: Icon(Icons.lock_outline, color: AppColors.silverMuted),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscureConfirmPassword ? Icons.visibility_off : Icons.visibility,
@@ -228,8 +292,69 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
+                      controller: _pinController,
+                      obscureText: _obscurePin,
+                      keyboardType: TextInputType.number,
+                      maxLength: 4,
+                      decoration: InputDecoration(
+                        labelText: 'Transaction PIN (4 digits)',
+                        counterText: '',
+                        prefixIcon: Icon(Icons.pin, color: AppColors.silverMuted),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscurePin ? Icons.visibility_off : Icons.visibility,
+                            color: AppColors.silverMuted,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscurePin = !_obscurePin;
+                            });
+                          },
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter a transaction PIN';
+                        }
+                        if (value.length != 4 || int.tryParse(value) == null) {
+                          return 'PIN must be exactly 4 digits';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: _confirmPinController,
+                      obscureText: _obscureConfirmPin,
+                      keyboardType: TextInputType.number,
+                      maxLength: 4,
+                      decoration: InputDecoration(
+                        labelText: 'Confirm Transaction PIN',
+                        counterText: '',
+                        prefixIcon: Icon(Icons.pin, color: AppColors.silverMuted),
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _obscureConfirmPin ? Icons.visibility_off : Icons.visibility,
+                            color: AppColors.silverMuted,
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              _obscureConfirmPin = !_obscureConfirmPin;
+                            });
+                          },
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please confirm your transaction PIN';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
                       controller: _referralController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Referral Code (Optional)',
                         prefixIcon: Icon(Icons.card_giftcard, color: AppColors.silverMuted),
                       ),
@@ -260,7 +385,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
+                        Text(
                           "Already have an account? ",
                           style: TextStyle(color: AppColors.silverMuted),
                         ),

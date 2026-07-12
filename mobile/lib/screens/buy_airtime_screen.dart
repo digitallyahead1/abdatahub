@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/wallet_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/pin_input_dialog.dart';
 
 class BuyAirtimeScreen extends StatefulWidget {
-  const BuyAirtimeScreen({Key? key}) : super(key: key);
+  const BuyAirtimeScreen({super.key});
 
   @override
   State<BuyAirtimeScreen> createState() => _BuyAirtimeScreenState();
@@ -72,6 +73,12 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
       return;
     }
 
+    final pin = await showDialog<String>(
+      context: context,
+      builder: (_) => const PinInputDialog(),
+    );
+    if (pin == null || pin.length != 4) return;
+
     final wallet = Provider.of<WalletProvider>(context, listen: false);
     final response = await wallet.purchaseService(
       serviceType: 'airtime',
@@ -79,6 +86,7 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
         'phoneNumber': _phoneController.text.trim(),
         'network': _selectedNetwork.toLowerCase(),
         'amount': amount,
+        'pin': pin,
       },
     );
 
@@ -100,7 +108,7 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
             ),
             content: Text(
               'Your Airtime recharge has been sent successfully!\n\nReference: ${response['reference']}\nRecipient: ${response['phoneNumber']}\nNetwork: ${response['network']}\nAmount: ₦${amount.toStringAsFixed(2)}',
-              style: const TextStyle(color: AppColors.silverLight),
+              style: TextStyle(color: AppColors.silverLight),
             ),
             actions: [
               TextButton(
@@ -159,7 +167,7 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Wallet Balance:',
                       style: TextStyle(color: AppColors.silverMuted, fontSize: 13),
                     ),
@@ -182,7 +190,7 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Network select row
-                    const Text(
+                    Text(
                       'Select Mobile Network',
                       style: TextStyle(
                         color: AppColors.silverLight,
@@ -208,7 +216,7 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
                               color: isSel ? AppColors.primaryBlue : AppColors.darkBgSecondary,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: isSel ? AppColors.primaryBlue : AppColors.silverMuted.withOpacity(0.1),
+                                color: isSel ? AppColors.primaryBlue : AppColors.silverMuted.withValues(alpha: 0.1),
                               ),
                             ),
                             child: Text(
@@ -230,7 +238,7 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
                     TextFormField(
                       controller: _phoneController,
                       keyboardType: TextInputType.phone,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Recipient Phone Number',
                         prefixIcon: Icon(Icons.phone, color: AppColors.silverMuted),
                         hintText: 'e.g. 08031234567',
@@ -251,7 +259,7 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
                     TextFormField(
                       controller: _amountController,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Recharge Amount (₦)',
                         prefixIcon: Icon(Icons.monetization_on_outlined, color: AppColors.silverMuted),
                         hintText: 'Minimum ₦10',
@@ -274,16 +282,16 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: AppColors.primaryBlue.withOpacity(0.05),
+                          color: AppColors.primaryBlue.withValues(alpha: 0.05),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: AppColors.primaryBlue.withOpacity(0.2)),
+                          border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.2)),
                         ),
                         child: Column(
                           children: [
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
+                                Text(
                                   'Selling Rate:',
                                   style: TextStyle(color: AppColors.silverMuted, fontSize: 13),
                                 ),
@@ -301,7 +309,7 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                const Text(
+                                Text(
                                   'You Pay:',
                                   style: TextStyle(color: AppColors.silverLight, fontWeight: FontWeight.bold),
                                 ),

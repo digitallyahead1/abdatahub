@@ -116,28 +116,33 @@ export class SmePlugSyncService implements OnModuleInit {
           const apiPlanId = parseInt(apiPlan.id, 10);
           if (isNaN(apiPlanId)) continue;
 
-          liveSmeplugPlanIds.push(apiPlanId);
-
           const costPrice = parseFloat(apiPlan.price) || 0;
           const bundleName = apiPlan.name || '';
+
+          // Filter: only allow MTN Share plans. Skip all other networks and plan types.
+          const isMtnShare = mappedNetwork === 'mtn' && bundleName.toLowerCase().includes('share');
+          if (!isMtnShare) continue;
+
+          liveSmeplugPlanIds.push(apiPlanId);
 
           // Look up existing plan in DB
           let plan = await this.dataPlanRepository.findOne({ where: { smeplugPlanId: apiPlanId } });
 
           if (plan) {
-            // Update plan details
-            plan.smeplugCost = costPrice;
-            plan.bundleName = bundleName;
-            plan.network = mappedNetwork;
-            plan.lastSyncedAt = new Date();
+             // Update plan details
+             plan.smeplugCost = costPrice;
+             plan.bundleName = bundleName;
+             plan.network = mappedNetwork;
+             plan.lastSyncedAt = new Date();
+             plan.visibilityStatus = true;
 
-            // If override is inactive, calculate selling price dynamically
-            if (!plan.overrideStatus) {
-              plan.sellingPrice = costPrice + margin;
-            }
+             // If override is inactive, calculate selling price dynamically
+             if (!plan.overrideStatus) {
+               plan.sellingPrice = costPrice + margin;
+             }
 
-            await this.dataPlanRepository.save(plan);
-            plansUpdated++;
+             await this.dataPlanRepository.save(plan);
+             plansUpdated++;
           } else {
             // Create new plan
             const sellingPrice = costPrice + margin;

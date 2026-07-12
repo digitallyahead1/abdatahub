@@ -15,12 +15,30 @@ interface HistoryRecord {
   newBalance: number
 }
 
+interface VirtualAccount {
+  accountNumber: string
+  accountName: string
+  bankName: string
+}
+
 export default function FundWalletPage() {
-  const [amount, setAmount] = useState('')
-  const [method, setMethod] = useState<'paystack' | 'flutterwave' | 'moniepoint'>('paystack')
+  // Tabs: 'palmpay' (Permanent) or 'monnify' (Permanent)
+  const [gateway, setGateway] = useState<'palmpay' | 'monnify'>('palmpay')
+  
+  // Loading states
   const [loading, setLoading] = useState(false)
-  const [history, setHistory] = useState<HistoryRecord[]>([])
   const [historyLoading, setHistoryLoading] = useState(true)
+  
+  // Data states
+  const [history, setHistory] = useState<HistoryRecord[]>([])
+  
+  // Monnify states
+  const [monnifyAccount, setMonnifyAccount] = useState<VirtualAccount | null>(null)
+  const [monnifyLoading, setMonnifyLoading] = useState(true)
+  
+  // PalmPay (Gafiapay under-the-hood) states
+  const [palmpayAccount, setPalmpayAccount] = useState<VirtualAccount | null>(null)
+  const [palmpayLoading, setPalmpayLoading] = useState(true)
 
   const fetchHistory = async () => {
     try {
@@ -34,33 +52,84 @@ export default function FundWalletPage() {
     }
   }
 
-  useEffect(() => {
-    fetchHistory()
-  }, [])
-
-  const handleFund = async (e: React.FormEvent) => {
-    e.preventDefault()
-    const amt = parseFloat(amount)
-    if (isNaN(amt) || amt < 100) {
-      toast.error('Minimum deposit amount is ₦100')
-      return
+  // Load Monnify account details
+  const loadMonnifyAccount = async () => {
+    try {
+      setMonnifyLoading(true)
+      const response = await api.get('/user/monnify-account')
+      if (response.data.exists && response.data.account) {
+        setMonnifyAccount(response.data.account)
+      } else {
+        setMonnifyAccount(null)
+      }
+    } catch (err) {
+      console.error('Failed to load Monnify account:', err)
+    } finally {
+      setMonnifyLoading(false)
     }
+  }
 
+  // Generate Monnify account
+  const generateMonnifyAccount = async () => {
     setLoading(true)
     try {
-      const response = await api.post('/wallet/deposit', {
-        amount: amt,
-        paymentMethod: method,
-      })
-      toast.success(response.data.message || `Wallet credited with ₦${amt.toLocaleString()} via ${method}!`)
-      setAmount('')
-      fetchHistory() // Refresh the transaction list
+      const response = await api.post('/user/monnify-account/generate')
+      if (response.data.success && response.data.account) {
+        setMonnifyAccount(response.data.account)
+        toast.success('Permanent Monnify virtual account generated!')
+      }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Deposit gateway failed. Try again.')
+      toast.error(err.response?.data?.message || 'Failed to generate Monnify account. Try again.')
     } finally {
       setLoading(false)
     }
   }
+
+  // Load PalmPay (Gafiapay) account details
+  const loadPalmpayAccount = async () => {
+    try {
+      setPalmpayLoading(true)
+      const response = await api.get('/user/gafiapay/active')
+      if (response.data.exists && response.data.account) {
+        setPalmpayAccount(response.data.account)
+      } else {
+        setPalmpayAccount(null)
+      }
+    } catch (err) {
+      console.error('Failed to load PalmPay account:', err)
+    } finally {
+      setPalmpayLoading(false)
+    }
+  }
+
+  // Generate PalmPay (Gafiapay) account
+  const generatePalmpayAccount = async () => {
+    setLoading(true)
+    try {
+      const response = await api.post('/user/gafiapay/generate')
+      if (response.data.success && response.data.account) {
+        setPalmpayAccount(response.data.account)
+        toast.success('Permanent PalmPay virtual account generated!')
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to generate PalmPay account. Try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Copy helper
+  const handleCopy = (text: string, label: string) => {
+    navigator.clipboard.writeText(text)
+    toast.success(`${label} copied to clipboard!`)
+  }
+
+  // Load everything on mount
+  useEffect(() => {
+    fetchHistory()
+    loadMonnifyAccount()
+    loadPalmpayAccount()
+  }, [])
 
   return (
     <div className="space-y-8">
@@ -72,74 +141,152 @@ export default function FundWalletPage() {
           </p>
         </div>
 
+        {/* Tab Selector */}
+        <div className="flex bg-dark-bg-secondary/40 border border-silver-muted/10 p-1 rounded-xl">
+          <button
+            onClick={() => setGateway('palmpay')}
+            className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase transition-all ${
+              gateway === 'palmpay'
+                ? 'bg-gradient-blue text-white shadow-glow-blue'
+                : 'text-silver-muted hover:text-white'
+            }`}
+          >
+            PalmPay (Permanent)
+          </button>
+          <button
+            disabled
+            className="flex-1 py-2.5 rounded-lg text-xs font-bold uppercase transition-all text-silver-muted/40 cursor-not-allowed bg-black/10 border border-transparent"
+            title="Monnify integration is not available yet"
+          >
+            Monnify (Unavailable)
+          </button>
+        </div>
+
+        {/* Gateway Content */}
         <div className="bg-dark-bg-secondary/40 border border-silver-muted/10 p-6 rounded-2xl glass-dark glow-blue">
-          <form onSubmit={handleFund} className="space-y-4">
-            {/* Amount input */}
-            <div className="space-y-1">
-              <label className="block text-xs font-semibold text-silver-muted uppercase tracking-wider">
-                Deposit Amount (₦)
-              </label>
-              <input
-                type="number"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                placeholder="e.g. 5000"
-                className="w-full bg-dark-bg/60 border border-silver-muted/10 rounded-xl px-4 py-3 text-white focus:border-primary-glow/50 focus:outline-none transition-all text-sm font-mono"
-              />
-            </div>
-
-            {/* Payment Method Selector */}
-            <div className="space-y-1">
-              <label className="block text-xs font-semibold text-silver-muted uppercase tracking-wider">
-                Select Payment Method
-              </label>
-              <div className="grid grid-cols-3 gap-2">
-                {[
-                  { id: 'paystack', name: 'Paystack' },
-                  { id: 'flutterwave', name: 'Flutterwave' },
-                  { id: 'moniepoint', name: 'Moniepoint' },
-                ].map((m) => (
-                  <button
-                    key={m.id}
-                    type="button"
-                    onClick={() => setMethod(m.id as any)}
-                    className={`py-3.5 rounded-xl border text-xs font-bold uppercase transition-all ${
-                      method === m.id
-                        ? 'bg-gradient-blue border-primary-glow text-white shadow-glow-blue'
-                        : 'bg-white/5 border-silver-muted/10 text-silver-muted hover:text-white'
-                    }`}
-                  >
-                    {m.name}
-                  </button>
-                ))}
+          {gateway === 'palmpay' ? (
+            <div className="space-y-4">
+              <div className="text-center space-y-1">
+                <h3 className="text-sm font-bold text-white">Pay with PalmPay</h3>
+                <p className="text-xs text-silver-muted">
+                  Your permanent PalmPay reserved bank details. Transfer any amount anytime to fund instantly.
+                </p>
               </div>
-            </div>
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 bg-gradient-blue hover:opacity-95 text-white font-bold rounded-xl shadow-glow-blue transition-all disabled:opacity-50 text-sm flex items-center justify-center space-x-2"
-            >
-              {loading ? (
-                <>
-                  <svg className="animate-spin h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                  </svg>
-                  <span>Connecting to Gateway...</span>
-                </>
+              {palmpayLoading ? (
+                <div className="py-8 flex justify-center">
+                  <div className="animate-spin h-6 w-6 border-2 border-primary-glow border-t-transparent rounded-full" />
+                </div>
+              ) : palmpayAccount ? (
+                <div className="bg-dark-bg/60 border border-silver-muted/10 rounded-xl p-4 space-y-3 font-mono text-sm text-silver-light">
+                  <div className="flex justify-between border-b border-white/5 pb-2">
+                    <span className="text-silver-muted">Account Name:</span>
+                    <span className="font-semibold text-white">{palmpayAccount.accountName}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-white/5 pb-2 items-center">
+                    <span className="text-silver-muted">Account Number:</span>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-semibold text-white text-base tracking-wider">{palmpayAccount.accountNumber}</span>
+                      <button
+                        onClick={() => handleCopy(palmpayAccount.accountNumber, 'Account number')}
+                        className="text-xs bg-white/5 border border-white/10 px-2 py-0.5 rounded text-primary-glow hover:bg-white/10"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-silver-muted">Bank Name:</span>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-semibold text-white">{palmpayAccount.bankName}</span>
+                      <button
+                        onClick={() => handleCopy(palmpayAccount.bankName, 'Bank name')}
+                        className="text-xs bg-white/5 border border-white/10 px-2 py-0.5 rounded text-primary-glow hover:bg-white/10"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                </div>
               ) : (
-                <span>Fund Wallet</span>
+                <button
+                  onClick={generatePalmpayAccount}
+                  disabled={loading}
+                  className="w-full py-3 bg-gradient-blue hover:opacity-95 text-white font-bold rounded-xl shadow-glow-blue transition-all disabled:opacity-50 text-sm flex items-center justify-center space-x-2"
+                >
+                  {loading ? 'Generating...' : 'Generate PalmPay Reserved Account'}
+                </button>
               )}
-            </button>
-          </form>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="text-center space-y-1">
+                <h3 className="text-sm font-bold text-white">Pay with Monnify</h3>
+                <p className="text-xs text-silver-muted">
+                  Your permanent bank account details. Transfer any amount anytime to fund instantly.
+                </p>
+              </div>
+
+              {monnifyLoading ? (
+                <div className="py-8 flex justify-center">
+                  <div className="animate-spin h-6 w-6 border-2 border-primary-glow border-t-transparent rounded-full" />
+                </div>
+              ) : monnifyAccount ? (
+                <div className="bg-dark-bg/60 border border-silver-muted/10 rounded-xl p-4 space-y-3 font-mono text-sm text-silver-light">
+                  <div className="flex justify-between border-b border-white/5 pb-2">
+                    <span className="text-silver-muted">Account Name:</span>
+                    <span className="font-semibold text-white">{monnifyAccount.accountName}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-white/5 pb-2 items-center">
+                    <span className="text-silver-muted">Account Number:</span>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-semibold text-white text-base tracking-wider">{monnifyAccount.accountNumber}</span>
+                      <button
+                        onClick={() => handleCopy(monnifyAccount.accountNumber, 'Account number')}
+                        className="text-xs bg-white/5 border border-white/10 px-2 py-0.5 rounded text-primary-glow hover:bg-white/10"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-silver-muted">Bank Name:</span>
+                    <div className="flex items-center space-x-2">
+                      <span className="font-semibold text-white">{monnifyAccount.bankName}</span>
+                      <button
+                        onClick={() => handleCopy(monnifyAccount.bankName, 'Bank name')}
+                        className="text-xs bg-white/5 border border-white/10 px-2 py-0.5 rounded text-primary-glow hover:bg-white/10"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <button
+                  onClick={generateMonnifyAccount}
+                  disabled={true}
+                  className="w-full py-3 bg-white/5 text-silver-muted font-bold rounded-xl transition-all cursor-not-allowed text-sm flex items-center justify-center space-x-2"
+                >
+                  Monnify Unavailable
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Ledger History List */}
       <section className="space-y-4">
-        <h2 className="text-lg font-bold text-white tracking-wide">Wallet History Logs</h2>
+        <div className="flex justify-between items-center">
+          <h2 className="text-lg font-bold text-white tracking-wide">Wallet History Logs</h2>
+          <button 
+            onClick={fetchHistory}
+            className="text-xs bg-white/5 border border-white/10 px-3 py-1.5 rounded-lg text-primary-glow hover:bg-white/10 transition-all font-bold"
+          >
+            Refresh
+          </button>
+        </div>
         
         <div className="bg-dark-bg-secondary/40 border border-silver-muted/10 rounded-2xl glass-dark overflow-hidden">
           {historyLoading ? (

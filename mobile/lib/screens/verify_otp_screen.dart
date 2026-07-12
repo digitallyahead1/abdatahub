@@ -6,7 +6,7 @@ import 'reset_password_screen.dart';
 
 class VerifyOtpScreen extends StatefulWidget {
   final String email;
-  const VerifyOtpScreen({Key? key, required this.email}) : super(key: key);
+  const VerifyOtpScreen({super.key, required this.email});
 
   @override
   State<VerifyOtpScreen> createState() => _VerifyOtpScreenState();
@@ -89,7 +89,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Enter Verification Code',
                 style: TextStyle(
                   color: AppColors.silverLight,
@@ -100,7 +100,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
               const SizedBox(height: 8),
               Text(
                 'We sent a 6-digit code to the email address: ${widget.email}',
-                style: const TextStyle(
+                style: TextStyle(
                   color: AppColors.silverMuted,
                   fontSize: 14,
                 ),
@@ -120,7 +120,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                         letterSpacing: 8,
                         fontWeight: FontWeight.bold,
                       ),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: '6-Digit Code',
                         prefixIcon: Icon(Icons.lock_clock_outlined, color: AppColors.silverMuted),
                         counterText: '',
@@ -161,7 +161,7 @@ class _VerifyOtpScreenState extends State<VerifyOtpScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
+                        Text(
                           "Didn't receive the email? ",
                           style: TextStyle(color: AppColors.silverMuted),
                         ),

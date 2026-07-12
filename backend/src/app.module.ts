@@ -14,6 +14,7 @@ import { AuditLogModule } from './audit-log/audit-log.module';
 import { ExamsModule } from './exams/exams.module';
 import { EmailModule } from './email/email.module';
 import { DatabaseConfig } from './config/database.config';
+import { PaymentModule } from './payment/payment.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { DatabaseConfig } from './config/database.config';
     AuditLogModule,
     ExamsModule,
     EmailModule,
+    PaymentModule,
   ],
 })
 export class AppModule {}

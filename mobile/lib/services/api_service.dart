@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -12,8 +13,16 @@ class ApiService {
   String? _token;
 
   ApiService._internal() {
-    final baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://10.0.2.2:3001/api';
-    
+    String baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://10.0.2.2:3001/api';
+
+    // On Android emulator, 'localhost' resolves to the emulator itself.
+    // Rewrite it to 10.0.2.2, which is the host machine's loopback address.
+    if (!kIsWeb && Platform.isAndroid) {
+      baseUrl = baseUrl
+          .replaceAll('http://localhost', 'http://10.0.2.2')
+          .replaceAll('http://127.0.0.1', 'http://10.0.2.2');
+    }
+
     _dio = Dio(
       BaseOptions(
         baseUrl: baseUrl,

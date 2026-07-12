@@ -52,9 +52,19 @@ const parsePlan = (bundleName: string) => {
 
   // Extract Validity
   const validityMatch = name.match(/(\d+)\s*(day|month|week|hr|hour)s?/i)
-  const validity = validityMatch 
-    ? `${validityMatch[1]} ${validityMatch[2].charAt(0).toUpperCase() + validityMatch[2].slice(1).toLowerCase()}${parseInt(validityMatch[1]) > 1 ? 's' : ''}`
-    : '30 Days'
+  let validity = '30 Days'
+  if (validityMatch) {
+    validity = `${validityMatch[1]} ${validityMatch[2].charAt(0).toUpperCase() + validityMatch[2].slice(1).toLowerCase()}${parseInt(validityMatch[1]) > 1 ? 's' : ''}`
+  } else {
+    const lowerName = name.toLowerCase()
+    if (lowerName.includes('monthly')) {
+      validity = '30 Days'
+    } else if (lowerName.includes('weekly')) {
+      validity = '7 Days'
+    } else if (lowerName.includes('daily')) {
+      validity = '1 Day'
+    }
+  }
 
   return { size, type, validity }
 }

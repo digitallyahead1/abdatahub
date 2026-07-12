@@ -64,7 +64,15 @@ export class AuthService implements OnApplicationBootstrap {
   }
 
   async register(registerDto: any) {
-    const { fullName, email, phoneNumber, password, referralCode } = registerDto;
+    const { fullName, email, phoneNumber, password, referralCode, transactionPin } = registerDto;
+
+    if (!transactionPin) {
+      throw new BadRequestException('Transaction PIN is required');
+    }
+
+    if (!/^\d{4}$/.test(transactionPin)) {
+      throw new BadRequestException('Transaction PIN must be exactly 4 digits');
+    }
 
     // Check if email already registered
     const existingEmail = await this.usersService.findOneByEmail(email);
@@ -78,8 +86,9 @@ export class AuthService implements OnApplicationBootstrap {
       throw new BadRequestException('Phone number is already registered');
     }
 
-    // Hash password
+    // Hash password & transaction PIN
     const passwordHash = await bcrypt.hash(password, 10);
+    const transactionPinHash = await bcrypt.hash(transactionPin, 10);
 
     // Resolve referredBy using referralCode
     let referredById: string | null = null;
@@ -101,6 +110,7 @@ export class AuthService implements OnApplicationBootstrap {
       email,
       phoneNumber,
       passwordHash,
+      transactionPin: transactionPinHash,
       role,
       referredBy: referredById || undefined,
     });

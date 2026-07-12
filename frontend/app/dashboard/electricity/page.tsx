@@ -79,6 +79,12 @@ export default function BuyElectricityPage() {
     }
     setVerifying(true)
     setVerifiedCustomer(null)
+
+    const checkOffline = (msgStr: string) => {
+      const msg = msgStr.toLowerCase()
+      return msg.includes('timeout') || msg.includes('504') || msg.includes('502') || msg.includes('503') || msg.includes('upstream') || msg.includes('gateway')
+    }
+
     try {
       const response = await api.post('/services/verify-customer', {
         customerId: meterNo,
@@ -92,10 +98,28 @@ export default function BuyElectricityPage() {
         setVerifiedCustomer(details)
         toast.success('Meter number verified successfully!')
       } else {
-        toast.error(resData?.msg || resData?.message || 'Meter verification failed. Check details.')
+        const errorMsg = resData?.msg || resData?.message || ''
+        if (checkOffline(errorMsg)) {
+          setVerifiedCustomer({
+            customer_name: 'Proceed without verification (Service Offline)',
+            isOffline: true,
+          })
+          toast.warning('Verification service is offline. You can proceed with caution.')
+        } else {
+          toast.error(errorMsg || 'Meter verification failed. Check details.')
+        }
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Verification request failed.')
+      const errorMsg = err.response?.data?.message || err.response?.data?.data?.msg || err.response?.data?.data?.message || err.message || ''
+      if (checkOffline(errorMsg)) {
+        setVerifiedCustomer({
+          customer_name: 'Proceed without verification (Service Offline)',
+          isOffline: true,
+        })
+        toast.warning('Verification service is offline. You can proceed with caution.')
+      } else {
+        toast.error(errorMsg || 'Verification request failed.')
+      }
     } finally {
       setVerifying(false)
     }
@@ -256,13 +280,21 @@ export default function BuyElectricityPage() {
 
           {/* Verified Customer Information */}
           {verifiedCustomer && (
-            <div className="p-4 bg-primary-glow/5 border border-primary-glow/20 rounded-xl text-left space-y-1 animate-pulse">
-              <p className="text-[10px] font-bold text-primary-glow uppercase tracking-wider">Verified Subscriber Details</p>
-              <p className="text-sm font-bold text-white"><span className="text-silver-muted font-normal">Name:</span> {verifiedCustomer.customer_name || 'N/A'}</p>
-              {verifiedCustomer.customer_address && (
-                <p className="text-xs text-silver-muted"><span className="font-normal text-silver-muted">Address:</span> {verifiedCustomer.customer_address}</p>
-              )}
-            </div>
+            verifiedCustomer.isOffline ? (
+              <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-left space-y-1">
+                <p className="text-[10px] font-bold text-amber-400 uppercase tracking-wider">⚠️ Verification Service Offline</p>
+                <p className="text-sm font-bold text-white">Could not verify meter details because the provider's service is offline.</p>
+                <p className="text-xs text-silver-muted">You can proceed, but please double-check your meter number to avoid loss of funds.</p>
+              </div>
+            ) : (
+              <div className="p-4 bg-primary-glow/5 border border-primary-glow/20 rounded-xl text-left space-y-1 animate-pulse">
+                <p className="text-[10px] font-bold text-primary-glow uppercase tracking-wider">Verified Subscriber Details</p>
+                <p className="text-sm font-bold text-white"><span className="text-silver-muted font-normal">Name:</span> {verifiedCustomer.customer_name || 'N/A'}</p>
+                {verifiedCustomer.customer_address && (
+                  <p className="text-xs text-silver-muted"><span className="font-normal text-silver-muted">Address:</span> {verifiedCustomer.customer_address}</p>
+                )}
+              </div>
+            )
           )}
 
           {/* Amount */}

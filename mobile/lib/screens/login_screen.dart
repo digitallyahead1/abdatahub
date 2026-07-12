@@ -7,7 +7,7 @@ import 'dashboard_screen.dart';
 import 'forgot_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -71,33 +71,25 @@ class _LoginScreenState extends State<LoginScreen> {
                       width: 80,
                       height: 80,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [AppColors.primaryBlue, AppColors.accentGlow],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
                         borderRadius: BorderRadius.circular(20),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.accentGlow.withOpacity(0.3),
+                            color: AppColors.accentGlow.withValues(alpha: 0.15),
                             blurRadius: 15,
                             offset: const Offset(0, 5),
                           )
                         ],
                       ),
-                      child: const Center(
-                        child: Text(
-                          'AB',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 36,
-                            fontWeight: FontWeight.bold,
-                          ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(20),
+                        child: Image.asset(
+                          'assets/images/logo.png',
+                          fit: BoxFit.cover,
                         ),
                       ),
                     ),
                     const SizedBox(height: 16),
-                    const Text(
+                    Text(
                       'AB Data Hub',
                       style: TextStyle(
                         color: AppColors.silverLight,
@@ -106,7 +98,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    const Text(
+                    Text(
                       'The Pride of Data',
                       style: TextStyle(
                         color: AppColors.silverMuted,
@@ -117,7 +109,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 50),
-              const Text(
+              Text(
                 'Welcome Back',
                 style: TextStyle(
                   color: AppColors.silverLight,
@@ -126,7 +118,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Sign in to continue managing your VTU services',
                 style: TextStyle(
                   color: AppColors.silverMuted,
@@ -140,7 +132,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     TextFormField(
                       controller: _emailController,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Email Address or Phone Number',
                         prefixIcon: Icon(Icons.email_outlined, color: AppColors.silverMuted),
                       ),
@@ -157,7 +149,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
                         labelText: 'Password',
-                        prefixIcon: const Icon(Icons.lock_outline, color: AppColors.silverMuted),
+                        prefixIcon: Icon(Icons.lock_outline, color: AppColors.silverMuted),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword ? Icons.visibility_off : Icons.visibility,
@@ -223,7 +215,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const Text(
+                        Text(
                           "Don't have an account? ",
                           style: TextStyle(color: AppColors.silverMuted),
                         ),

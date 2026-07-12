@@ -14,11 +14,20 @@ export const registerSchema = z
       .regex(/^(\+234|0)[0-9]{10}$/, 'Invalid phone number'),
     password: z.string().min(8, 'Password must be at least 8 characters'),
     confirmPassword: z.string(),
+    transactionPin: z
+      .string()
+      .length(4, 'Transaction PIN must be exactly 4 digits')
+      .regex(/^[0-9]+$/, 'Transaction PIN must contain only numbers'),
+    confirmTransactionPin: z.string(),
     referralCode: z.string().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: 'Passwords do not match',
     path: ['confirmPassword'],
+  })
+  .refine((data) => data.transactionPin === data.confirmTransactionPin, {
+    message: 'Transaction PINs do not match',
+    path: ['confirmTransactionPin'],
   })
 
 export const dataTransactionSchema = z.object({

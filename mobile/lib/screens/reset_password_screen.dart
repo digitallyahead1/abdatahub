@@ -5,7 +5,7 @@ import '../theme/app_theme.dart';
 
 class ResetPasswordScreen extends StatefulWidget {
   final String resetToken;
-  const ResetPasswordScreen({Key? key, required this.resetToken}) : super(key: key);
+  const ResetPasswordScreen({super.key, required this.resetToken});
 
   @override
   State<ResetPasswordScreen> createState() => _ResetPasswordScreenState();
@@ -71,7 +71,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const SizedBox(height: 20),
-              const Text(
+              Text(
                 'Create New Password',
                 style: TextStyle(
                   color: AppColors.silverLight,
@@ -80,7 +80,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
+              Text(
                 'Input your new strong password below to complete the reset process.',
                 style: TextStyle(
                   color: AppColors.silverMuted,
@@ -97,7 +97,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       obscureText: _obscurePassword1,
                       decoration: InputDecoration(
                         labelText: 'New Password',
-                        prefixIcon: const Icon(Icons.lock_outline, color: AppColors.silverMuted),
+                        prefixIcon: Icon(Icons.lock_outline, color: AppColors.silverMuted),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword1 ? Icons.visibility_off : Icons.visibility,
@@ -126,7 +126,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                       obscureText: _obscurePassword2,
                       decoration: InputDecoration(
                         labelText: 'Confirm Password',
-                        prefixIcon: const Icon(Icons.lock_outline, color: AppColors.silverMuted),
+                        prefixIcon: Icon(Icons.lock_outline, color: AppColors.silverMuted),
                         suffixIcon: IconButton(
                           icon: Icon(
                             _obscurePassword2 ? Icons.visibility_off : Icons.visibility,

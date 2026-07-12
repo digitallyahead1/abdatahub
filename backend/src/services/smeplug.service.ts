@@ -1,6 +1,8 @@
 import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
+import * as http from 'http';
+import * as https from 'https';
 
 @Injectable()
 export class SmePlugService {
@@ -19,6 +21,8 @@ export class SmePlugService {
         'Accept': 'application/json',
       },
       timeout: 30000, // 30 seconds timeout
+      httpAgent: new http.Agent({ keepAlive: true, maxSockets: 100 }),
+      httpsAgent: new https.Agent({ keepAlive: true, maxSockets: 100 }),
     });
   }
 
@@ -87,6 +91,7 @@ export class SmePlugService {
         status: false,
         msg: error.response?.data?.msg || error.response?.data?.message || error.message,
         error: errorMsg,
+        isTransientError: !error.response || error.response.status >= 500 || error.code === 'ECONNABORTED' || error.message.includes('timeout')
       };
     }
   }
@@ -117,6 +122,7 @@ export class SmePlugService {
         status: false,
         msg: error.response?.data?.msg || error.response?.data?.message || error.message,
         error: errorMsg,
+        isTransientError: !error.response || error.response.status >= 500 || error.code === 'ECONNABORTED' || error.message.includes('timeout')
       };
     }
   }

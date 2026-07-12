@@ -2,9 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/wallet_provider.dart';
 import '../theme/app_theme.dart';
+import '../widgets/pin_input_dialog.dart';
 
 class ExamPinsScreen extends StatefulWidget {
-  const ExamPinsScreen({Key? key}) : super(key: key);
+  const ExamPinsScreen({super.key});
 
   @override
   State<ExamPinsScreen> createState() => _ExamPinsScreenState();
@@ -52,6 +53,13 @@ class _ExamPinsScreenState extends State<ExamPinsScreen> {
     }
 
     final totalCost = _totalPrice;
+
+    final pin = await showDialog<String>(
+      context: context,
+      builder: (_) => const PinInputDialog(),
+    );
+    if (pin == null || pin.length != 4) return;
+
     final wallet = Provider.of<WalletProvider>(context, listen: false);
     
     final response = await wallet.purchaseService(
@@ -60,6 +68,7 @@ class _ExamPinsScreenState extends State<ExamPinsScreen> {
         'examType': _selectedExamType,
         'quantity': qty,
         'amount': totalCost,
+        'pin': pin,
       },
     );
 
@@ -87,7 +96,7 @@ class _ExamPinsScreenState extends State<ExamPinsScreen> {
                 children: [
                   Text(
                     'Reference: ${response['reference']}\nExam: ${response['examType']}\nQuantity: ${response['quantity']}\n\nGenerated Pin Codes:',
-                    style: const TextStyle(color: AppColors.silverLight),
+                    style: TextStyle(color: AppColors.silverLight),
                   ),
                   const SizedBox(height: 12),
                   ...pins.map((p) => Container(
@@ -97,7 +106,7 @@ class _ExamPinsScreenState extends State<ExamPinsScreen> {
                         decoration: BoxDecoration(
                           color: AppColors.darkBg,
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: AppColors.primaryBlue.withOpacity(0.3)),
+                          border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.3)),
                         ),
                         child: Text(
                           p.toString(),
@@ -160,7 +169,7 @@ class _ExamPinsScreenState extends State<ExamPinsScreen> {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
+                    Text(
                       'Wallet Balance:',
                       style: TextStyle(color: AppColors.silverMuted, fontSize: 13),
                     ),
@@ -183,7 +192,7 @@ class _ExamPinsScreenState extends State<ExamPinsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Exam Type selection
-                    const Text(
+                    Text(
                       'Select Exam Body Type',
                       style: TextStyle(
                         color: AppColors.silverLight,
@@ -209,7 +218,7 @@ class _ExamPinsScreenState extends State<ExamPinsScreen> {
                               color: isSel ? AppColors.primaryBlue : AppColors.darkBgSecondary,
                               borderRadius: BorderRadius.circular(10),
                               border: Border.all(
-                                color: isSel ? AppColors.primaryBlue : AppColors.silverMuted.withOpacity(0.1),
+                                color: isSel ? AppColors.primaryBlue : AppColors.silverMuted.withValues(alpha: 0.1),
                               ),
                             ),
                             child: Text(
@@ -237,7 +246,7 @@ class _ExamPinsScreenState extends State<ExamPinsScreen> {
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
+                          Text(
                             'Unit Price:',
                             style: TextStyle(color: AppColors.silverMuted, fontSize: 13),
                           ),
@@ -258,7 +267,7 @@ class _ExamPinsScreenState extends State<ExamPinsScreen> {
                     TextFormField(
                       controller: _quantityController,
                       keyboardType: TextInputType.number,
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Quantity of Pins',
                         prefixIcon: Icon(Icons.pin_outlined, color: AppColors.silverMuted),
                         hintText: 'Enter quantity (1 - 10)',
@@ -283,14 +292,14 @@ class _ExamPinsScreenState extends State<ExamPinsScreen> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppColors.primaryBlue.withOpacity(0.05),
+                        color: AppColors.primaryBlue.withValues(alpha: 0.05),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.primaryBlue.withOpacity(0.2)),
+                        border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.2)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          const Text(
+                          Text(
                             'Total Pin Cost:',
                             style: TextStyle(color: AppColors.silverLight, fontWeight: FontWeight.bold),
                           ),

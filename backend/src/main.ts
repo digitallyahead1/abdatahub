@@ -4,14 +4,30 @@ import { ValidationPipe } from '@nestjs/common';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, {
+    rawBody: true,
+  });
 
   // Set global prefix
   app.setGlobalPrefix('api');
 
   // Enable CORS
+  const isDev = process.env.NODE_ENV !== 'production';
+  let corsOrigins: string | string[] | RegExp | RegExp[] | boolean;
+
+  if (isDev) {
+    // In development allow ALL localhost/127.0.0.1 origins (any port)
+    // so Flutter Web, Next.js, Swagger UI etc. work on dynamic ports
+    corsOrigins = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
+  } else {
+    const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
+    corsOrigins = corsOrigin.includes(',')
+      ? corsOrigin.split(',').map((o) => o.trim())
+      : corsOrigin;
+  }
+
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
+    origin: corsOrigins,
     credentials: true,
   });
 

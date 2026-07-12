@@ -1,6 +1,8 @@
 import { Injectable, Logger, InternalServerErrorException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import axios, { AxiosInstance } from 'axios';
+import * as http from 'http';
+import * as https from 'https';
 
 @Injectable()
 export class IacafeService {
@@ -19,6 +21,8 @@ export class IacafeService {
         'Accept': 'application/json',
       },
       timeout: 30000, // 30 seconds timeout
+      httpAgent: new http.Agent({ keepAlive: true, maxSockets: 100 }),
+      httpsAgent: new https.Agent({ keepAlive: true, maxSockets: 100 }),
     });
   }
 
@@ -40,7 +44,7 @@ export class IacafeService {
       this.logger.error('IACAFE customer verification failure:', errorMsg);
       return {
         status: false,
-        msg: error.response?.data?.msg || error.response?.data?.message || error.message,
+        msg: error.response?.data?.error?.message || error.response?.data?.msg || error.response?.data?.message || error.message,
         error: errorMsg,
       };
     }
@@ -88,8 +92,9 @@ export class IacafeService {
       this.logger.error('IACAFE electricity payment failure:', errorMsg);
       return {
         status: false,
-        msg: error.response?.data?.msg || error.response?.data?.message || error.message,
+        msg: error.response?.data?.error?.message || error.response?.data?.msg || error.response?.data?.message || error.message,
         error: errorMsg,
+        isTransientError: !error.response || error.response.status >= 500 || error.code === 'ECONNABORTED' || error.message.includes('timeout')
       };
     }
   }
@@ -120,8 +125,9 @@ export class IacafeService {
       this.logger.error('IACAFE cable payment failure:', errorMsg);
       return {
         status: false,
-        msg: error.response?.data?.msg || error.response?.data?.message || error.message,
+        msg: error.response?.data?.error?.message || error.response?.data?.msg || error.response?.data?.message || error.message,
         error: errorMsg,
+        isTransientError: !error.response || error.response.status >= 500 || error.code === 'ECONNABORTED' || error.message.includes('timeout')
       };
     }
   }
@@ -141,7 +147,7 @@ export class IacafeService {
       this.logger.error(`IACAFE requery failure for request ${requestId}:`, errorMsg);
       return {
         status: false,
-        msg: error.response?.data?.msg || error.response?.data?.message || error.message,
+        msg: error.response?.data?.error?.message || error.response?.data?.msg || error.response?.data?.message || error.message,
         error: errorMsg,
       };
     }

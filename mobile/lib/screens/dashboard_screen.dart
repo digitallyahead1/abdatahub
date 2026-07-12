@@ -10,7 +10,7 @@ import 'wallet_tab.dart';
 import 'profile_tab.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({Key? key}) : super(key: key);
+  const DashboardScreen({super.key});
 
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -62,7 +62,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           type: BottomNavigationBarType.fixed,
           backgroundColor: AppColors.darkBgSecondary,
           selectedItemColor: AppColors.accentGlow,
-          unselectedItemColor: AppColors.silverMuted.withOpacity(0.6),
+          unselectedItemColor: AppColors.silverMuted.withValues(alpha: 0.6),
           selectedLabelStyle: const TextStyle(
             fontFamily: 'Inter',
             fontWeight: FontWeight.w600,

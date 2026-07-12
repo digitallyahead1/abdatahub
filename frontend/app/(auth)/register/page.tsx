@@ -149,6 +149,44 @@ export default function RegisterPage() {
           </div>
         </div>
 
+        {/* Transaction PIN */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-silver-muted uppercase tracking-wider">
+              Transaction PIN (4 Digits)
+            </label>
+            <input
+              type="password"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={4}
+              {...register('transactionPin')}
+              placeholder="••••"
+              className="w-full bg-dark-bg/60 border border-silver-muted/10 rounded-xl px-4 py-3 text-white placeholder-silver-muted/30 focus:border-primary-glow/50 focus:outline-none transition-all text-sm"
+            />
+            {errors.transactionPin && (
+              <p className="text-xs text-red-400 font-medium">{errors.transactionPin.message}</p>
+            )}
+          </div>
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold text-silver-muted uppercase tracking-wider">
+              Confirm Transaction PIN
+            </label>
+            <input
+              type="password"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              maxLength={4}
+              {...register('confirmTransactionPin')}
+              placeholder="••••"
+              className="w-full bg-dark-bg/60 border border-silver-muted/10 rounded-xl px-4 py-3 text-white placeholder-silver-muted/30 focus:border-primary-glow/50 focus:outline-none transition-all text-sm"
+            />
+            {errors.confirmTransactionPin && (
+              <p className="text-xs text-red-400 font-medium">{errors.confirmTransactionPin.message}</p>
+            )}
+          </div>
+        </div>
+
         {/* Referral Code (Optional) */}
         <div className="space-y-1">
           <label className="block text-xs font-semibold text-silver-muted uppercase tracking-wider">
