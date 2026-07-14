@@ -50,6 +50,8 @@
     "types",
     "hooks",
     "context",
+    "utils",
+    "middleware.ts",
     ".next/types/**/*.ts"
   ],
   "exclude": [
