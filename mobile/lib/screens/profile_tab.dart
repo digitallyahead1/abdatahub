@@ -55,7 +55,7 @@ class ProfileTab extends StatelessWidget {
     final refCode = user?['referralCode'] ?? 'ABDATAHUB';
     
     // Construct unique referral link
-    final refLink = 'http://localhost:3000/register?ref=$refCode';
+    final refLink = 'https://abdatahub.com/register?ref=$refCode';
 
     return Scaffold(
       appBar: AppBar(

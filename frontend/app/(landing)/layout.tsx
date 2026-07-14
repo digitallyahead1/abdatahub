@@ -15,7 +15,7 @@ export default function LandingLayout({
 
       {/* Floating WhatsApp Widget */}
       <a
-        href="https://wa.me/2347045357195?text=Hello%20AB%20Data%20Hub%20Support,%20I%20have%20an%20inquiry."
+        href="https://wa.me/2348133887526?text=Hello%20AB%20Data%20Hub%20Support,%20I%20have%20an%20inquiry."
         target="_blank"
         rel="noopener noreferrer"
         className="fixed bottom-6 right-6 z-50 flex flex-col items-center group cursor-pointer"

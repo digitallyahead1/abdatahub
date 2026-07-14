@@ -153,7 +153,7 @@ export default function HomePage() {
             {/* WhatsApp Contact Capsule */}
             <div className="flex justify-center lg:justify-start pt-1">
               <a
-                href="https://wa.me/2347045357195"
+                href="https://wa.me/2348133887526"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center space-x-3 bg-emerald-950/30 border border-emerald-500/20 hover:border-emerald-500/50 px-5 py-2.5 rounded-full hover:bg-emerald-500/10 transition-all duration-300 group backdrop-blur-sm shadow-md"
@@ -165,7 +165,7 @@ export default function HomePage() {
                 </div>
                 <div className="text-left leading-none">
                   <span className="text-[9px] uppercase font-black text-emerald-400 tracking-wider block">WhatsApp Support</span>
-                  <span className="text-xs font-bold text-white block mt-0.5">07045357195</span>
+                  <span className="text-xs font-bold text-white block mt-0.5">08133887526</span>
                 </div>
               </a>
             </div>
@@ -247,7 +247,7 @@ export default function HomePage() {
               {/* WhatsApp Action button */}
               <div className="z-10 pt-2">
                 <a
-                  href="https://wa.me/2347045357195?text=Hello%20AB%20Data%20Hub%20Admin,%20I%20want%20to%20swap%20airtime%20to%20cash."
+                  href="https://wa.me/2348133887526?text=Hello%20AB%20Data%20Hub%20Admin,%20I%20want%20to%20swap%20airtime%20to%20cash."
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold rounded-xl shadow-lg shadow-orange-500/10 transition-all text-xs sm:text-sm flex items-center justify-center space-x-2"

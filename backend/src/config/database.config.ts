@@ -17,13 +17,37 @@ import { PasswordResetOtp } from '../entities/password-reset-otp.entity';
 import { UserVirtualAccount } from '../entities/user-virtual-account.entity';
 import { GafiapayVirtualAccount } from '../entities/gafiapay-virtual-account.entity';
 
+// Parse DATABASE_URL if provided (e.g. Supabase pooler URL)
+const databaseUrl = process.env.DATABASE_URL;
+let connectionConfig: Partial<TypeOrmModuleOptions & { type: 'postgres' }>;
+
+if (databaseUrl && databaseUrl.includes('supabase.com')) {
+  // Supabase connection via URL
+  const url = new URL(databaseUrl);
+  connectionConfig = {
+    type: 'postgres',
+    host: url.hostname,
+    port: parseInt(url.port || '6543', 10),
+    username: decodeURIComponent(url.username),
+    password: decodeURIComponent(url.password),
+    database: url.pathname.replace('/', ''),
+    ssl: { rejectUnauthorized: false },
+  };
+} else {
+  // Local / direct connection via individual env vars
+  connectionConfig = {
+    type: 'postgres',
+    host: process.env.DATABASE_HOST || 'localhost',
+    port: parseInt(process.env.DATABASE_PORT || '5432', 10),
+    username: process.env.DATABASE_USER || 'abdatahub_user',
+    password: process.env.DATABASE_PASSWORD || 'Abdatahub@',
+    database: process.env.DATABASE_NAME || 'ab_data_hub',
+  };
+}
+
 export const DatabaseConfig: TypeOrmModuleOptions = {
+  ...connectionConfig,
   type: 'postgres',
-  host: process.env.DATABASE_HOST || 'localhost',
-  port: parseInt(process.env.DATABASE_PORT || '5432', 10),
-  username: process.env.DATABASE_USER || 'abdatahub_user',
-  password: process.env.DATABASE_PASSWORD || 'Abdatahub@',
-  database: process.env.DATABASE_NAME || 'ab_data_hub',
   entities: [
     User,
     Wallet,
@@ -48,6 +72,6 @@ export const DatabaseConfig: TypeOrmModuleOptions = {
   extra: {
     max: 50,
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 5000,
   },
 };
