@@ -5,6 +5,20 @@
 const nextConfig = {
     reactStrictMode: true,
 
+    // Prevent Node.js-only packages from being bundled into the Edge runtime.
+    // Without this, @supabase/supabase-js and @prisma/client cause
+    // MIDDLEWARE_INVOCATION_FAILED on Vercel because they use Node.js APIs
+    // that are unavailable in the Edge Runtime (V8 isolates).
+    serverExternalPackages: [
+        '@prisma/client',
+        '@supabase/supabase-js',
+        '@supabase/ssr',
+        '@supabase/postgrest-js',
+        '@supabase/realtime-js',
+        '@supabase/storage-js',
+        '@supabase/auth-js',
+        '@supabase/functions-js',
+    ],
     eslint: {
         dirs: ['app', 'components', 'lib', 'pages', 'types', 'hooks', 'context'],
         ignoreDuringBuilds: true,
