@@ -16,4 +16,4 @@ RUN npm run build
 EXPOSE 3001
 
 # Start application
-CMD ["npm", "run", "start:prod"]
+CMD ["npm", "run", "start:railway"]
