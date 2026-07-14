@@ -4,7 +4,8 @@
     "description": "AB Data Hub - Premium VTU & Fintech Platform Frontend",
     "scripts": {
         "dev": "next dev",
-        "build": "next build",
+        "build": "prisma generate && next build",
+        "postinstall": "prisma generate",
         "start": "next start",
         "lint": "next lint",
         "lint:fix": "next lint --fix",
