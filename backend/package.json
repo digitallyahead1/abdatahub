@@ -13,6 +13,8 @@
         "start:dev": "nest start --watch",
         "start:debug": "nest start --debug --watch",
         "start:prod": "node dist/main",
+        "start:railway": "node -e \"const { DataSource } = require('typeorm'); const cfg = require('./dist/config/database.config').DatabaseConfig; const ds = new DataSource({...cfg, synchronize: true}); ds.initialize().then(() => { console.log('Schema synced'); return ds.destroy(); }).then(() => { require('./dist/main'); }).catch(e => { console.error('Sync failed:', e); process.exit(1); });\"",
+        "typeorm:sync": "node -e \"const { DataSource } = require('typeorm'); const cfg = require('./dist/config/database.config').DatabaseConfig; const ds = new DataSource({...cfg, synchronize: true}); ds.initialize().then(() => { console.log('Schema synced successfully'); return ds.destroy(); }).catch(e => { console.error('Sync failed:', e); process.exit(1); });\"",
         "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
         "test": "jest",
         "test:watch": "jest --watch",
