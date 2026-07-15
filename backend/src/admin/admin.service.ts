@@ -15,6 +15,7 @@ import { SystemSetting } from '../entities/system-setting.entity';
 import { SmePlugSyncService } from '../services/smeplug-sync.service';
 import { WalletService } from '../wallet/wallet.service';
 import { IacafeService } from '../services/iacafe.service';
+import { AuthService } from '../auth/auth.service';
 
 @Injectable()
 export class AdminService implements OnModuleInit {
@@ -47,6 +48,7 @@ export class AdminService implements OnModuleInit {
     private walletService: WalletService,
     @Inject(forwardRef(() => IacafeService))
     private iacafeService: IacafeService,
+    private authService: AuthService,
   ) {}
 
   async onModuleInit() {
@@ -206,11 +208,16 @@ export class AdminService implements OnModuleInit {
     return savedUser;
   }
 
+  async sendRoleOtp(adminUser: any) {
+    return this.authService.generateGenericOtp(adminUser.email);
+  }
+
   async updateUserRoleAndPermissions(
     userId: string,
     role: string,
     permissions: string[],
     adminUser: any,
+    otp?: string,
   ) {
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
@@ -218,6 +225,17 @@ export class AdminService implements OnModuleInit {
     // Prevent changing role or permissions of the main super admin uthman4ecc@gmail.com
     if (user.email === 'uthman4ecc@gmail.com' && adminUser.email !== 'uthman4ecc@gmail.com') {
       throw new BadRequestException('Only the primary Super Admin can modify their own credentials.');
+    }
+
+    // Require OTP if target role is administrative (admin or super_admin)
+    if (role === 'admin' || role === 'super_admin') {
+      if (!otp) {
+        throw new BadRequestException('OTP verification is required to grant administrative roles.');
+      }
+      const isOtpValid = await this.authService.verifyGenericOtp(adminUser.email, otp);
+      if (!isOtpValid) {
+        throw new BadRequestException('Invalid or expired OTP code.');
+      }
     }
 
     user.role = role;

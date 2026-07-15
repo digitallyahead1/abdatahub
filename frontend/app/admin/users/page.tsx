@@ -35,6 +35,12 @@ export default function AdminUsersPage() {
   const [editPermissions, setEditPermissions] = useState<string[]>([])
   const [saving, setSaving] = useState(false)
 
+  // OTP states for role changes
+  const [showOtpStep, setShowOtpStep] = useState(false)
+  const [otpCode, setOtpCode] = useState('')
+  const [sendingOtp, setSendingOtp] = useState(false)
+  const [otpSent, setOtpSent] = useState(false)
+
   const fetchUsers = async () => {
     try {
       setLoading(true)
@@ -79,6 +85,9 @@ export default function AdminUsersPage() {
     setEditingUser(user)
     setEditRole(user.role)
     setEditPermissions(user.permissions || [])
+    setShowOtpStep(false)
+    setOtpCode('')
+    setOtpSent(false)
   }
 
   const handleTogglePermission = (permissionId: string) => {
@@ -89,20 +98,53 @@ export default function AdminUsersPage() {
     }
   }
 
+  const requiresOtp = editRole === 'admin' || editRole === 'super_admin'
+
+  const handleSendOtp = async () => {
+    try {
+      setSendingOtp(true)
+      await api.post('/admin/users/role-otp')
+      toast.success('OTP has been sent to your email address.')
+      setOtpSent(true)
+      setShowOtpStep(true)
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to send OTP.')
+    } finally {
+      setSendingOtp(false)
+    }
+  }
+
   const saveRoleAndPermissions = async () => {
     if (!editingUser) return
+
+    // If upgrading to admin/super_admin and OTP step not yet shown, trigger OTP flow
+    if (requiresOtp && !showOtpStep) {
+      await handleSendOtp()
+      return
+    }
+
+    // If OTP is required but not entered
+    if (requiresOtp && !otpCode.trim()) {
+      toast.error('Please enter the OTP code sent to your email.')
+      return
+    }
+
     try {
       setSaving(true)
       // Clean up permissions array if role is not 'admin'
       const finalPermissions = editRole === 'admin' ? editPermissions : editRole === 'super_admin' ? ['*'] : []
-      
+
       await api.post(`/admin/users/${editingUser.id}/role-permissions`, {
         role: editRole,
         permissions: finalPermissions,
+        ...(requiresOtp ? { otp: otpCode.trim() } : {}),
       })
 
       toast.success('User role and permissions updated successfully!')
       setEditingUser(null)
+      setShowOtpStep(false)
+      setOtpCode('')
+      setOtpSent(false)
       fetchUsers()
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to update role and permissions.')
@@ -282,20 +324,54 @@ export default function AdminUsersPage() {
                 </div>
               )}
 
+              {/* OTP Verification Section */}
+              {showOtpStep && requiresOtp && (
+                <div className="space-y-3 p-4 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                  <div className="flex items-center space-x-2">
+                    <svg className="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                    </svg>
+                    <span className="text-xs font-semibold text-amber-400 uppercase tracking-wider">
+                      OTP Verification Required
+                    </span>
+                  </div>
+                  <p className="text-xs text-silver-muted">
+                    A 6-digit verification code has been sent to your admin email address. Enter it below to authorize this role change.
+                  </p>
+                  <div className="flex items-center space-x-3">
+                    <input
+                      type="text"
+                      value={otpCode}
+                      onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="Enter 6-digit OTP"
+                      maxLength={6}
+                      className="flex-1 bg-dark-bg border border-silver-muted/10 rounded-xl px-4 py-3 text-white text-center tracking-[0.5em] font-mono text-lg focus:border-amber-500/50 focus:outline-none transition-all placeholder:tracking-normal placeholder:text-sm placeholder:font-sans"
+                    />
+                    <button
+                      onClick={handleSendOtp}
+                      disabled={sendingOtp}
+                      className="px-3 py-3 border border-silver-muted/10 text-silver-muted hover:text-white hover:border-amber-500/30 rounded-xl text-xs font-semibold transition-all disabled:opacity-50 whitespace-nowrap"
+                    >
+                      {sendingOtp ? 'Sending...' : 'Resend'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Action Buttons */}
               <div className="flex justify-end space-x-3 pt-4 border-t border-white/5">
                 <button
-                  onClick={() => setEditingUser(null)}
+                  onClick={() => { setEditingUser(null); setShowOtpStep(false); setOtpCode(''); setOtpSent(false); }}
                   className="px-4 py-2 border border-silver-muted/10 text-silver-muted hover:text-white rounded-xl text-sm font-semibold transition-all"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={saveRoleAndPermissions}
-                  disabled={saving}
+                  disabled={saving || sendingOtp}
                   className="px-6 py-2 bg-gradient-blue hover:opacity-95 text-white font-bold rounded-xl shadow-glow-blue transition-all disabled:opacity-50 text-sm flex items-center justify-center space-x-2"
                 >
-                  {saving ? 'Saving...' : 'Save Settings'}
+                  {saving ? 'Saving...' : sendingOtp ? 'Sending OTP...' : requiresOtp && !showOtpStep ? 'Send OTP & Verify' : requiresOtp && showOtpStep ? 'Verify OTP & Save' : 'Save Settings'}
                 </button>
               </div>
             </div>
