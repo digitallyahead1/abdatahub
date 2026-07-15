@@ -16,6 +16,7 @@ import { AuditLogModule } from '../audit-log/audit-log.module';
 import { ServicesModule } from '../services/services.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { AuthModule } from '../auth/auth.module';
+import { SystemSetting } from '../entities/system-setting.entity';
 
 @Module({
   imports: [
