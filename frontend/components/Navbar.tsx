@@ -46,13 +46,13 @@ export default function Navbar() {
           {/* CTAs */}
           <div className="hidden md:flex items-center space-x-4">
             <a
-              href="tel:07045357195"
+              href="tel:08133887526"
               className="flex items-center space-x-2 text-silver-muted hover:text-white font-semibold px-4 py-2 hover:bg-white/5 rounded-lg transition-all"
             >
               <svg className="w-4 h-4 text-primary-glow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
               </svg>
-              <span className="text-xs">07045357195</span>
+              <span className="text-xs">08133887526</span>
             </a>
             <a
               href="/login"
@@ -121,13 +121,13 @@ export default function Navbar() {
           </a>
           <div className="pt-4 border-t border-silver-muted/10 flex flex-col space-y-2">
             <a
-              href="tel:07045357195"
+              href="tel:08133887526"
               className="w-full text-center px-4 py-2 border border-silver-muted/20 hover:border-primary-glow/40 hover:bg-primary-glow/5 rounded-md text-base font-semibold text-primary-glow flex items-center justify-center space-x-2 transition-all"
             >
               <svg className="w-4.5 h-4.5 text-primary-glow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.94.725l.548 2.2a1 1 0 01-.321.988l-1.305.98a10.582 10.582 0 004.872 4.872l.98-1.305a1 1 0 01.988-.321l2.2.548a1 1 0 01.725.94V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
               </svg>
-              <span>Call Helpline: 07045357195</span>
+              <span>Call Helpline: 08133887526</span>
             </a>
             <a
               href="/login"

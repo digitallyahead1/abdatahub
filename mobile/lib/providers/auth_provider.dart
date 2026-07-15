@@ -226,4 +226,79 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
     return false;
   }
+
+  Future<bool> updateProfile({required String fullName, required String phoneNumber}) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final response = await _apiService.patch(
+        '/auth/profile',
+        data: {
+          'fullName': fullName,
+          'phoneNumber': phoneNumber,
+        },
+      );
+
+      final responseData = response.data;
+      final data = responseData != null ? responseData['data'] : null;
+      if (data != null) {
+        _user = data;
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      }
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return false;
+  }
+
+  Future<bool> sendPinResetOtp() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _apiService.post('/auth/reset-pin/send-otp');
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return false;
+  }
+
+  Future<bool> verifyAndResetPin({required String otp, required String newPin}) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _apiService.post(
+        '/auth/reset-pin/verify',
+        data: {
+          'otp': otp,
+          'newPin': newPin,
+        },
+      );
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return false;
+  }
 }

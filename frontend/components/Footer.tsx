@@ -24,7 +24,7 @@ export default function Footer() {
               Nigeria's premium fintech-grade VTU and bill payment hub. Fast, secure, and always reliable.
             </p>
             <div className="text-sm font-semibold text-primary-glow">
-              Contact: <a href="tel:07045357195" className="hover:underline transition-all">07045357195</a>
+              Contact: <a href="tel:08133887526" className="hover:underline transition-all">08133887526</a>
             </div>
           </div>
 
@@ -97,12 +97,12 @@ export default function Footer() {
           <p>
             Designed by{' '}
             <a
-              href="https://wa.me/2347067382927?text=Hello%20BitBridge%20Technologies,%20I%20have%20an%20inquiry%20about%20your%20services."
+              href="https://wa.me/2348133887526?text=Hello%20BitBridge%20Technologies,%20I%20have%20an%20inquiry%20about%20your%20services."
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary-glow hover:text-cyan-400 hover:underline font-semibold transition-all"
             >
-              BitBridge Technologies (07067382927)
+              BitBridge Technologies (08133887526)
             </a>
           </p>
         </div>

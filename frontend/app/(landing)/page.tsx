@@ -313,7 +313,7 @@ export default function HomePage() {
           </div>
 
           {/* Card 4: 24/7 Support */}
-          <a href="tel:07045357195" className="flex flex-col items-center text-center space-y-4 py-4 relative group cursor-pointer">
+          <a href="tel:08133887526" className="flex flex-col items-center text-center space-y-4 py-4 relative group cursor-pointer">
             <div className="w-16 h-16 rounded-full border-2 border-primary-glow flex items-center justify-center relative overflow-hidden transition-all duration-300 group-hover:scale-105 shadow-[0_0_15px_rgba(0,180,255,0.4)]">
               <div className="absolute inset-0 bg-primary-glow/10 animate-pulse" />
               <svg className="w-8 h-8 text-primary-glow relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -517,7 +517,7 @@ export default function HomePage() {
           {/* Call Support Badge in CTA section */}
           <div className="flex justify-center relative z-10 pt-2 pb-2">
             <a
-              href="tel:07045357195"
+              href="tel:08133887526"
               className="inline-flex items-center space-x-3 bg-blue-950/40 border border-primary-glow/30 hover:border-primary-glow/60 px-5 py-2.5 rounded-full hover:bg-primary-glow/10 transition-all duration-300 group backdrop-blur-sm shadow-md"
             >
               <div className="w-8 h-8 bg-primary-glow rounded-full flex items-center justify-center shadow-md shadow-primary-blue/20 group-hover:scale-110 transition-transform">
@@ -527,7 +527,7 @@ export default function HomePage() {
               </div>
               <div className="text-left leading-none">
                 <span className="text-[9px] uppercase font-black text-primary-glow tracking-wider block">Customer Helpline</span>
-                <span className="text-xs font-bold text-white block mt-0.5">07045357195</span>
+                <span className="text-xs font-bold text-white block mt-0.5">08133887526</span>
               </div>
             </a>
           </div>

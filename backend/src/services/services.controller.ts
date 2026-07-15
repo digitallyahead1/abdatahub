@@ -114,4 +114,13 @@ export class ServicesController {
       data,
     };
   }
+
+  @Get('electricity/tokens')
+  async getElectricityTokens(@Query('meterNumber') meterNumber: string, @Req() req: any) {
+    const data = await this.servicesService.getElectricityTokens(req.user.id, meterNumber);
+    return {
+      success: true,
+      data,
+    };
+  }
 }

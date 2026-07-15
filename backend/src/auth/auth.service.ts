@@ -386,4 +386,71 @@ export class AuthService implements OnApplicationBootstrap {
     await this.otpRepository.remove(otpRecord);
     return true;
   }
+
+  async updateProfile(userId: string, body: any) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    const { fullName, phoneNumber } = body;
+
+    if (fullName && fullName.trim()) {
+      user.fullName = fullName.trim();
+    }
+
+    if (phoneNumber && phoneNumber.trim()) {
+      // Check if phone number is already taken by another user
+      const existingPhone = await this.usersService.findOneByPhone(phoneNumber.trim());
+      if (existingPhone && existingPhone.id !== userId) {
+        throw new BadRequestException('This phone number is already registered to another account');
+      }
+      user.phoneNumber = phoneNumber.trim();
+    }
+
+    await this.userRepository.save(user);
+    await this.auditLogService.log(userId, user.email, 'profile_updated', { fullName: user.fullName, phoneNumber: user.phoneNumber });
+
+    const { passwordHash: _, transactionPin: __, ...safeUser } = user;
+    return safeUser;
+  }
+
+  async sendPinResetOtp(userId: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    return this.generateGenericOtp(user.email);
+  }
+
+  async verifyAndResetPin(userId: string, otp: string, newPin: string) {
+    if (!otp || !newPin) {
+      throw new BadRequestException('OTP and new PIN are required');
+    }
+
+    if (!/^\d{4}$/.test(newPin)) {
+      throw new BadRequestException('Transaction PIN must be exactly 4 digits');
+    }
+
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    const isValid = await this.verifyGenericOtp(user.email, otp);
+    if (!isValid) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    user.transactionPin = await bcrypt.hash(newPin, 10);
+    await this.userRepository.save(user);
+
+    await this.auditLogService.log(userId, user.email, 'transaction_pin_reset');
+
+    return {
+      success: true,
+      message: 'Transaction PIN has been reset successfully',
+    };
+  }
 }

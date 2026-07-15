@@ -260,4 +260,27 @@ class WalletProvider extends ChangeNotifier {
     }
     return [];
   }
+
+  Future<List<dynamic>> fetchElectricityTokens(String meterNumber) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+    try {
+      final response = await _apiService.get(
+        '/services/electricity/tokens',
+        queryParameters: {'meterNumber': meterNumber},
+      );
+      if (response.data != null && response.data['success'] == true) {
+        _isLoading = false;
+        notifyListeners();
+        return response.data['data'] as List<dynamic>;
+      }
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+    return [];
+  }
 }

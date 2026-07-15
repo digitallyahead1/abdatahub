@@ -7,7 +7,6 @@ import '../providers/theme_provider.dart';
 import '../theme/app_theme.dart';
 import 'login_screen.dart';
 
-
 class ProfileTab extends StatelessWidget {
   const ProfileTab({super.key});
 
@@ -42,6 +41,207 @@ class ProfileTab extends StatelessWidget {
         ),
       );
     }
+  }
+
+  void _showEditProfileDialog(BuildContext context, Map<String, dynamic> user) {
+    final nameController = TextEditingController(text: user['fullName'] ?? '');
+    final phoneController = TextEditingController(text: user['phoneNumber'] ?? '');
+    final formKey = GlobalKey<FormState>();
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final auth = Provider.of<AuthProvider>(context);
+            return AlertDialog(
+              backgroundColor: AppColors.darkBgSecondary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text('Edit Profile', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    TextFormField(
+                      controller: nameController,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'Full Name',
+                        labelStyle: TextStyle(color: AppColors.silverMuted),
+                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.silverMuted)),
+                      ),
+                      validator: (val) => val == null || val.trim().isEmpty ? 'Name is required' : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                      controller: phoneController,
+                      keyboardType: TextInputType.phone,
+                      style: const TextStyle(color: Colors.white),
+                      decoration: const InputDecoration(
+                        labelText: 'Phone Number',
+                        labelStyle: TextStyle(color: AppColors.silverMuted),
+                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.silverMuted)),
+                      ),
+                      validator: (val) => val == null || val.trim().isEmpty ? 'Phone number is required' : null,
+                    ),
+                    if (auth.errorMessage != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        auth.errorMessage!,
+                        style: const TextStyle(color: AppColors.error, fontSize: 12),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: auth.isLoading ? null : () => Navigator.of(context).pop(),
+                  child: const Text('CANCEL', style: TextStyle(color: AppColors.silverMuted)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue),
+                  onPressed: auth.isLoading
+                      ? null
+                      : () async {
+                          if (formKey.currentState?.validate() ?? false) {
+                            final success = await auth.updateProfile(
+                              fullName: nameController.text.trim(),
+                              phoneNumber: phoneController.text.trim(),
+                            );
+                            if (success && ctx.mounted) {
+                              ScaffoldMessenger.of(ctx).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Profile updated successfully!'),
+                                  backgroundColor: AppColors.success,
+                                ),
+                              );
+                              Navigator.of(ctx).pop();
+                            }
+                          }
+                        },
+                  child: auth.isLoading
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Text('SAVE', style: TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  void _showResetPinDialog(BuildContext context, String email) {
+    final otpController = TextEditingController();
+    final pinController = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+    bool otpSent = false;
+
+    showDialog(
+      context: context,
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            final auth = Provider.of<AuthProvider>(context);
+            return AlertDialog(
+              backgroundColor: AppColors.darkBgSecondary,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              title: const Text('Reset Transaction PIN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              content: Form(
+                key: formKey,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (!otpSent) ...[
+                      Text(
+                        'A 6-digit confirmation code will be sent to your registered email: $email',
+                        style: const TextStyle(color: AppColors.silverMuted, fontSize: 13, height: 1.4),
+                      ),
+                    ] else ...[
+                      TextFormField(
+                        controller: otpController,
+                        keyboardType: TextInputType.number,
+                        maxLength: 6,
+                        style: const TextStyle(color: Colors.white, letterSpacing: 8, fontSize: 18),
+                        textAlign: TextAlign.center,
+                        decoration: const InputDecoration(
+                          labelText: 'Enter Email OTP',
+                          labelStyle: TextStyle(color: AppColors.silverMuted),
+                          enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.silverMuted)),
+                        ),
+                        validator: (val) => val == null || val.length != 6 ? 'Enter 6-digit OTP' : null,
+                      ),
+                      const SizedBox(height: 16),
+                      TextFormField(
+                        controller: pinController,
+                        keyboardType: TextInputType.number,
+                        maxLength: 4,
+                        obscureText: true,
+                        style: const TextStyle(color: Colors.white, letterSpacing: 10, fontSize: 18),
+                        textAlign: TextAlign.center,
+                        decoration: const InputDecoration(
+                          labelText: 'New 4-Digit PIN',
+                          labelStyle: TextStyle(color: AppColors.silverMuted),
+                          enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.silverMuted)),
+                        ),
+                        validator: (val) => val == null || val.length != 4 ? 'Enter exactly 4 digits' : null,
+                      ),
+                    ],
+                    if (auth.errorMessage != null) ...[
+                      const SizedBox(height: 12),
+                      Text(
+                        auth.errorMessage!,
+                        style: const TextStyle(color: AppColors.error, fontSize: 12),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: auth.isLoading ? null : () => Navigator.of(context).pop(),
+                  child: const Text('CANCEL', style: TextStyle(color: AppColors.silverMuted)),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue),
+                  onPressed: auth.isLoading
+                      ? null
+                      : () async {
+                          if (!otpSent) {
+                            final success = await auth.sendPinResetOtp();
+                            if (success) {
+                              setState(() => otpSent = true);
+                            }
+                          } else {
+                            if (formKey.currentState?.validate() ?? false) {
+                              final success = await auth.verifyAndResetPin(
+                                otp: otpController.text.trim(),
+                                newPin: pinController.text.trim(),
+                              );
+                              if (success && ctx.mounted) {
+                                ScaffoldMessenger.of(ctx).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Transaction PIN reset successfully!'),
+                                    backgroundColor: AppColors.success,
+                                  ),
+                                );
+                                Navigator.of(ctx).pop();
+                              }
+                            }
+                          }
+                        },
+                  child: auth.isLoading
+                      ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : Text(otpSent ? 'RESET' : 'SEND OTP', style: const TextStyle(color: Colors.white)),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
   }
 
   @override
@@ -83,7 +283,7 @@ class ProfileTab extends StatelessWidget {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primaryBlue.withValues(alpha: 0.25),
+                            color: AppColors.primaryBlue.withOpacity(0.25),
                             blurRadius: 15,
                             offset: const Offset(0, 5),
                           )
@@ -103,7 +303,7 @@ class ProfileTab extends StatelessWidget {
                     const SizedBox(height: 16),
                     Text(
                       name,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: AppColors.silverLight,
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -113,7 +313,7 @@ class ProfileTab extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       email,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: AppColors.silverMuted,
                         fontSize: 13,
                       ),
@@ -128,14 +328,14 @@ class ProfileTab extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.darkBgSecondary, const Color(0xFF0F172A)],
+                  gradient: const LinearGradient(
+                    colors: [AppColors.darkBgSecondary, Color(0xFF0F172A)],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: AppColors.accentGlow.withValues(alpha: 0.15),
+                    color: AppColors.accentGlow.withOpacity(0.15),
                   ),
                 ),
                 child: Column(
@@ -156,7 +356,7 @@ class ProfileTab extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    Text(
+                    const Text(
                       'Share your unique referral link below. Get ₦500 immediately when your friend signs up and funds their wallet for the first time.',
                       style: TextStyle(
                         color: AppColors.silverMuted,
@@ -170,7 +370,7 @@ class ProfileTab extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: AppColors.darkBg,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.silverMuted.withValues(alpha: 0.1)),
+                        border: Border.all(color: AppColors.silverMuted.withOpacity(0.1)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -193,7 +393,7 @@ class ProfileTab extends StatelessWidget {
                               refLink,
                               'Referral link copied to clipboard!',
                             ),
-                            child: Icon(
+                            child: const Icon(
                               Icons.copy,
                               color: AppColors.silverLight,
                               size: 18,
@@ -206,7 +406,7 @@ class ProfileTab extends StatelessWidget {
                     Center(
                       child: Text(
                         'Your Referral Code: $refCode',
-                        style: TextStyle(
+                        style: const TextStyle(
                           color: AppColors.silverLight,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -223,10 +423,24 @@ class ProfileTab extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.darkBgSecondary,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.silverMuted.withValues(alpha: 0.05)),
+                  border: Border.all(color: AppColors.silverMuted.withOpacity(0.05)),
                 ),
                 child: Column(
                   children: [
+                    _buildProfileTile(
+                      icon: Icons.person_outline,
+                      title: 'Edit Personal Details',
+                      value: 'Tap to edit',
+                      onTap: user != null ? () => _showEditProfileDialog(context, user) : null,
+                    ),
+                    const Divider(height: 1, color: Color(0xFF1F2937)),
+                    _buildProfileTile(
+                      icon: Icons.lock_outline,
+                      title: 'Reset Transaction PIN',
+                      value: 'Reset via OTP',
+                      onTap: () => _showResetPinDialog(context, email),
+                    ),
+                    const Divider(height: 1, color: Color(0xFF1F2937)),
                     _buildProfileTile(
                       icon: Provider.of<ThemeProvider>(context).themeMode == ThemeMode.dark
                           ? Icons.dark_mode_outlined
@@ -245,12 +459,19 @@ class ProfileTab extends StatelessWidget {
                     ),
                     const Divider(height: 1, color: Color(0xFF1F2937)),
                     _buildProfileTile(
+                      icon: Icons.chat_outlined,
+                      title: 'Chat on WhatsApp',
+                      value: '08133887526',
+                      onTap: () => _launchURL(context, 'https://wa.me/2348133887526?text=Hello%20AB%20Data%20Hub%20Support,%20I%20have%20an%20inquiry.'),
+                    ),
+                    const Divider(height: 1, color: Color(0xFF1F2937)),
+                    _buildProfileTile(
                       icon: Icons.support_agent,
-                      title: 'Support Desk',
-                      value: '07045357195',
+                      title: 'Helpline Support',
+                      value: '08133887526',
                       onTap: () => _copyToClipboard(
                         context,
-                        '07045357195',
+                        '08133887526',
                         'Customer Care line copied!',
                       ),
                     ),
@@ -320,7 +541,7 @@ class ProfileTab extends StatelessWidget {
       leading: Icon(icon, color: AppColors.primaryBlue),
       title: Text(
         title,
-        style: TextStyle(
+        style: const TextStyle(
           color: AppColors.silverMuted,
           fontSize: 12,
         ),
@@ -330,7 +551,7 @@ class ProfileTab extends StatelessWidget {
         children: [
           Text(
             value,
-            style: TextStyle(
+            style: const TextStyle(
               color: AppColors.silverLight,
               fontWeight: FontWeight.bold,
               fontSize: 13,
@@ -340,7 +561,7 @@ class ProfileTab extends StatelessWidget {
             const SizedBox(width: 8),
             Icon(
               Icons.chevron_right,
-              color: AppColors.silverMuted.withValues(alpha: 0.5),
+              color: AppColors.silverMuted.withOpacity(0.5),
               size: 16,
             )
           ]

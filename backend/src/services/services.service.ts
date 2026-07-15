@@ -636,5 +636,35 @@ export class ServicesService {
       throw new BadRequestException(result?.msg || result?.message || 'Unable to complete cable payment with provider.');
     }
   }
+
+  async getElectricityTokens(userId: string, meterNumber: string) {
+    if (!meterNumber || !meterNumber.trim()) {
+      throw new BadRequestException('Meter number is required');
+    }
+
+    // Search for successful electricity transactions for this user with matching meter number
+    const transactions = await this.transactionRepository
+      .createQueryBuilder('t')
+      .where('t.userId = :userId', { userId })
+      .andWhere('t.service = :service', { service: 'electricity' })
+      .andWhere("t.status IN (:...statuses)", { statuses: ['success', 'pending'] })
+      .andWhere("t.metadata->>'meterNumber' = :meterNumber", { meterNumber: meterNumber.trim() })
+      .orderBy('t.createdAt', 'DESC')
+      .limit(20)
+      .getMany();
+
+    return transactions.map((tx) => ({
+      reference: tx.reference,
+      amount: tx.amount,
+      status: tx.status,
+      date: tx.createdAt,
+      disco: tx.metadata?.disco || '',
+      meterType: tx.metadata?.meterType || '',
+      token: tx.metadata?.token || '',
+      units: tx.metadata?.units || '',
+      customerName: tx.metadata?.customerName || '',
+      customerAddress: tx.metadata?.customerAddress || '',
+    }));
+  }
 }
 

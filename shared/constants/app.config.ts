@@ -6,7 +6,7 @@ export const APP_CONFIG = {
   name: 'AB Data Hub',
   version: '1.0.0',
   tagline: 'Fast • Reliable • Always Connected',
-  contact: '07045357195',
+  contact: '08133887526',
   website: 'https://abdatahub.com',
 }
 

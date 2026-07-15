@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get, UseGuards, Req } from '@nestjs/common';
+import { Controller, Post, Body, Get, Patch, UseGuards, Req } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 
@@ -43,6 +43,33 @@ export class AuthController {
       success: true,
       data: userWithoutPassword,
     };
+  }
+
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  async updateProfile(@Req() req: any, @Body() body: any) {
+    const data = await this.authService.updateProfile(req.user.id, body);
+    return {
+      success: true,
+      message: 'Profile updated successfully',
+      data,
+    };
+  }
+
+  @Post('reset-pin/send-otp')
+  @UseGuards(JwtAuthGuard)
+  async sendPinResetOtp(@Req() req: any) {
+    return this.authService.sendPinResetOtp(req.user.id);
+  }
+
+  @Post('reset-pin/verify')
+  @UseGuards(JwtAuthGuard)
+  async verifyAndResetPin(
+    @Req() req: any,
+    @Body('otp') otp: string,
+    @Body('newPin') newPin: string,
+  ) {
+    return this.authService.verifyAndResetPin(req.user.id, otp, newPin);
   }
 
   @Post('forgot-password')
