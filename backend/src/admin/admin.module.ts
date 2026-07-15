@@ -12,10 +12,10 @@ import { AirtimePricing } from '../entities/airtime-pricing.entity';
 import { SyncLog } from '../entities/sync-log.entity';
 import { DataTransaction } from '../entities/data-transaction.entity';
 import { AirtimeTransaction } from '../entities/airtime-transaction.entity';
-import { SystemSetting } from '../entities/system-setting.entity';
 import { AuditLogModule } from '../audit-log/audit-log.module';
 import { ServicesModule } from '../services/services.module';
 import { WalletModule } from '../wallet/wallet.module';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -35,6 +35,7 @@ import { WalletModule } from '../wallet/wallet.module';
     AuditLogModule,
     forwardRef(() => ServicesModule),
     WalletModule,
+    AuthModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],

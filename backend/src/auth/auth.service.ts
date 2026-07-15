@@ -325,4 +325,65 @@ export class AuthService implements OnApplicationBootstrap {
       throw new UnauthorizedException('Invalid or expired reset token');
     }
   }
+
+  async generateGenericOtp(email: string) {
+    const existingOtp = await this.otpRepository.findOne({ where: { email } });
+
+    // Generate 6-digit OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+    const otpHash = await bcrypt.hash(otpCode, 10);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes from now
+
+    if (existingOtp) {
+      existingOtp.otpHash = otpHash;
+      existingOtp.expiresAt = expiresAt;
+      existingOtp.attempts = 0;
+      await this.otpRepository.save(existingOtp);
+    } else {
+      const newOtp = this.otpRepository.create({
+        email,
+        otpHash,
+        expiresAt,
+        attempts: 0,
+      });
+      await this.otpRepository.save(newOtp);
+    }
+
+    // Send email asynchronously
+    this.emailService.sendOtpEmail(email, otpCode).catch((err) => {
+      console.error('Failed to trigger OTP email:', err);
+    });
+
+    return {
+      success: true,
+      message: 'OTP sent to email address',
+    };
+  }
+
+  async verifyGenericOtp(email: string, otp: string): Promise<boolean> {
+    const otpRecord = await this.otpRepository.findOne({ where: { email } });
+    if (!otpRecord) {
+      return false;
+    }
+
+    if (otpRecord.expiresAt < new Date()) {
+      await this.otpRepository.remove(otpRecord);
+      return false;
+    }
+
+    if (otpRecord.attempts >= 5) {
+      return false;
+    }
+
+    const isMatch = await bcrypt.compare(otp, otpRecord.otpHash);
+    if (!isMatch) {
+      otpRecord.attempts += 1;
+      await this.otpRepository.save(otpRecord);
+      return false;
+    }
+
+    // Delete OTP record on success
+    await this.otpRepository.remove(otpRecord);
+    return true;
+  }
 }

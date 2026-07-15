@@ -60,12 +60,24 @@ export class AdminController {
     };
   }
 
+  @Post('users/role-otp')
+  @Permissions('manage:users')
+  async sendRoleOtp(@Req() req: any) {
+    const data = await this.adminService.sendRoleOtp(req.user);
+    return {
+      success: true,
+      message: 'OTP sent to your email address for role change verification.',
+      data,
+    };
+  }
+
   @Post('users/:id/role-permissions')
   @Permissions('manage:users')
   async updateUserRoleAndPermissions(
     @Param('id') userId: string,
     @Body('role') role: string,
     @Body('permissions') permissions: string[],
+    @Body('otp') otp: string,
     @Req() req: any,
   ) {
     const data = await this.adminService.updateUserRoleAndPermissions(
@@ -73,6 +85,7 @@ export class AdminController {
       role,
       permissions,
       req.user,
+      otp,
     );
     return {
       success: true,
