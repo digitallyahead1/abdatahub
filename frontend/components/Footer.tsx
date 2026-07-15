@@ -97,12 +97,12 @@ export default function Footer() {
           <p>
             Designed by{' '}
             <a
-              href="https://wa.me/2348133887526?text=Hello%20BitBridge%20Technologies,%20I%20have%20an%20inquiry%20about%20your%20services."
+              href="https://wa.me/2347067382927?text=Hello%20BitBridge%20Technologies,%20I%20have%20an%20inquiry%20about%20your%20services."
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary-glow hover:text-cyan-400 hover:underline font-semibold transition-all"
             >
-              BitBridge Technologies (08133887526)
+              BitBridge Technologies (07067382927)
             </a>
           </p>
         </div>
