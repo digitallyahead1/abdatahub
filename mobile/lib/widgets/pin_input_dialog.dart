@@ -18,6 +18,7 @@ class PinInputDialog extends StatefulWidget {
 class _PinInputDialogState extends State<PinInputDialog> {
   final List<TextEditingController> _controllers = List.generate(4, (_) => TextEditingController());
   final List<FocusNode> _focusNodes = List.generate(4, (_) => FocusNode());
+  bool _hasAttempted = false;
 
   @override
   void dispose() {
@@ -30,15 +31,24 @@ class _PinInputDialogState extends State<PinInputDialog> {
     super.dispose();
   }
 
+  String get _currentPin => _controllers.map((c) => c.text).join();
+  bool get _isComplete => _currentPin.length == 4;
+
+  void _submit() {
+    if (_isComplete) {
+      setState(() => _hasAttempted = true);
+      Navigator.of(context).pop(_currentPin);
+    }
+  }
+
   void _onChanged(String value, int index) {
     if (value.isNotEmpty) {
       if (index < 3) {
         _focusNodes[index + 1].requestFocus();
       } else {
-        // Last digit entered, verify and submit automatically!
-        final pin = _controllers.map((c) => c.text).join();
-        if (pin.length == 4) {
-          Navigator.of(context).pop(pin);
+        // Last digit entered — auto-submit only on the first try
+        if (!_hasAttempted && _isComplete) {
+          _submit();
         }
       }
     } else {
@@ -126,7 +136,56 @@ class _PinInputDialogState extends State<PinInputDialog> {
                 );
               }),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 24),
+            // Action buttons
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(context).pop(),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      side: BorderSide(color: AppColors.silverMuted.withOpacity(0.3)),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      'CANCEL',
+                      style: TextStyle(
+                        color: AppColors.silverMuted,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: _isComplete ? _submit : null,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      backgroundColor: AppColors.primaryBlue,
+                      disabledBackgroundColor: AppColors.primaryBlue.withOpacity(0.3),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: const Text(
+                      'CONFIRM',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),

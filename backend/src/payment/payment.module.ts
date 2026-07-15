@@ -7,11 +7,13 @@ import { PaymentService } from './payment.service';
 import { PaymentController } from './payment.controller';
 import { WebhooksController } from './webhooks.controller';
 import { WalletModule } from '../wallet/wallet.module';
+import { AuditLogModule } from '../audit-log/audit-log.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([UserVirtualAccount, GafiapayVirtualAccount, Transaction]),
     WalletModule,
+    AuditLogModule,
   ],
   providers: [PaymentService],
   controllers: [PaymentController, WebhooksController],

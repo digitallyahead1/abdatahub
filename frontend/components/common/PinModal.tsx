@@ -21,6 +21,7 @@ export default function PinModal({
 }: PinModalProps) {
   const [pin, setPin] = useState<string[]>(['', '', '', ''])
   const [showPin, setShowPin] = useState(false)
+  const [hasAttempted, setHasAttempted] = useState(false)
   const inputRefs = [
     useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null),
@@ -32,17 +33,19 @@ export default function PinModal({
   useEffect(() => {
     if (isOpen) {
       setPin(['', '', '', ''])
+      setHasAttempted(false)
       setTimeout(() => inputRefs[0].current?.focus(), 100)
     }
   }, [isOpen])
 
-  // Automatically submit once all 4 digits are entered
+  // Automatically submit once all 4 digits are entered on the first try
   useEffect(() => {
     const fullPin = pin.join('')
-    if (fullPin.length === 4 && isOpen && !loading) {
+    if (fullPin.length === 4 && isOpen && !loading && !hasAttempted) {
+      setHasAttempted(true)
       onConfirm(fullPin)
     }
-  }, [pin, isOpen, loading, onConfirm])
+  }, [pin, isOpen, loading, onConfirm, hasAttempted])
 
   if (!isOpen) return null
 
@@ -98,6 +101,7 @@ export default function PinModal({
     e.preventDefault()
     const fullPin = pin.join('')
     if (fullPin.length === 4) {
+      setHasAttempted(true)
       onConfirm(fullPin)
     }
   }

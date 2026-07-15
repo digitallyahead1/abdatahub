@@ -267,16 +267,22 @@ export class PaymentService {
     }
 
     // Extract payment data - try multiple common payload structures
-    const data = body.data || body.payload || body;
-    const accountNumber = data.accountNumber || data.account_number || data.virtualAccountNumber;
-    const amount = data.amount || data.amountPaid || data.settlementAmount;
-    const reference = data.reference || data.txRef || data.paymentReference || data.transactionReference;
+    // Gafiapay may wrap data in body.data, body.payload, body.event.data, or send flat
+    const data = body.data || body.payload || body.event?.data || body;
+    const accountNumber = data.accountNumber || data.account_number || data.virtualAccountNumber
+      || data.virtual_account_number || data.destinationAccountNumber || data.destination_account_number;
+    const amount = data.amount || data.amountPaid || data.amount_paid || data.settlementAmount
+      || data.settlement_amount || data.creditAmount || data.credit_amount;
+    const reference = data.reference || data.txRef || data.tx_ref || data.paymentReference
+      || data.payment_reference || data.transactionReference || data.transaction_reference
+      || data.sessionId || data.session_id || data.bankTransferReference;
 
     console.log('Gafiapay Webhook: Extracted fields -', {
       accountNumber,
       amount,
       reference,
       rawDataKeys: Object.keys(data),
+      rawBodyKeys: Object.keys(body),
     });
 
     if (!accountNumber || !amount || !reference) {
