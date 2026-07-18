@@ -148,10 +148,6 @@ export class SmePlugSyncService implements OnModuleInit {
           const costPrice = parseFloat(apiPlan.price) || 0;
           const bundleName = apiPlan.name || '';
 
-          // Filter: only allow MTN Share plans. Skip all other networks and plan types.
-          const isMtnShare = mappedNetwork === 'mtn' && bundleName.toLowerCase().includes('share');
-          if (!isMtnShare) continue;
-
           liveSmeplugPlanIds.push(apiPlanId);
 
           // Look up existing plan in DB (only matching SMEPlug provider, NULL treated as smeplug)
