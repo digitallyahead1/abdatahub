@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../providers/wallet_provider.dart';
 import '../theme/app_theme.dart';
@@ -165,32 +166,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
           _selectedPlan = null;
         });
 
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            backgroundColor: AppColors.darkBgSecondary,
-            title: const Row(
-              children: [
-                Icon(Icons.check_circle, color: AppColors.success),
-                SizedBox(width: 8),
-                Text('Purchase Success', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-            content: Text(
-              'Your subscription is processing!\n\nReference: ${response['reference']}\nRecipient: ${response['phoneNumber']}\nPlan: ${response['planName']}',
-              style: TextStyle(color: AppColors.silverLight),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  Navigator.pop(context); // Go back to Home
-                },
-                child: const Text('OK', style: TextStyle(color: AppColors.accentGlow)),
-              )
-            ],
-          ),
-        );
+        _showReceiptDialog(response);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -200,6 +176,168 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
         );
       }
     }
+  }
+
+  void _showReceiptDialog(Map<String, dynamic> data) {
+    final receiptText =
+        'AB Data Hub Receipt\n-------------------'
+        '\nPhone: ${data['phoneNumber'] ?? ''}'
+        '\nNetwork: ${(data['network'] ?? '').toString().toUpperCase()}'
+        '\nPlan: ${data['planName'] ?? ''}'
+        '\nAmount: ₦${_formatAmount(data['amount'])}'
+        '\nReference: ${data['reference'] ?? ''}'
+        '\nStatus: Successful';
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Container(
+          decoration: BoxDecoration(
+            color: AppColors.darkBgSecondary,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: Colors.white.withOpacity(0.1)),
+          ),
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Success icon
+              Container(
+                width: 64,
+                height: 64,
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.15),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                ),
+                child: const Icon(Icons.check_rounded, color: Colors.greenAccent, size: 32),
+              ),
+              const SizedBox(height: 12),
+              const Text(
+                'Purchase Successful!',
+                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const Text(
+                'Your data has been sent',
+                style: TextStyle(color: AppColors.silverMuted, fontSize: 13),
+              ),
+              const SizedBox(height: 20),
+
+              // Receipt rows
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                ),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Column(
+                  children: [
+                    _receiptRow('Phone Number', data['phoneNumber']?.toString() ?? ''),
+                    _receiptRow('Network', (data['network'] ?? '').toString().toUpperCase()),
+                    _receiptRow('Plan', data['planName']?.toString() ?? ''),
+                    _receiptRow('Amount Paid', '₦${_formatAmount(data['amount'])}'),
+                    _receiptRow('Reference', data['reference']?.toString() ?? '', mono: true),
+                    _receiptRow('Status', '✅ Successful'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Buttons
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        await _copyToClipboard(receiptText, ctx);
+                      },
+                      icon: const Icon(Icons.share_outlined, size: 16, color: Colors.white),
+                      label: const Text('Share', style: TextStyle(color: Colors.white)),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: BorderSide(color: Colors.white.withOpacity(0.15)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Navigator.pop(ctx);
+                        Navigator.pop(context);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primaryBlue,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: const Text('Done', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatAmount(dynamic amount) {
+    if (amount == null) return '0';
+    final num = double.tryParse(amount.toString()) ?? 0;
+    return num.toStringAsFixed(num.truncateToDouble() == num ? 0 : 2)
+        .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+  }
+
+  Future<void> _copyToClipboard(String text, BuildContext ctx) async {
+    // Copy to clipboard since Share plugin may not be installed
+    final clipboard = await _tryShare(text);
+    if (!clipboard && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Receipt copied to clipboard'), backgroundColor: Colors.green),
+      );
+    }
+  }
+
+  Future<bool> _tryShare(String text) async {
+    try {
+      // Use Clipboard as fallback; if share_plus is added it can be used here
+      final data = ClipboardData(text: text);
+      await Clipboard.setData(data);
+      return false; // returns false to show "copied" snackbar
+    } catch (_) {
+      return false;
+    }
+  }
+
+  Widget _receiptRow(String label, String value, {bool mono = false}) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 5),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: AppColors.silverMuted, fontSize: 13)),
+          Flexible(
+            child: Text(
+              value,
+              textAlign: TextAlign.right,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: mono ? 11 : 13,
+                fontWeight: FontWeight.w600,
+                fontFamily: mono ? 'monospace' : null,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override

@@ -94,6 +94,14 @@ export default function BuyDataPage() {
   const [pinModalOpen, setPinModalOpen] = useState(false)
   const [pendingData, setPendingData] = useState<DataTransactionInput | null>(null)
   const [selectedType, setSelectedType] = useState<string>('All')
+  const [receipt, setReceipt] = useState<{
+    planName: string
+    phoneNumber: string
+    amount: number
+    reference: string
+    network: string
+    status: string
+  } | null>(null)
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -162,11 +170,20 @@ export default function BuyDataPage() {
       }
       
       const response = await api.post('/services/data', payload)
-      toast.success(response.data.message || 'Data purchase completed successfully!')
-      setValue('planId', '')
-      setValue('amount', 0)
+      const data = response.data.data
       setPinModalOpen(false)
       setPendingData(null)
+      setValue('planId', '')
+      setValue('amount', 0)
+      // Show receipt popup
+      setReceipt({
+        planName: data?.planName || selectedPlan?.bundleName || 'Data Plan',
+        phoneNumber: data?.phoneNumber || pendingData.phoneNumber,
+        amount: data?.amount || pendingData.amount,
+        reference: data?.reference || '',
+        network: data?.network || pendingData.network,
+        status: data?.status || 'success',
+      })
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Transaction failed. Please check your wallet balance.')
     } finally {
@@ -365,6 +382,68 @@ export default function BuyDataPage() {
         onConfirm={handlePinConfirm}
         loading={loading}
       />
+
+      {/* Receipt Modal */}
+      {receipt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <div className="bg-dark-bg-secondary border border-white/10 rounded-2xl glass-dark p-6 w-full max-w-sm shadow-2xl">
+            {/* Header */}
+            <div className="flex flex-col items-center mb-6">
+              <div className="w-16 h-16 rounded-full bg-green-500/15 border border-green-500/30 flex items-center justify-center mb-3">
+                <svg className="w-8 h-8 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-white">Purchase Successful!</h2>
+              <p className="text-sm text-silver-muted mt-1">Your data has been sent</p>
+            </div>
+
+            {/* Receipt Details */}
+            <div className="space-y-3 bg-white/5 rounded-xl p-4 border border-white/5 mb-5">
+              {[
+                { label: 'Phone Number', value: receipt.phoneNumber },
+                { label: 'Network', value: receipt.network.toUpperCase() },
+                { label: 'Plan', value: receipt.planName },
+                { label: 'Amount Paid', value: `₦${Number(receipt.amount).toLocaleString()}` },
+                { label: 'Reference', value: receipt.reference, mono: true },
+                { label: 'Status', value: '✅ Successful' },
+              ].map(({ label, value, mono }) => (
+                <div key={label} className="flex justify-between items-center text-sm">
+                  <span className="text-silver-muted">{label}</span>
+                  <span className={`text-white font-semibold ${mono ? 'font-mono text-xs' : ''}`}>{value}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-3">
+              <button
+                onClick={async () => {
+                  const text = `AB Data Hub Receipt\n-------------------\nPhone: ${receipt.phoneNumber}\nNetwork: ${receipt.network.toUpperCase()}\nPlan: ${receipt.planName}\nAmount: ₦${Number(receipt.amount).toLocaleString()}\nReference: ${receipt.reference}\nStatus: Successful`
+                  if (navigator.share) {
+                    await navigator.share({ title: 'AB Data Hub Receipt', text })
+                  } else {
+                    await navigator.clipboard.writeText(text)
+                    toast.success('Receipt copied to clipboard!')
+                  }
+                }}
+                className="flex-1 py-3 bg-white/5 border border-white/10 text-white font-bold rounded-xl text-sm hover:bg-white/10 transition-all flex items-center justify-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                </svg>
+                Share
+              </button>
+              <button
+                onClick={() => setReceipt(null)}
+                className="flex-1 py-3 bg-gradient-blue text-white font-bold rounded-xl text-sm shadow-glow-blue hover:opacity-95 transition-all"
+              >
+                Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

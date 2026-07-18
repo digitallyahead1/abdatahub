@@ -150,10 +150,18 @@ export class ServicesService {
           };
         }
       } catch (err: any) {
-        this.logger.error(`AMZAET API call failed: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
+        // Extract human-readable error from AMZAET's error array: { error: ['...'] }
+        const amzaetErrorData = err.response?.data;
+        const amzaetMsg =
+          (Array.isArray(amzaetErrorData?.error) && amzaetErrorData.error[0]) ||
+          amzaetErrorData?.detail ||
+          amzaetErrorData?.message ||
+          err.message;
+        this.logger.error(`AMZAET API call failed: ${JSON.stringify(amzaetErrorData || err.message)}`);
         result = {
           status: false,
           current_status: 'failed',
+          msg: amzaetMsg,
         };
       }
     } else {
@@ -221,6 +229,7 @@ export class ServicesService {
         network: plan.network,
         planName,
         phoneNumber,
+        amount,
         status: finalStatus,
       };
     } else if (result && result.isTransientError) {
