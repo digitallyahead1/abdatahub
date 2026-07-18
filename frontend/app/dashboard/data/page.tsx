@@ -135,6 +135,88 @@ export default function BuyDataPage() {
 
   const selectedPlanId = watch('planId')
 
+  const handleDownloadReceiptPdf = async (rcpt: any) => {
+    try {
+      const jspdf = await new Promise<any>((resolve, reject) => {
+        if ((window as any).jspdf) {
+          resolve((window as any).jspdf)
+          return
+        }
+        const script = document.createElement('script')
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js'
+        script.onload = () => resolve((window as any).jspdf)
+        script.onerror = reject
+        document.head.appendChild(script)
+      })
+
+      const doc = new jspdf.jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: [80, 150]
+      })
+
+      // Frame
+      doc.setDrawColor(200, 200, 200)
+      doc.rect(2, 2, 76, 146)
+
+      // Header
+      doc.setTextColor(0, 102, 204)
+      doc.setFont('Helvetica', 'bold')
+      doc.setFontSize(14)
+      doc.text('AB DATA HUB', 40, 15, { align: 'center' })
+
+      doc.setTextColor(100, 100, 100)
+      doc.setFont('Helvetica', 'normal')
+      doc.setFontSize(8)
+      doc.text('TRANSACTION RECEIPT', 40, 20, { align: 'center' })
+
+      doc.setLineDashPattern([1.5, 1.5], 0)
+      doc.line(5, 25, 75, 25)
+
+      doc.setFontSize(9)
+      doc.setTextColor(50, 50, 50)
+
+      const rows = [
+        ['Phone Number', rcpt.phoneNumber],
+        ['Network', rcpt.network.toUpperCase()],
+        ['Plan', rcpt.planName],
+        ['Amount Paid', `NGN ${Number(rcpt.amount).toLocaleString()}`],
+        ['Reference', rcpt.reference],
+        ['Status', 'SUCCESSFUL']
+      ]
+
+      let y = 35
+      rows.forEach(([label, val]) => {
+        doc.setFont('Helvetica', 'bold')
+        doc.text(label + ':', 6, y)
+        doc.setFont('Helvetica', 'normal')
+        if (label === 'Reference') {
+          doc.setFontSize(7.5)
+        } else {
+          doc.setFontSize(9)
+        }
+        doc.text(String(val), 74, y, { align: 'right' })
+        doc.setFontSize(9)
+        y += 11
+      })
+
+      doc.setLineDashPattern([1.5, 1.5], 0)
+      doc.line(5, 105, 75, 105)
+
+      doc.setFont('Helvetica', 'italic')
+      doc.setFontSize(7.5)
+      doc.setTextColor(120, 120, 120)
+      doc.text('Thank you for choosing AB Data Hub!', 40, 115, { align: 'center' })
+      doc.text('For support, visit support@abdatahub.com', 40, 120, { align: 'center' })
+
+      doc.save(`receipt_${rcpt.reference}.pdf`)
+      toast.success('PDF Receipt downloaded successfully!')
+    } catch (err) {
+      console.error('Failed to generate PDF:', err)
+      toast.error('Could not generate PDF receipt.')
+    }
+  }
+
   const handleNetworkChange = (net: NetworkType) => {
     setActiveNetwork(net)
     setValue('network', net)
@@ -416,27 +498,38 @@ export default function BuyDataPage() {
             </div>
 
             {/* Actions */}
-            <div className="flex gap-3">
-              <button
-                onClick={async () => {
-                  const text = `AB Data Hub Receipt\n-------------------\nPhone: ${receipt.phoneNumber}\nNetwork: ${receipt.network.toUpperCase()}\nPlan: ${receipt.planName}\nAmount: ₦${Number(receipt.amount).toLocaleString()}\nReference: ${receipt.reference}\nStatus: Successful`
-                  if (navigator.share) {
-                    await navigator.share({ title: 'AB Data Hub Receipt', text })
-                  } else {
-                    await navigator.clipboard.writeText(text)
-                    toast.success('Receipt copied to clipboard!')
-                  }
-                }}
-                className="flex-1 py-3 bg-white/5 border border-white/10 text-white font-bold rounded-xl text-sm hover:bg-white/10 transition-all flex items-center justify-center gap-2"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-                </svg>
-                Share
-              </button>
+            <div className="flex flex-col gap-2.5">
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleDownloadReceiptPdf(receipt)}
+                  className="flex-1 py-2.5 bg-white/5 border border-white/10 text-white font-semibold rounded-xl text-xs hover:bg-white/10 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                  </svg>
+                  Download PDF
+                </button>
+                <button
+                  onClick={async () => {
+                    const text = `AB Data Hub Receipt\n-------------------\nPhone: ${receipt.phoneNumber}\nNetwork: ${receipt.network.toUpperCase()}\nPlan: ${receipt.planName}\nAmount: ₦${Number(receipt.amount).toLocaleString()}\nReference: ${receipt.reference}\nStatus: Successful`
+                    if (navigator.share) {
+                      await navigator.share({ title: 'AB Data Hub Receipt', text })
+                    } else {
+                      await navigator.clipboard.writeText(text)
+                      toast.success('Receipt copied to clipboard!')
+                    }
+                  }}
+                  className="flex-1 py-2.5 bg-white/5 border border-white/10 text-white font-semibold rounded-xl text-xs hover:bg-white/10 transition-all flex items-center justify-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                  </svg>
+                  Share
+                </button>
+              </div>
               <button
                 onClick={() => setReceipt(null)}
-                className="flex-1 py-3 bg-gradient-blue text-white font-bold rounded-xl text-sm shadow-glow-blue hover:opacity-95 transition-all"
+                className="w-full py-3 bg-gradient-blue text-white font-bold rounded-xl text-sm shadow-glow-blue hover:opacity-95 transition-all"
               >
                 Done
               </button>

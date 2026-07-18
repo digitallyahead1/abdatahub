@@ -1,6 +1,11 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:path_provider/path_provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../providers/wallet_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/pin_input_dialog.dart';
@@ -179,15 +184,6 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
   }
 
   void _showReceiptDialog(Map<String, dynamic> data) {
-    final receiptText =
-        'AB Data Hub Receipt\n-------------------'
-        '\nPhone: ${data['phoneNumber'] ?? ''}'
-        '\nNetwork: ${(data['network'] ?? '').toString().toUpperCase()}'
-        '\nPlan: ${data['planName'] ?? ''}'
-        '\nAmount: ₦${_formatAmount(data['amount'])}'
-        '\nReference: ${data['reference'] ?? ''}'
-        '\nStatus: Successful';
-
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -222,7 +218,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
               ),
               const Text(
                 'Your data has been sent',
-                style: TextStyle(color: AppColors.silverMuted, fontSize: 13),
+                style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
               ),
               const SizedBox(height: 20),
 
@@ -253,10 +249,10 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () async {
-                        await _copyToClipboard(receiptText, ctx);
+                        await _shareReceiptPdf(data);
                       },
                       icon: const Icon(Icons.share_outlined, size: 16, color: Colors.white),
-                      label: const Text('Share', style: TextStyle(color: Colors.white)),
+                      label: const Text('Share PDF', style: TextStyle(color: Colors.white)),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         side: BorderSide(color: Colors.white.withOpacity(0.15)),
@@ -284,6 +280,85 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Future<void> _shareReceiptPdf(Map<String, dynamic> data) async {
+    try {
+      final pdf = pw.Document();
+
+      pdf.addPage(
+        pw.Page(
+          pageFormat: PdfPageFormat(80 * PdfPageFormat.mm, 150 * PdfPageFormat.mm, marginAll: 5 * PdfPageFormat.mm),
+          build: (pw.Context context) {
+            return pw.Container(
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: PdfColors.grey300, width: 1),
+                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
+              ),
+              padding: const pw.EdgeInsets.all(10),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.start,
+                children: [
+                  pw.Center(
+                    child: pw.Text('AB DATA HUB', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)),
+                  ),
+                  pw.Center(
+                    child: pw.Text('TRANSACTION RECEIPT', style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
+                  ),
+                  pw.SizedBox(height: 8),
+                  pw.Divider(thickness: 1, borderStyle: pw.BorderStyle.dashed),
+                  pw.SizedBox(height: 8),
+                  _pdfRow('Phone Number', data['phoneNumber']?.toString() ?? ''),
+                  _pdfRow('Network', (data['network'] ?? '').toString().toUpperCase()),
+                  _pdfRow('Plan', data['planName']?.toString() ?? ''),
+                  _pdfRow('Amount Paid', 'N${_formatAmount(data['amount'])}'),
+                  _pdfRow('Reference', data['reference']?.toString() ?? ''),
+                  _pdfRow('Status', 'Successful'),
+                  pw.SizedBox(height: 12),
+                  pw.Divider(thickness: 1, borderStyle: pw.BorderStyle.dashed),
+                  pw.SizedBox(height: 8),
+                  pw.Center(
+                    child: pw.Text('Thank you for choosing AB Data Hub!', style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600, fontStyle: pw.FontStyle.italic)),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      );
+
+      final output = await getTemporaryDirectory();
+      final file = File('${output.path}/receipt_${data['reference']}.pdf');
+      await file.writeAsBytes(await pdf.save());
+
+      final xFile = XFile(file.path);
+      await Share.shareXFiles([xFile], text: 'AB Data Hub Transaction Receipt');
+    } catch (e) {
+      debugPrint('Error generating/sharing PDF: $e');
+      // Fallback to text copy
+      final receiptText =
+          'AB Data Hub Receipt\n-------------------'
+          '\nPhone: ${data['phoneNumber'] ?? ''}'
+          '\nNetwork: ${(data['network'] ?? '').toString().toUpperCase()}'
+          '\nPlan: ${data['planName'] ?? ''}'
+          '\nAmount: ₦${_formatAmount(data['amount'])}'
+          '\nReference: ${data['reference'] ?? ''}'
+          '\nStatus: Successful';
+      await _copyToClipboard(receiptText, context);
+    }
+  }
+
+  pw.Widget _pdfRow(String label, String value) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 3),
+      child: pw.Row(
+        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+        children: [
+          pw.Text(label, style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
+          pw.Text(value, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
+        ],
       ),
     );
   }
@@ -322,7 +397,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: AppColors.silverMuted, fontSize: 13)),
+          Text(label, style: const TextStyle(color: Color(0xFF9CA3AF), fontSize: 13)),
           Flexible(
             child: Text(
               value,
