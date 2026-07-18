@@ -154,8 +154,14 @@ export class SmePlugSyncService implements OnModuleInit {
 
           liveSmeplugPlanIds.push(apiPlanId);
 
-          // Look up existing plan in DB (only matching SMEPlug provider)
+          // Look up existing plan in DB (only matching SMEPlug provider, NULL treated as smeplug)
           let plan = await this.dataPlanRepository.findOne({ where: { smeplugPlanId: apiPlanId, provider: 'smeplug' } });
+          // Also match legacy rows where provider is NULL (pre-migration rows)
+          if (!plan) {
+            plan = await this.dataPlanRepository.findOne({
+              where: { smeplugPlanId: apiPlanId } as any,
+            }).then(p => (!p || p.provider === null || p.provider === 'smeplug') ? p : null);
+          }
 
           if (plan) {
              // Update plan details
@@ -198,7 +204,7 @@ export class SmePlugSyncService implements OnModuleInit {
         // Find plans that are active/visible but NOT in the live response
         const plansToDisable = await this.dataPlanRepository.createQueryBuilder('plan')
           .where('plan.smeplugPlanId NOT IN (:...ids)', { ids: liveSmeplugPlanIds })
-          .andWhere('plan.provider = :provider', { provider: 'smeplug' })
+          .andWhere('(plan.provider = :provider OR plan.provider IS NULL)', { provider: 'smeplug' })
           .andWhere('plan.visibilityStatus = :visible', { visible: true })
           .getMany();
 

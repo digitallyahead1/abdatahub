@@ -110,6 +110,7 @@ export default function AdminDataPlansPage() {
     if (activeTab === 'amzaet') {
       return p.provider === 'amzaet'
     }
+    // Treat null/undefined provider as 'smeplug' (pre-migration rows)
     return p.network === activeTab && (!p.provider || p.provider === 'smeplug')
   })
 
