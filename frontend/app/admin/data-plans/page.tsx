@@ -14,15 +14,16 @@ interface DataPlan {
   overrideStatus: boolean
   visibilityStatus: boolean
   lastSyncedAt: string
+  provider?: string
 }
 
-type NetworkType = 'mtn' | 'airtel' | 'glo' | '9mobile'
+type TabType = 'mtn' | 'airtel' | 'glo' | '9mobile' | 'amzaet'
 
 export default function AdminDataPlansPage() {
   const [plans, setPlans] = useState<DataPlan[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
-  const [activeNetwork, setActiveNetwork] = useState<NetworkType>('mtn')
+  const [activeTab, setActiveTab] = useState<TabType>('mtn')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingPrice, setEditingPrice] = useState<string>('')
 
@@ -105,7 +106,12 @@ export default function AdminDataPlansPage() {
     }
   }
 
-  const filteredPlans = plans.filter((p) => p.network === activeNetwork)
+  const filteredPlans = plans.filter((p) => {
+    if (activeTab === 'amzaet') {
+      return p.provider === 'amzaet'
+    }
+    return p.network === activeTab && (!p.provider || p.provider === 'smeplug')
+  })
 
   if (loading && plans.length === 0) {
     return (
@@ -124,7 +130,7 @@ export default function AdminDataPlansPage() {
         <div>
           <h1 className="text-2xl font-bold text-white tracking-wide">Data Plans Management</h1>
           <p className="text-sm text-silver-muted">
-            Manage customer pricing, overrides, and visibility of SMEPlug data bundles dynamically.
+            Manage customer pricing, overrides, and visibility of data bundles dynamically.
           </p>
         </div>
         <button
@@ -151,22 +157,28 @@ export default function AdminDataPlansPage() {
         </button>
       </div>
 
-      {/* Network Selection tabs */}
+      {/* Network / Provider Selection tabs */}
       <div className="flex space-x-2 border-b border-white/5 pb-px">
-        {(['mtn', 'airtel', 'glo', '9mobile'] as NetworkType[]).map((net) => (
+        {[
+          { id: 'mtn', name: 'MTN (SMEPlug)' },
+          { id: 'airtel', name: 'Airtel' },
+          { id: 'glo', name: 'Glo' },
+          { id: '9mobile', name: '9mobile' },
+          { id: 'amzaet', name: 'AMZAET (MTN)' },
+        ].map((tab) => (
           <button
-            key={net}
+            key={tab.id}
             onClick={() => {
-              setActiveNetwork(net)
+              setActiveTab(tab.id as TabType)
               setEditingId(null)
             }}
             className={`px-6 py-3 text-sm font-bold uppercase border-b-2 transition-all ${
-              activeNetwork === net
+              activeTab === tab.id
                 ? 'border-primary-glow text-primary-glow font-extrabold'
                 : 'border-transparent text-silver-muted hover:text-white'
             }`}
           >
-            {net}
+            {tab.name}
           </button>
         ))}
       </div>
@@ -179,7 +191,7 @@ export default function AdminDataPlansPage() {
               <tr className="bg-white/5 border-b border-silver-muted/10 text-xs font-bold text-silver-muted uppercase tracking-wider">
                 <th className="px-6 py-4">Plan ID</th>
                 <th className="px-6 py-4">Bundle Name</th>
-                <th className="px-6 py-4">SMEPlug Cost</th>
+                <th className="px-6 py-4">{activeTab === 'amzaet' ? 'AMZAET Cost' : 'SMEPlug Cost'}</th>
                 <th className="px-6 py-4">Selling Price</th>
                 <th className="px-6 py-4">Override Status</th>
                 <th className="px-6 py-4">Visibility</th>

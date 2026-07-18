@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import axios from 'axios';
 import { Transaction } from '../entities/transaction.entity';
 import { DataPlan } from '../entities/data-plan.entity';
 import { AirtimePricing } from '../entities/airtime-pricing.entity';
@@ -105,22 +106,69 @@ export class ServicesService {
     });
     await this.transactionRepository.save(systemTx);
 
-    // 4. Map network to SMEPlug ID
-    const networkMap: Record<string, number> = {
-      mtn: 1,
-      airtel: 2,
-      '9mobile': 3,
-      glo: 4,
-    };
-    const networkId = networkMap[plan.network.toLowerCase()];
+    let result: any;
 
-    // 5. Call SMEPlug API
-    const result = await this.smePlugService.purchaseData(
-      networkId,
-      plan.smeplugPlanId,
-      phoneNumber,
-      ref,
-    );
+    if (plan.provider === 'amzaet') {
+      const amzaetToken = process.env.AMZAET_TOKEN || 'e5526677cc04b2b865cb8d913175073c422b7e9f';
+      this.logger.log(`Purchasing data via AMZAET API for plan ${plan.smeplugPlanId} on phone ${phoneNumber}`);
+      try {
+        const response = await axios.post(
+          'https://amzaet.com/api/data/',
+          {
+            network: 1, // MTN is 1 in AMZAET
+            mobile_number: phoneNumber,
+            plan: plan.smeplugPlanId,
+            Ported_number: true,
+          },
+          {
+            headers: {
+              Authorization: `Token ${amzaetToken}`,
+              'Content-Type': 'application/json',
+            },
+            timeout: 30000,
+          }
+        );
+        this.logger.log(`AMZAET API Response: ${JSON.stringify(response.data)}`);
+        
+        const statusStr = String(response.data?.status || '').toLowerCase();
+        const msg = String(response.data?.message || '').toLowerCase();
+        
+        if (statusStr === 'success' || statusStr === 'true' || msg.includes('success') || msg.includes('successful') || msg.includes('submitted')) {
+          result = {
+            status: true,
+            current_status: 'success',
+          };
+        } else {
+          result = {
+            status: false,
+            current_status: 'failed',
+          };
+        }
+      } catch (err: any) {
+        this.logger.error(`AMZAET API call failed: ${err.response?.data ? JSON.stringify(err.response.data) : err.message}`);
+        result = {
+          status: false,
+          current_status: 'failed',
+        };
+      }
+    } else {
+      // 4. Map network to SMEPlug ID
+      const networkMap: Record<string, number> = {
+        mtn: 1,
+        airtel: 2,
+        '9mobile': 3,
+        glo: 4,
+      };
+      const networkId = networkMap[plan.network.toLowerCase()];
+
+      // 5. Call SMEPlug API
+      result = await this.smePlugService.purchaseData(
+        networkId,
+        plan.smeplugPlanId,
+        phoneNumber,
+        ref,
+      );
+    }
 
     // 6. Handle success or rollback on failure
     if (result && (result.status === true || result.current_status === 'success' || result.current_status === 'processing')) {

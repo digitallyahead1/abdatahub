@@ -5,8 +5,11 @@ export class DataPlan {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  @Column()
   smeplugPlanId: number;
+
+  @Column({ default: 'smeplug' })
+  provider: string; // 'smeplug' or 'amzaet'
 
   @Column()
   network: string; // mtn, airtel, glo, 9mobile

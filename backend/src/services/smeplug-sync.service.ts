@@ -32,6 +32,11 @@ export class SmePlugSyncService implements OnModuleInit {
       this.logger.error('Failed to seed default airtime rates:', err);
     });
 
+    // Seed AMZAET data plans on startup
+    this.seedAmzaetPlans().catch(err => {
+      this.logger.error('Failed to seed AMZAET plans:', err);
+    });
+
     // Run first sync in background after a brief delay
     setTimeout(() => {
       this.runSync().catch(err => {
@@ -71,6 +76,30 @@ export class SmePlugSyncService implements OnModuleInit {
         await this.airtimePricingRepository.save(pricing);
         this.logger.log(`Seeded default airtime pricing for ${net.toUpperCase()}`);
       }
+    }
+  }
+
+  async seedAmzaetPlans() {
+    const apiPlanId = 500;
+    const provider = 'amzaet';
+    const existing = await this.dataPlanRepository.findOne({
+      where: { smeplugPlanId: apiPlanId, provider },
+    });
+
+    if (!existing) {
+      const plan = this.dataPlanRepository.create({
+        smeplugPlanId: apiPlanId,
+        network: 'mtn',
+        bundleName: 'MTN SME 5.0 GB 14 days',
+        smeplugCost: 1200,
+        sellingPrice: 1200,
+        overrideStatus: false,
+        visibilityStatus: true,
+        provider,
+        lastSyncedAt: new Date(),
+      });
+      await this.dataPlanRepository.save(plan);
+      this.logger.log('Seeded default AMZAET MTN Data Plan.');
     }
   }
 
@@ -125,8 +154,8 @@ export class SmePlugSyncService implements OnModuleInit {
 
           liveSmeplugPlanIds.push(apiPlanId);
 
-          // Look up existing plan in DB
-          let plan = await this.dataPlanRepository.findOne({ where: { smeplugPlanId: apiPlanId } });
+          // Look up existing plan in DB (only matching SMEPlug provider)
+          let plan = await this.dataPlanRepository.findOne({ where: { smeplugPlanId: apiPlanId, provider: 'smeplug' } });
 
           if (plan) {
              // Update plan details
@@ -134,7 +163,7 @@ export class SmePlugSyncService implements OnModuleInit {
              plan.bundleName = bundleName;
              plan.network = mappedNetwork;
              plan.lastSyncedAt = new Date();
-             plan.visibilityStatus = true;
+             // Note: DO NOT set plan.visibilityStatus = true here; keep whatever settings the admin saved.
 
              // If override is inactive, calculate selling price dynamically
              if (!plan.overrideStatus) {
@@ -154,6 +183,7 @@ export class SmePlugSyncService implements OnModuleInit {
               sellingPrice,
               overrideStatus: false,
               visibilityStatus: true,
+              provider: 'smeplug',
               lastSyncedAt: new Date(),
             });
 
@@ -163,11 +193,12 @@ export class SmePlugSyncService implements OnModuleInit {
         }
       }
 
-      // 3. Disable plans in DB that are no longer available in the API response
+      // 3. Disable plans in DB that are no longer available in the API response (only matching SMEPlug provider)
       if (liveSmeplugPlanIds.length > 0) {
         // Find plans that are active/visible but NOT in the live response
         const plansToDisable = await this.dataPlanRepository.createQueryBuilder('plan')
           .where('plan.smeplugPlanId NOT IN (:...ids)', { ids: liveSmeplugPlanIds })
+          .andWhere('plan.provider = :provider', { provider: 'smeplug' })
           .andWhere('plan.visibilityStatus = :visible', { visible: true })
           .getMany();
 
