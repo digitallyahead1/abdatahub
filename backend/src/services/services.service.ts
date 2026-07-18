@@ -109,8 +109,13 @@ export class ServicesService {
     let result: any;
 
     if (plan.provider === 'amzaet') {
-      const amzaetToken = process.env.AMZAET_TOKEN || 'e5526677cc04b2b865cb8d913175073c422b7e9f';
+      const amzaetToken = process.env.AMZAET_TOKEN;
+      if (!amzaetToken) {
+        this.logger.error('AMZAET_TOKEN is not configured in the environment variables.');
+        throw new Error('AMZAET service is temporarily unavailable due to configuration error.');
+      }
       this.logger.log(`Purchasing data via AMZAET API for plan ${plan.smeplugPlanId} on phone ${phoneNumber}`);
+
       try {
         const response = await axios.post(
           'https://amzaet.com/api/data/',
