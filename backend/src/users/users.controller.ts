@@ -30,4 +30,15 @@ export class UsersController {
       data: userWithoutPassword,
     };
   }
+
+  @Post('apply-agent')
+  async applyAgent(@Req() req: any) {
+    const updatedUser = await this.usersService.applyAgent(req.user.id);
+    const { passwordHash: _, ...userWithoutPassword } = updatedUser;
+    return {
+      success: true,
+      message: 'Agent application submitted successfully!',
+      data: userWithoutPassword,
+    };
+  }
 }

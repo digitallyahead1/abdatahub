@@ -11,6 +11,7 @@ interface DataPlan {
   bundleName: string
   smeplugCost: number
   sellingPrice: number
+  agentPrice: number
   overrideStatus: boolean
   visibilityStatus: boolean
   lastSyncedAt: string
@@ -26,6 +27,7 @@ export default function AdminDataPlansPage() {
   const [activeTab, setActiveTab] = useState<TabType>('mtn')
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingPrice, setEditingPrice] = useState<string>('')
+  const [editingAgentPrice, setEditingAgentPrice] = useState<string>('')
 
   const fetchPlans = async () => {
     try {
@@ -84,21 +86,28 @@ export default function AdminDataPlansPage() {
   const startEdit = (plan: DataPlan) => {
     setEditingId(plan.id)
     setEditingPrice(plan.sellingPrice.toString())
+    setEditingAgentPrice((plan.agentPrice || 0).toString())
   }
 
   const savePrice = async (plan: DataPlan) => {
     const priceVal = parseFloat(editingPrice)
+    const agentPriceVal = parseFloat(editingAgentPrice)
     if (isNaN(priceVal) || priceVal < 0) {
-      toast.error('Please enter a valid price.')
+      toast.error('Please enter a valid selling price.')
+      return
+    }
+    if (isNaN(agentPriceVal) || agentPriceVal < 0) {
+      toast.error('Please enter a valid agent price.')
       return
     }
 
     try {
       const updated = await api.put(`/admin/data-plans/${plan.id}`, {
         sellingPrice: priceVal,
+        agentPrice: agentPriceVal,
         overrideStatus: true, // Auto-enable override when price is custom-set
       })
-      toast.success('Selling price saved and override activated.')
+      toast.success('Prices saved successfully.')
       setPlans(plans.map((p) => (p.id === plan.id ? updated.data.data : p)))
       setEditingId(null)
     } catch (err) {
@@ -194,6 +203,7 @@ export default function AdminDataPlansPage() {
                 <th className="px-6 py-4">Bundle Name</th>
                 <th className="px-6 py-4">{activeTab === 'amzaet' ? 'AMZAET Cost' : 'SMEPlug Cost'}</th>
                 <th className="px-6 py-4">Selling Price</th>
+                <th className="px-6 py-4">Agent Price</th>
                 <th className="px-6 py-4">Override Status</th>
                 <th className="px-6 py-4">Visibility</th>
                 <th className="px-6 py-4 text-center">Actions</th>
@@ -202,7 +212,7 @@ export default function AdminDataPlansPage() {
             <tbody className="divide-y divide-white/5">
               {filteredPlans.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-6 py-10 text-center text-silver-muted font-medium">
+                  <td colSpan={8} className="px-6 py-10 text-center text-silver-muted font-medium">
                     No active plans synced for this network yet. Try clicking "Sync SMEPlug plans".
                   </td>
                 </tr>
@@ -229,6 +239,21 @@ export default function AdminDataPlansPage() {
                         </div>
                       ) : (
                         <span className="font-bold text-primary-glow font-mono">₦{plan.sellingPrice.toFixed(2)}</span>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {editingId === plan.id ? (
+                        <div className="flex items-center space-x-2">
+                          <span className="text-silver-muted">₦</span>
+                          <input
+                            type="number"
+                            value={editingAgentPrice}
+                            onChange={(e) => setEditingAgentPrice(e.target.value)}
+                            className="w-24 bg-dark-bg border border-primary-glow/50 rounded px-2 py-1 text-white font-mono text-sm focus:outline-none"
+                          />
+                        </div>
+                      ) : (
+                        <span className="font-bold text-purple-400 font-mono">₦{(plan.agentPrice || 0).toFixed(2)}</span>
                       )}
                     </td>
                     <td className="px-6 py-4">

@@ -14,6 +14,7 @@ export interface User {
   role: 'super_admin' | 'admin' | 'agent' | 'user'
   permissions?: string[]
   transactionPin?: string | null
+  agentStatus?: string
   createdAt: string
 }
 

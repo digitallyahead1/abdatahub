@@ -1,4 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, Inject, forwardRef, Logger, OnModuleInit } from '@nestjs/common';
+import { JwtService } from '@nestjs/jwt';
+import { ExamCategory } from '../entities/exam-category.entity';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
@@ -49,6 +51,9 @@ export class AdminService implements OnModuleInit {
     @Inject(forwardRef(() => IacafeService))
     private iacafeService: IacafeService,
     private authService: AuthService,
+    private jwtService: JwtService,
+    @InjectRepository(ExamCategory)
+    private examCategoryRepository: Repository<ExamCategory>,
   ) {}
 
   async onModuleInit() {
@@ -425,11 +430,13 @@ export class AdminService implements OnModuleInit {
 
     const oldValues = {
       sellingPrice: plan.sellingPrice,
+      agentPrice: plan.agentPrice,
       overrideStatus: plan.overrideStatus,
       visibilityStatus: plan.visibilityStatus,
     };
 
     if (updateData.sellingPrice !== undefined) plan.sellingPrice = parseFloat(updateData.sellingPrice);
+    if (updateData.agentPrice !== undefined) plan.agentPrice = parseFloat(updateData.agentPrice);
     if (updateData.overrideStatus !== undefined) plan.overrideStatus = !!updateData.overrideStatus;
     if (updateData.visibilityStatus !== undefined) plan.visibilityStatus = !!updateData.visibilityStatus;
 
@@ -441,6 +448,7 @@ export class AdminService implements OnModuleInit {
       oldValues,
       newValues: {
         sellingPrice: savedPlan.sellingPrice,
+        agentPrice: savedPlan.agentPrice,
         overrideStatus: savedPlan.overrideStatus,
         visibilityStatus: savedPlan.visibilityStatus,
       },
@@ -461,11 +469,13 @@ export class AdminService implements OnModuleInit {
 
     const oldValues = {
       sellingRate: pricing.sellingRate,
+      agentRate: pricing.agentRate,
       overrideStatus: pricing.overrideStatus,
       visibilityStatus: pricing.visibilityStatus,
     };
 
     if (updateData.sellingRate !== undefined) pricing.sellingRate = parseFloat(updateData.sellingRate);
+    if (updateData.agentRate !== undefined) pricing.agentRate = parseFloat(updateData.agentRate);
     if (updateData.overrideStatus !== undefined) pricing.overrideStatus = !!updateData.overrideStatus;
     if (updateData.visibilityStatus !== undefined) pricing.visibilityStatus = !!updateData.visibilityStatus;
 
@@ -476,6 +486,7 @@ export class AdminService implements OnModuleInit {
       oldValues,
       newValues: {
         sellingRate: savedPricing.sellingRate,
+        agentRate: savedPricing.agentRate,
         overrideStatus: savedPricing.overrideStatus,
         visibilityStatus: savedPricing.visibilityStatus,
       },
@@ -824,5 +835,110 @@ export class AdminService implements OnModuleInit {
       success: true,
       message: `Transaction ${tx.reference} successfully refunded to user wallet.`,
     };
+  }
+
+  // ============= AGENT MANAGEMENT =============
+
+  async getAgentRequests() {
+    return this.userRepository.find({
+      where: [
+        { agentStatus: 'pending' },
+        { agentStatus: 'approved' },
+        { agentStatus: 'rejected' },
+      ],
+      select: ['id', 'fullName', 'email', 'phoneNumber', 'role', 'agentStatus', 'agentAppliedAt', 'createdAt'],
+      order: { agentAppliedAt: 'DESC' },
+    });
+  }
+
+  async approveAgent(userId: string, adminUser: any) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.agentStatus !== 'pending') {
+      throw new BadRequestException(`Cannot approve: user agent status is '${user.agentStatus}', expected 'pending'.`);
+    }
+
+    user.agentStatus = 'approved';
+    user.role = 'agent';
+    const saved = await this.userRepository.save(user);
+
+    await this.auditLogService.log(adminUser.id, adminUser.email, 'agent_approved', {
+      targetUserId: userId,
+      targetEmail: user.email,
+    });
+
+    return saved;
+  }
+
+  async rejectAgent(userId: string, adminUser: any) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    if (user.agentStatus !== 'pending') {
+      throw new BadRequestException(`Cannot reject: user agent status is '${user.agentStatus}', expected 'pending'.`);
+    }
+
+    user.agentStatus = 'rejected';
+    const saved = await this.userRepository.save(user);
+
+    await this.auditLogService.log(adminUser.id, adminUser.email, 'agent_rejected', {
+      targetUserId: userId,
+      targetEmail: user.email,
+    });
+
+    return saved;
+  }
+
+  // ============= IMPERSONATION =============
+
+  async impersonateUser(targetUserId: string, adminUser: any) {
+    const targetUser = await this.userRepository.findOne({ where: { id: targetUserId } });
+    if (!targetUser) throw new NotFoundException('User not found');
+
+    await this.auditLogService.log(adminUser.id, adminUser.email, 'user_impersonated', {
+      targetUserId,
+      targetEmail: targetUser.email,
+    });
+
+    const payload = { email: targetUser.email, sub: targetUser.id, role: targetUser.role };
+    return {
+      accessToken: this.jwtService.sign(payload, { expiresIn: '2h' }),
+      refreshToken: this.jwtService.sign(payload, { expiresIn: '2h' }),
+      user: {
+        id: targetUser.id,
+        email: targetUser.email,
+        fullName: targetUser.fullName,
+        role: targetUser.role,
+        permissions: targetUser.permissions,
+        agentStatus: targetUser.agentStatus,
+        phoneNumber: targetUser.phoneNumber,
+        username: targetUser.username,
+        referralCode: targetUser.referralCode,
+        emailVerified: targetUser.emailVerified,
+        phoneVerified: targetUser.phoneVerified,
+      },
+    };
+  }
+
+  // ============= EXAM AGENT PRICING =============
+
+  async getExamCategories() {
+    return this.examCategoryRepository.find({ order: { id: 'ASC' } });
+  }
+
+  async updateExamAgentPricing(examType: string, agentPrice: number, adminUser: any) {
+    const category = await this.examCategoryRepository.findOne({ where: { id: examType } });
+    if (!category) throw new NotFoundException('Exam category not found');
+
+    const oldPrice = category.agentPrice;
+    category.agentPrice = agentPrice;
+    const saved = await this.examCategoryRepository.save(category);
+
+    await this.auditLogService.log(adminUser.id, adminUser.email, 'exam_agent_pricing_update', {
+      examType,
+      oldAgentPrice: oldPrice,
+      newAgentPrice: agentPrice,
+    });
+
+    return saved;
   }
 }

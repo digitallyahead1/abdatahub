@@ -14,6 +14,12 @@ export class ExamCategory {
   }})
   price: number;
 
+  @Column({ type: 'decimal', precision: 20, scale: 2, default: 0.00, transformer: {
+    to: (value: number) => value,
+    from: (value: string) => parseFloat(value) || 0
+  }})
+  agentPrice: number;
+
   @Column({ default: 'active' })
   status: string; // 'active', 'disabled'
 

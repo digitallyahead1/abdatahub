@@ -55,6 +55,12 @@ export class User {
   @Column({ type: 'varchar', nullable: true })
   transactionPin: string | null;
 
+  @Column({ default: 'none' })
+  agentStatus: string;
+
+  @Column({ type: 'timestamp', nullable: true })
+  agentAppliedAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 

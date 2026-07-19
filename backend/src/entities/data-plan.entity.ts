@@ -29,6 +29,12 @@ export class DataPlan {
   }})
   sellingPrice: number;
 
+  @Column({ type: 'decimal', precision: 20, scale: 2, default: 0.00, transformer: {
+    to: (value: number) => value,
+    from: (value: string) => parseFloat(value) || 0
+  }})
+  agentPrice: number;
+
   @Column({ default: false })
   overrideStatus: boolean; // true = admin override active
 

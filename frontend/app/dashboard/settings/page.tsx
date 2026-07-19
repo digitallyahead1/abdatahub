@@ -35,8 +35,8 @@ export default function SettingsPage() {
       if (response.data.success) {
         toast.success('Profile updated successfully!')
         // Update user session context if possible
-        if (auth?.setUser && auth?.user) {
-          auth.setUser({
+        if (auth?.updateUser && auth?.user) {
+          auth.updateUser({
             ...auth.user,
             fullName: response.data.data.fullName,
             phoneNumber: response.data.data.phoneNumber,

@@ -42,6 +42,7 @@ export default function AdminExamsPage() {
 
   // Pricing state
   const [pricingForm, setPricingForm] = useState<Record<string, number>>({})
+  const [agentPricingForm, setAgentPricingForm] = useState<Record<string, number>>({})
   const [updatingPricing, setUpdatingPricing] = useState(false)
 
   // Inventory state
@@ -62,10 +63,13 @@ export default function AdminExamsPage() {
 
       // Initialize pricing form values
       const initialPrices: Record<string, number> = {}
-      data.forEach((item: ExamStat) => {
+      const initialAgentPrices: Record<string, number> = {}
+      data.forEach((item: any) => {
         initialPrices[item.id] = item.price
+        initialAgentPrices[item.id] = item.agentPrice || 0
       })
       setPricingForm(initialPrices)
+      setAgentPricingForm(initialAgentPrices)
     } catch (err) {
       console.error('Failed to fetch exam stats:', err)
       toast.error('Could not fetch exam category stats.')
@@ -139,7 +143,10 @@ export default function AdminExamsPage() {
     e.preventDefault()
     setUpdatingPricing(true)
     try {
-      await api.post('/admin/exams/pricing', pricingForm)
+      await api.post('/admin/exams/pricing', {
+        prices: pricingForm,
+        agentPrices: agentPricingForm,
+      })
       toast.success('Exam PIN pricing updated successfully!')
       fetchStats()
     } catch (err: any) {
@@ -303,19 +310,39 @@ export default function AdminExamsPage() {
               <p className="text-xs text-silver-muted">Change the end-user selling rates for checkers.</p>
             </div>
 
-            <form onSubmit={handleUpdatePricing} className="space-y-4">
+            <form onSubmit={handleUpdatePricing} className="space-y-6">
               {stats.map((cat) => (
-                <div key={cat.id} className="flex items-center justify-between space-x-4">
-                  <span className="text-sm font-bold text-white uppercase font-mono truncate">{cat.id}</span>
-                  <div className="relative rounded-xl border border-silver-muted/20 focus-within:border-primary-glow overflow-hidden bg-dark-bg w-36">
-                    <span className="absolute left-3 top-2.5 text-silver-muted text-sm font-mono">₦</span>
-                    <input
-                      type="number"
-                      value={pricingForm[cat.id] ?? ''}
-                      onChange={(e) => setPricingForm({ ...pricingForm, [cat.id]: parseFloat(e.target.value) || 0 })}
-                      className="w-full bg-transparent pl-8 pr-3 py-2.5 text-white font-mono text-sm text-right focus:outline-none"
-                      required
-                    />
+                <div key={cat.id} className="space-y-2 border-b border-white/5 pb-4 last:border-b-0">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-bold text-white uppercase font-mono">{cat.name || cat.id}</span>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[10px] font-semibold text-silver-muted uppercase mb-1">Selling Price</label>
+                      <div className="relative rounded-xl border border-silver-muted/20 focus-within:border-primary-glow overflow-hidden bg-dark-bg">
+                        <span className="absolute left-3 top-2.5 text-silver-muted text-xs font-mono">₦</span>
+                        <input
+                          type="number"
+                          value={pricingForm[cat.id] ?? ''}
+                          onChange={(e) => setPricingForm({ ...pricingForm, [cat.id]: parseFloat(e.target.value) || 0 })}
+                          className="w-full bg-transparent pl-7 pr-3 py-2 text-white font-mono text-xs text-right focus:outline-none"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-silver-muted uppercase mb-1">Agent Price</label>
+                      <div className="relative rounded-xl border border-silver-muted/20 focus-within:border-primary-glow overflow-hidden bg-dark-bg">
+                        <span className="absolute left-3 top-2.5 text-silver-muted text-xs font-mono">₦</span>
+                        <input
+                          type="number"
+                          value={agentPricingForm[cat.id] ?? ''}
+                          onChange={(e) => setAgentPricingForm({ ...agentPricingForm, [cat.id]: parseFloat(e.target.value) || 0 })}
+                          className="w-full bg-transparent pl-7 pr-3 py-2 text-white font-mono text-xs text-right focus:outline-none"
+                          required
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -323,9 +350,9 @@ export default function AdminExamsPage() {
               <button
                 type="submit"
                 disabled={updatingPricing}
-                className="w-full py-3 bg-white/5 border border-white/10 hover:bg-white/10 text-white text-sm font-bold rounded-xl transition-all"
+                className="w-full py-3 bg-gradient-blue hover:opacity-95 text-white text-sm font-bold rounded-xl shadow-glow-blue transition-all disabled:opacity-50 mt-2"
               >
-                {updatingPricing ? 'Saving Price Matrix...' : 'Update Retail Pricing'}
+                {updatingPricing ? 'Saving Price Matrix...' : 'Update Prices'}
               </button>
             </form>
           </div>

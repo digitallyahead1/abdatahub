@@ -107,4 +107,17 @@ export class UsersService {
     }
     return true;
   }
+
+  async applyAgent(userId: string): Promise<User> {
+    const user = await this.findOneById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (user.agentStatus === 'approved') {
+      throw new BadRequestException('You are already an approved agent.');
+    }
+    user.agentStatus = 'pending';
+    user.agentAppliedAt = new Date();
+    return this.userRepository.save(user);
+  }
 }

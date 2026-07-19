@@ -75,6 +75,7 @@ export class ExamsService implements OnModuleInit {
         id: cat.id,
         name: cat.name,
         price: cat.price,
+        agentPrice: cat.agentPrice,
         status: cat.status,
         total,
         sold,
@@ -86,15 +87,23 @@ export class ExamsService implements OnModuleInit {
   }
 
   // Get active user pricing & stock
-  async getUserPricing() {
+  async getUserPricing(userId?: string) {
     const categories = await this.categoryRepository.find({ where: { status: 'active' }, order: { id: 'ASC' } });
+    
+    let isAgent = false;
+    if (userId) {
+      const user = await this.usersService.findOneById(userId);
+      isAgent = user?.role === 'agent';
+    }
+
     const list = [];
     for (const cat of categories) {
       const available = await this.pinRepository.count({ where: { examType: cat.id, isSold: false, status: 'available' } });
+      const price = (isAgent && Number(cat.agentPrice) > 0) ? Number(cat.agentPrice) : Number(cat.price);
       list.push({
         id: cat.id,
         name: cat.name,
-        price: cat.price,
+        price,
         available,
       });
     }
@@ -157,12 +166,24 @@ export class ExamsService implements OnModuleInit {
   async updatePricing(pricing: any, adminUser: any) {
     const oldPrices: Record<string, number> = {};
     const newPrices: Record<string, number> = {};
+    const oldAgentPrices: Record<string, number> = {};
+    const newAgentPrices: Record<string, number> = {};
 
-    for (const key of Object.keys(pricing)) {
+    const prices = pricing.prices || pricing; // Fallback to raw object if legacy
+    const agentPrices = pricing.agentPrices || {};
+
+    for (const key of Object.keys(prices)) {
       const category = await this.categoryRepository.findOne({ where: { id: key } });
       if (category) {
         oldPrices[key] = category.price;
-        category.price = Number(pricing[key]);
+        category.price = Number(prices[key]);
+        
+        if (agentPrices[key] !== undefined) {
+          oldAgentPrices[key] = category.agentPrice;
+          category.agentPrice = Number(agentPrices[key]);
+          newAgentPrices[key] = category.agentPrice;
+        }
+
         await this.categoryRepository.save(category);
         newPrices[key] = category.price;
       }
@@ -171,6 +192,8 @@ export class ExamsService implements OnModuleInit {
     await this.auditLogService.log(adminUser.id, adminUser.email, 'exam_pricing_update', {
       oldPrices,
       newPrices,
+      oldAgentPrices,
+      newAgentPrices,
     });
 
     return { success: true, newPrices };
@@ -275,7 +298,14 @@ export class ExamsService implements OnModuleInit {
       throw new BadRequestException('Selected exam service is currently disabled.');
     }
 
-    const price = Number(category.price);
+    const user = await this.usersService.findOneById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    const price = (user.role === 'agent' && Number(category.agentPrice) > 0)
+      ? Number(category.agentPrice)
+      : Number(category.price);
     const totalAmount = price * Number(quantity);
 
     if (amount !== undefined && Math.abs(Number(amount) - totalAmount) > 0.01) {

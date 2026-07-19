@@ -8,6 +8,7 @@ interface AirtimePricing {
   network: string
   smeplugRate: number
   sellingRate: number
+  agentRate: number
   overrideStatus: boolean
   visibilityStatus: boolean
   lastSyncedAt: string
@@ -18,6 +19,7 @@ export default function AdminAirtimePricingPage() {
   const [loading, setLoading] = useState(true)
   const [editingNetwork, setEditingNetwork] = useState<string | null>(null)
   const [editingRate, setEditingRate] = useState<string>('')
+  const [editingAgentRate, setEditingAgentRate] = useState<string>('')
 
   const fetchPricing = async () => {
     try {
@@ -63,21 +65,28 @@ export default function AdminAirtimePricingPage() {
   const startEdit = (pricing: AirtimePricing) => {
     setEditingNetwork(pricing.network)
     setEditingRate(pricing.sellingRate.toString())
+    setEditingAgentRate((pricing.agentRate || 1.0).toString())
   }
 
   const saveRate = async (pricing: AirtimePricing) => {
     const rateVal = parseFloat(editingRate)
+    const agentRateVal = parseFloat(editingAgentRate)
     if (isNaN(rateVal) || rateVal < 0 || rateVal > 2.00) {
-      toast.error('Please enter a valid rate (e.g. 0.99 for 1% discount, 1.02 for 2% markup).')
+      toast.error('Please enter a valid selling rate (e.g. 0.99 for 1% discount, 1.02 for 2% markup).')
+      return
+    }
+    if (isNaN(agentRateVal) || agentRateVal < 0 || agentRateVal > 2.00) {
+      toast.error('Please enter a valid agent rate (e.g. 0.97 for 3% discount).')
       return
     }
 
     try {
       const updated = await api.put(`/admin/airtime-pricing/${pricing.network}`, {
         sellingRate: rateVal,
+        agentRate: agentRateVal,
         overrideStatus: true, // Auto-enable override on manual update
       })
-      toast.success('Selling rate saved and override activated.')
+      toast.success('Rates saved successfully.')
       setPricingList(pricingList.map((p) => (p.network === pricing.network ? updated.data.data : p)))
       setEditingNetwork(null)
     } catch (err) {
@@ -113,6 +122,7 @@ export default function AdminAirtimePricingPage() {
                 <th className="px-6 py-4">Network</th>
                 <th className="px-6 py-4">SMEPlug Cost Rate</th>
                 <th className="px-6 py-4">Selling Rate</th>
+                <th className="px-6 py-4">Agent Rate</th>
                 <th className="px-6 py-4">Calculated Markup</th>
                 <th className="px-6 py-4">Override Status</th>
                 <th className="px-6 py-4">Visibility</th>
@@ -150,6 +160,22 @@ export default function AdminAirtimePricingPage() {
                         </span>
                       )}
                       <span className="text-[10px] text-silver-muted block">End-user billing rate</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      {editingNetwork === pricing.network ? (
+                        <input
+                          type="number"
+                          step="0.0001"
+                          value={editingAgentRate}
+                          onChange={(e) => setEditingAgentRate(e.target.value)}
+                          className="w-24 bg-dark-bg border border-primary-glow/50 rounded px-2 py-1 text-white font-mono text-sm focus:outline-none"
+                        />
+                      ) : (
+                        <span className="font-bold text-purple-400 font-mono">
+                          {((pricing.agentRate || 1.0) * 100).toFixed(1)}% ({((pricing.agentRate || 1.0)).toFixed(4)})
+                        </span>
+                      )}
+                      <span className="text-[10px] text-silver-muted block">Agent billing rate</span>
                     </td>
                     <td className="px-6 py-4 font-mono font-semibold text-emerald-400">
                       {markup >= 0 ? `+${markupPercent}%` : `${markupPercent}%`}

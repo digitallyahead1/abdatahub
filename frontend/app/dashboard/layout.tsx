@@ -122,6 +122,15 @@ export default function DashboardLayout({
       ),
     },
     {
+      name: 'Agent Services',
+      path: '/dashboard/agent',
+      icon: (
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+      ),
+    },
+    {
       name: 'Profile Settings',
       path: '/dashboard/settings',
       icon: (
@@ -284,6 +293,26 @@ export default function DashboardLayout({
 
       {/* Main content frame */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {auth?.isImpersonating && (
+          <div className="bg-amber-500 text-dark-bg px-6 py-2.5 flex items-center justify-between text-sm font-semibold select-none z-20 shadow-md">
+            <div className="flex items-center space-x-2">
+              <svg className="w-5 h-5 animate-pulse shrink-0 text-dark-bg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+              <span>
+                You are currently impersonating <strong className="underline">{auth.user?.fullName}</strong> ({auth.user?.email}).
+              </span>
+            </div>
+            <button
+              onClick={() => auth.exitImpersonation()}
+              className="px-3 py-1 bg-dark-bg text-amber-400 hover:text-white rounded-md text-xs font-bold transition-all border border-amber-400/20"
+            >
+              Exit Impersonation
+            </button>
+          </div>
+        )}
+
         {/* Top Navbar */}
         <header className="h-20 bg-dark-bg-secondary border-b border-silver-muted/10 flex items-center justify-between px-6 z-10">
           <div className="flex items-center space-x-4">

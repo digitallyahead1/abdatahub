@@ -270,4 +270,56 @@ export class AdminController {
       data,
     };
   }
+
+  // ============= AGENT MANAGEMENT =============
+
+  @Get('agent-requests')
+  @Permissions('manage:users')
+  async getAgentRequests() {
+    const data = await this.adminService.getAgentRequests();
+    return { success: true, data };
+  }
+
+  @Post('agent-requests/:id/approve')
+  @Permissions('manage:users')
+  async approveAgent(@Param('id') userId: string, @Req() req: any) {
+    const data = await this.adminService.approveAgent(userId, req.user);
+    return { success: true, message: 'Agent approved successfully!', data };
+  }
+
+  @Post('agent-requests/:id/reject')
+  @Permissions('manage:users')
+  async rejectAgent(@Param('id') userId: string, @Req() req: any) {
+    const data = await this.adminService.rejectAgent(userId, req.user);
+    return { success: true, message: 'Agent request rejected.', data };
+  }
+
+  // ============= IMPERSONATION =============
+
+  @Post('impersonate/:id')
+  @Permissions('manage:users')
+  async impersonateUser(@Param('id') userId: string, @Req() req: any) {
+    const data = await this.adminService.impersonateUser(userId, req.user);
+    return { success: true, message: 'Impersonation token generated.', data };
+  }
+
+  // ============= EXAM AGENT PRICING =============
+
+  @Get('exam-categories')
+  @Permissions('manage:settings')
+  async getExamCategories() {
+    const data = await this.adminService.getExamCategories();
+    return { success: true, data };
+  }
+
+  @Put('exam-categories/:examType/agent-price')
+  @Permissions('manage:settings')
+  async updateExamAgentPricing(
+    @Param('examType') examType: string,
+    @Body('agentPrice') agentPrice: number,
+    @Req() req: any,
+  ) {
+    const data = await this.adminService.updateExamAgentPricing(examType, agentPrice, req.user);
+    return { success: true, message: 'Exam agent pricing updated!', data };
+  }
 }

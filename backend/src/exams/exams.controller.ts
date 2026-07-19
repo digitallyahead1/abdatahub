@@ -11,8 +11,8 @@ export class ExamsController {
 
   // User Actions
   @Get('services/exams/pricing')
-  async getUserPricing() {
-    const data = await this.examsService.getUserPricing();
+  async getUserPricing(@Req() req: any) {
+    const data = await this.examsService.getUserPricing(req.user.id);
     return {
       success: true,
       data,

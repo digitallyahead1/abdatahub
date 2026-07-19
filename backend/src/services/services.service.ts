@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, Logger, Inject, forwardRef } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import axios from 'axios';
@@ -68,7 +68,15 @@ export class ServicesService {
       throw new BadRequestException('The selected data plan is currently unavailable.');
     }
 
-    const amount = plan.sellingPrice;
+    const user = await this.usersService.findOneById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    let amount = plan.sellingPrice;
+    if (user.role === 'agent' && Number(plan.agentPrice) > 0) {
+      amount = Number(plan.agentPrice);
+    }
     const planName = plan.bundleName;
 
     // 2. Debit user's wallet
@@ -330,7 +338,17 @@ export class ServicesService {
       throw new BadRequestException('Airtime service is currently disabled for this network.');
     }
 
-    const sellingPrice = Number(amount) * Number(pricing.sellingRate);
+    const user = await this.usersService.findOneById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found.');
+    }
+
+    let rate = pricing.sellingRate;
+    if (user.role === 'agent') {
+      rate = pricing.agentRate;
+    }
+
+    const sellingPrice = Number(amount) * Number(rate);
     const smeplugCost = Number(amount) * Number(pricing.smeplugRate);
     const profit = sellingPrice - smeplugCost;
 

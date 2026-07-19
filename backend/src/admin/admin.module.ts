@@ -17,6 +17,7 @@ import { ServicesModule } from '../services/services.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { AuthModule } from '../auth/auth.module';
 import { SystemSetting } from '../entities/system-setting.entity';
+import { ExamCategory } from '../entities/exam-category.entity';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { SystemSetting } from '../entities/system-setting.entity';
       DataTransaction,
       AirtimeTransaction,
       SystemSetting,
+      ExamCategory,
     ]),
     AuditLogModule,
     forwardRef(() => ServicesModule),

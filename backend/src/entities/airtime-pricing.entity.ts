@@ -17,6 +17,12 @@ export class AirtimePricing {
   }})
   sellingRate: number; // rate customer pays (e.g. 0.99 for 1% discount)
 
+  @Column({ type: 'decimal', precision: 5, scale: 4, default: 1.0000, transformer: {
+    to: (value: number) => value,
+    from: (value: string) => parseFloat(value) || 0
+  }})
+  agentRate: number; // rate approved agents pay
+
   @Column({ default: false })
   overrideStatus: boolean; // true = admin override active
 

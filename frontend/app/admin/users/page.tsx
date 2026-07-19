@@ -39,7 +39,6 @@ export default function AdminUsersPage() {
   const [showOtpStep, setShowOtpStep] = useState(false)
   const [otpCode, setOtpCode] = useState('')
   const [sendingOtp, setSendingOtp] = useState(false)
-  const [otpSent, setOtpSent] = useState(false)
 
   const fetchUsers = async () => {
     try {
@@ -87,7 +86,6 @@ export default function AdminUsersPage() {
     setEditPermissions(user.permissions || [])
     setShowOtpStep(false)
     setOtpCode('')
-    setOtpSent(false)
   }
 
   const handleTogglePermission = (permissionId: string) => {
@@ -105,7 +103,6 @@ export default function AdminUsersPage() {
       setSendingOtp(true)
       await api.post('/admin/users/role-otp')
       toast.success('OTP has been sent to your email address.')
-      setOtpSent(true)
       setShowOtpStep(true)
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to send OTP.')
@@ -144,7 +141,6 @@ export default function AdminUsersPage() {
       setEditingUser(null)
       setShowOtpStep(false)
       setOtpCode('')
-      setOtpSent(false)
       fetchUsers()
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to update role and permissions.')
@@ -361,7 +357,7 @@ export default function AdminUsersPage() {
               {/* Action Buttons */}
               <div className="flex justify-end space-x-3 pt-4 border-t border-white/5">
                 <button
-                  onClick={() => { setEditingUser(null); setShowOtpStep(false); setOtpCode(''); setOtpSent(false); }}
+                  onClick={() => { setEditingUser(null); setShowOtpStep(false); setOtpCode(''); }}
                   className="px-4 py-2 border border-silver-muted/10 text-silver-muted hover:text-white rounded-xl text-sm font-semibold transition-all"
                 >
                   Cancel
