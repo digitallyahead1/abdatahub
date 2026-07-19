@@ -102,6 +102,13 @@ export default function BuyDataPage() {
     network: string
     status: string
   } | null>(null)
+  const [failedReceipt, setFailedReceipt] = useState<{
+    planName: string
+    phoneNumber: string
+    amount: number
+    errorMessage: string
+    network: string
+  } | null>(null)
 
   useEffect(() => {
     const fetchPlans = async () => {
@@ -240,34 +247,48 @@ export default function BuyDataPage() {
 
   const handlePinConfirm = async (pin: string) => {
     if (!pendingData) return
+    // Capture ALL needed values in local consts BEFORE any setState calls
+    const capturedPending = pendingData
+    const selectedPlan = plans.find((p) => p.id === capturedPending.planId)
     setLoading(true)
     try {
-      const selectedPlan = plans.find((p) => p.id === pendingData.planId)
       const payload = {
-        phoneNumber: pendingData.phoneNumber,
-        network: pendingData.network,
+        phoneNumber: capturedPending.phoneNumber,
+        network: capturedPending.network,
         planId: selectedPlan?.id,
-        amount: pendingData.amount,
+        amount: capturedPending.amount,
         pin,
       }
       
       const response = await api.post('/services/data', payload)
       const data = response.data.data
+
+      // Close modal and clear form state
       setPinModalOpen(false)
       setPendingData(null)
       setValue('planId', '')
       setValue('amount', 0)
-      // Show receipt popup
+
+      // Show success receipt popup
       setReceipt({
         planName: data?.planName || selectedPlan?.bundleName || 'Data Plan',
-        phoneNumber: data?.phoneNumber || pendingData.phoneNumber,
-        amount: data?.amount || pendingData.amount,
-        reference: data?.reference || '',
-        network: data?.network || pendingData.network,
+        phoneNumber: data?.phoneNumber || capturedPending.phoneNumber,
+        amount: Number(data?.amount ?? capturedPending.amount),
+        reference: data?.reference || 'N/A',
+        network: (data?.network || capturedPending.network).toUpperCase(),
         status: data?.status || 'success',
       })
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Transaction failed. Please check your wallet balance.')
+      const errMsg = err.response?.data?.message || 'Transaction failed. Please try again.'
+      // Show failure receipt popup instead of just a toast
+      setFailedReceipt({
+        planName: selectedPlan?.bundleName || 'Data Plan',
+        phoneNumber: capturedPending.phoneNumber,
+        amount: Number(capturedPending.amount),
+        errorMessage: errMsg,
+        network: capturedPending.network.toUpperCase(),
+      })
+      setPinModalOpen(false)
     } finally {
       setLoading(false)
     }
@@ -534,6 +555,46 @@ export default function BuyDataPage() {
                 Done
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* Failure Receipt Modal */}
+      {failedReceipt && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm px-4">
+          <div className="bg-dark-bg-secondary border border-white/10 rounded-2xl glass-dark p-6 w-full max-w-sm shadow-2xl">
+            {/* Header */}
+            <div className="flex flex-col items-center mb-6">
+              <div className="w-16 h-16 rounded-full bg-red-500/15 border border-red-500/30 flex items-center justify-center mb-3">
+                <svg className="w-8 h-8 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </div>
+              <h2 className="text-xl font-bold text-white">Purchase Failed</h2>
+              <p className="text-sm text-red-400 mt-1 text-center px-2">{failedReceipt.errorMessage}</p>
+            </div>
+
+            {/* Details */}
+            <div className="space-y-3 bg-white/5 rounded-xl p-4 border border-white/5 mb-5">
+              {[
+                { label: 'Phone Number', value: failedReceipt.phoneNumber },
+                { label: 'Network', value: failedReceipt.network },
+                { label: 'Plan', value: failedReceipt.planName },
+                { label: 'Amount', value: `₦${Number(failedReceipt.amount).toLocaleString()}` },
+                { label: 'Status', value: '❌ Failed' },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex justify-between items-center text-sm">
+                  <span className="text-silver-muted">{label}</span>
+                  <span className="text-white font-semibold">{value}</span>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setFailedReceipt(null)}
+              className="w-full py-3 bg-red-500/20 border border-red-500/30 text-red-300 font-bold rounded-xl text-sm hover:bg-red-500/30 transition-all"
+            >
+              Close
+            </button>
           </div>
         </div>
       )}
