@@ -133,20 +133,57 @@ export class ServicesService {
             timeout: 30000,
           }
         );
-        this.logger.log(`AMZAET API Response: ${JSON.stringify(response.data)}`);
+        this.logger.log(`AMZAET API Response [HTTP ${response.status}]: ${JSON.stringify(response.data)}`);
         
         const statusStr = String(response.data?.status || '').toLowerCase();
         const msg = String(response.data?.message || '').toLowerCase();
-        
-        if (statusStr === 'success' || statusStr === 'true' || msg.includes('success') || msg.includes('successful') || msg.includes('submitted')) {
+
+        // Explicit failure indicators in the response body
+        const isExplicitFailure =
+          statusStr === 'false' ||
+          statusStr === 'failed' ||
+          statusStr === 'error' ||
+          msg.includes('failed') ||
+          msg.includes('error') ||
+          msg.includes('insufficient');
+
+        // If HTTP 2xx and no explicit failure in body → treat as success
+        // AMZAET may return "successful", "200", "created", "processing", etc.
+        const isSuccess =
+          !isExplicitFailure &&
+          (response.status >= 200 && response.status < 300) &&
+          (
+            statusStr === 'success' ||
+            statusStr === 'successful' ||
+            statusStr === 'true' ||
+            statusStr === '200' ||
+            statusStr === 'created' ||
+            statusStr === 'processing' ||
+            msg.includes('success') ||
+            msg.includes('successful') ||
+            msg.includes('submitted') ||
+            msg.includes('processing') ||
+            // If response has an id/plan field, the order was accepted
+            response.data?.id != null ||
+            response.data?.plan != null
+          );
+
+        if (isSuccess) {
           result = {
             status: true,
             current_status: 'success',
           };
         } else {
+          const failMsg =
+            (Array.isArray(response.data?.error) && response.data.error[0]) ||
+            response.data?.message ||
+            response.data?.detail ||
+            'Provider returned an unrecognised response';
+          this.logger.warn(`AMZAET returned non-success body: ${JSON.stringify(response.data)}`);
           result = {
             status: false,
             current_status: 'failed',
+            msg: failMsg,
           };
         }
       } catch (err: any) {
