@@ -82,24 +82,28 @@ export class SmePlugSyncService implements OnModuleInit {
   async seedAmzaetPlans() {
     const apiPlanId = 500;
     const provider = 'amzaet';
-    const existing = await this.dataPlanRepository.findOne({
+    const plan = await this.dataPlanRepository.findOne({
       where: { smeplugPlanId: apiPlanId, provider },
     });
 
-    if (!existing) {
-      const plan = this.dataPlanRepository.create({
+    if (!plan) {
+      const newPlan = this.dataPlanRepository.create({
         smeplugPlanId: apiPlanId,
         network: 'mtn',
         bundleName: 'MTN SME 5.0 GB 14 days',
-        smeplugCost: 1200,
-        sellingPrice: 1200,
+        smeplugCost: 1040,
+        sellingPrice: 1040,
         overrideStatus: false,
         visibilityStatus: true,
         provider,
         lastSyncedAt: new Date(),
       });
-      await this.dataPlanRepository.save(plan);
+      await this.dataPlanRepository.save(newPlan);
       this.logger.log('Seeded default AMZAET MTN Data Plan.');
+    } else {
+      plan.smeplugCost = 1040;
+      await this.dataPlanRepository.save(plan);
+      this.logger.log('Updated AMZAET MTN Data Plan cost to 1040.');
     }
   }
 
