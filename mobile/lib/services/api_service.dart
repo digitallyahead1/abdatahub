@@ -26,8 +26,8 @@ class ApiService {
     _dio = Dio(
       BaseOptions(
         baseUrl: baseUrl,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
+        connectTimeout: const Duration(seconds: 15),
+        receiveTimeout: const Duration(seconds: 60), // Data/airtime provider APIs can take 30-40s
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -106,8 +106,12 @@ class ApiService {
       return Exception(message ?? 'Server error occurred');
     }
     
-    if (e.type == DioExceptionType.connectionTimeout || e.type == DioExceptionType.receiveTimeout) {
+    if (e.type == DioExceptionType.connectionTimeout) {
       return Exception('Connection timeout. Please check your internet connection.');
+    }
+
+    if (e.type == DioExceptionType.receiveTimeout) {
+      return Exception('Request timed out. The transaction may still be processing — please check your transaction history.');
     }
     
     return Exception('Network error. Check your connection.');
