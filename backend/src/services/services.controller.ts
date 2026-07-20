@@ -58,8 +58,8 @@ export class ServicesController {
   }
 
   @Get('data/plans')
-  async getDataPlans() {
-    const data = await this.servicesService.getDataPlans();
+  async getDataPlans(@Req() req: any) {
+    const data = await this.servicesService.getDataPlans(req.user.id);
     return {
       success: true,
       data,
@@ -67,8 +67,8 @@ export class ServicesController {
   }
 
   @Get('airtime/pricing')
-  async getAirtimePricing() {
-    const data = await this.servicesService.getAirtimePricing();
+  async getAirtimePricing(@Req() req: any) {
+    const data = await this.servicesService.getAirtimePricing(req.user.id);
     return {
       success: true,
       data,

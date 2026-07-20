@@ -36,21 +36,55 @@ export class ServicesService {
     private airtimeTransactionRepository: Repository<AirtimeTransaction>,
   ) {}
 
-  async getDataPlans() {
-    return this.dataPlanRepository.find({
+  async getDataPlans(userId?: string) {
+    const plans = await this.dataPlanRepository.find({
       where: { visibilityStatus: true },
       order: { network: 'ASC', sellingPrice: 'ASC' },
     });
+
+    if (userId) {
+      const user = await this.usersService.findOneById(userId);
+      if (user && user.role === 'agent') {
+        return plans.map((plan) => {
+          const agentPrice = Number(plan.agentPrice);
+          if (agentPrice > 0) {
+            return {
+              ...plan,
+              sellingPrice: agentPrice,
+            };
+          }
+          return plan;
+        });
+      }
+    }
+    return plans;
   }
 
   async getSettingsForUsers() {
     return this.adminService.getSettings();
   }
 
-  async getAirtimePricing() {
-    return this.airtimePricingRepository.find({
+  async getAirtimePricing(userId?: string) {
+    const rates = await this.airtimePricingRepository.find({
       where: { visibilityStatus: true },
     });
+
+    if (userId) {
+      const user = await this.usersService.findOneById(userId);
+      if (user && user.role === 'agent') {
+        return rates.map((rate) => {
+          const agentRate = Number(rate.agentRate);
+          if (agentRate > 0) {
+            return {
+              ...rate,
+              sellingRate: agentRate,
+            };
+          }
+          return rate;
+        });
+      }
+    }
+    return rates;
   }
 
   async purchaseData(userId: string, payload: any) {
