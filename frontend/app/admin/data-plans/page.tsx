@@ -28,6 +28,7 @@ export default function AdminDataPlansPage() {
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editingPrice, setEditingPrice] = useState<string>('')
   const [editingAgentPrice, setEditingAgentPrice] = useState<string>('')
+  const [editingBundleName, setEditingBundleName] = useState<string>('')
 
   const fetchPlans = async () => {
     try {
@@ -87,6 +88,7 @@ export default function AdminDataPlansPage() {
     setEditingId(plan.id)
     setEditingPrice(plan.sellingPrice.toString())
     setEditingAgentPrice((plan.agentPrice || 0).toString())
+    setEditingBundleName(plan.bundleName)
   }
 
   const savePrice = async (plan: DataPlan) => {
@@ -103,9 +105,10 @@ export default function AdminDataPlansPage() {
 
     try {
       const updated = await api.put(`/admin/data-plans/${plan.id}`, {
+        bundleName: editingBundleName.trim() || plan.bundleName,
         sellingPrice: priceVal,
         agentPrice: agentPriceVal,
-        overrideStatus: true, // Auto-enable override when price is custom-set
+        overrideStatus: true, // Auto-enable override when plan is custom-set
       })
       toast.success('Prices saved successfully.')
       setPlans(plans.map((p) => (p.id === plan.id ? updated.data.data : p)))
@@ -223,7 +226,19 @@ export default function AdminDataPlansPage() {
                     className="hover:bg-white/[0.02] transition-colors"
                   >
                     <td className="px-6 py-4 font-mono text-xs">{plan.smeplugPlanId}</td>
-                    <td className="px-6 py-4 font-semibold text-white">{plan.bundleName}</td>
+                    <td className="px-6 py-4 font-semibold text-white">
+                      {editingId === plan.id ? (
+                        <input
+                          type="text"
+                          value={editingBundleName}
+                          onChange={(e) => setEditingBundleName(e.target.value)}
+                          className="w-full bg-dark-bg border border-primary-glow/50 rounded px-2 py-1 text-white text-sm focus:outline-none"
+                          placeholder="Bundle Name"
+                        />
+                      ) : (
+                        plan.bundleName
+                      )}
+                    </td>
                     <td className="px-6 py-4 font-mono">₦{plan.smeplugCost.toFixed(2)}</td>
                     <td className="px-6 py-4">
                       {editingId === plan.id ? (
@@ -301,7 +316,7 @@ export default function AdminDataPlansPage() {
                               onClick={() => startEdit(plan)}
                               className="px-3 py-1 bg-white/5 border border-white/10 text-white text-xs font-semibold rounded-lg hover:bg-white/10 transition-colors"
                             >
-                              Edit Price
+                              Edit
                             </button>
                             <button
                               onClick={() => toggleOverride(plan)}

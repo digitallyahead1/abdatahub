@@ -166,13 +166,13 @@ export class SmePlugSyncService implements OnModuleInit {
           if (plan) {
              // Update plan details
              plan.smeplugCost = costPrice;
-             plan.bundleName = bundleName;
              plan.network = mappedNetwork;
              plan.lastSyncedAt = new Date();
              // Note: DO NOT set plan.visibilityStatus = true here; keep whatever settings the admin saved.
 
-             // If override is inactive, calculate selling price dynamically
+             // If override is inactive, update bundleName and calculate selling price dynamically
              if (!plan.overrideStatus) {
+               plan.bundleName = bundleName;
                plan.sellingPrice = costPrice + margin;
              }
 

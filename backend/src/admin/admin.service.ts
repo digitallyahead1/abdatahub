@@ -15,6 +15,7 @@ import { DataTransaction } from '../entities/data-transaction.entity';
 import { AirtimeTransaction } from '../entities/airtime-transaction.entity';
 import { SystemSetting } from '../entities/system-setting.entity';
 import { SmePlugSyncService } from '../services/smeplug-sync.service';
+import { SmePlugService } from '../services/smeplug.service';
 import { WalletService } from '../wallet/wallet.service';
 import { IacafeService } from '../services/iacafe.service';
 import { AuthService } from '../auth/auth.service';
@@ -46,6 +47,8 @@ export class AdminService implements OnModuleInit {
     private systemSettingRepository: Repository<SystemSetting>,
     @Inject(forwardRef(() => SmePlugSyncService))
     private smePlugSyncService: SmePlugSyncService,
+    @Inject(forwardRef(() => SmePlugService))
+    private smePlugService: SmePlugService,
     private auditLogService: AuditLogService,
     private walletService: WalletService,
     @Inject(forwardRef(() => IacafeService))
@@ -429,12 +432,14 @@ export class AdminService implements OnModuleInit {
     if (!plan) throw new NotFoundException('Data plan not found');
 
     const oldValues = {
+      bundleName: plan.bundleName,
       sellingPrice: plan.sellingPrice,
       agentPrice: plan.agentPrice,
       overrideStatus: plan.overrideStatus,
       visibilityStatus: plan.visibilityStatus,
     };
 
+    if (updateData.bundleName !== undefined && updateData.bundleName.trim() !== '') plan.bundleName = updateData.bundleName.trim();
     if (updateData.sellingPrice !== undefined) plan.sellingPrice = parseFloat(updateData.sellingPrice);
     if (updateData.agentPrice !== undefined) plan.agentPrice = parseFloat(updateData.agentPrice);
     if (updateData.overrideStatus !== undefined) plan.overrideStatus = !!updateData.overrideStatus;
@@ -447,6 +452,7 @@ export class AdminService implements OnModuleInit {
       bundleName: plan.bundleName,
       oldValues,
       newValues: {
+        bundleName: savedPlan.bundleName,
         sellingPrice: savedPlan.sellingPrice,
         agentPrice: savedPlan.agentPrice,
         overrideStatus: savedPlan.overrideStatus,
@@ -695,10 +701,58 @@ export class AdminService implements OnModuleInit {
     } else if (isSimulated) {
       providerStatus = 'success';
       message = 'Transaction successfully verified on the simulated provider server.';
-    } else {
-      if (tx.service === 'data' || tx.service === 'airtime') {
-        providerStatus = 'success';
-        message = 'Transaction successfully verified on the provider server.';
+    } else if (tx.service === 'data' || tx.service === 'airtime') {
+      // Query real provider API for data/airtime transaction status
+      const txProvider = tx.metadata?.provider || 'smeplug';
+
+      if (txProvider === 'amzaet') {
+        // AMZAET does not have a standard requery endpoint — keep current status
+        message = 'AMZAET transactions cannot be requeried automatically. Please verify manually on the AMZAET dashboard.';
+      } else {
+        // SMEPlug: query /transactions by customer_reference
+        try {
+          const smeplugResult = await this.smePlugService.getTransactionStatus(tx.reference);
+          if (smeplugResult && smeplugResult.transaction) {
+            const smeplugStatus = String(smeplugResult.transaction.status || '').toLowerCase();
+            if (smeplugStatus === 'success' || smeplugStatus === 'successful' || smeplugStatus === 'completed') {
+              providerStatus = 'success';
+              message = 'Transaction confirmed successful on SMEPlug.';
+              providerMeta.providerReference = smeplugResult.transaction.reference || '';
+            } else if (smeplugStatus === 'failed' || smeplugStatus === 'refunded') {
+              providerStatus = 'failed';
+              message = 'Transaction confirmed failed on SMEPlug.';
+            } else if (smeplugStatus === 'pending' || smeplugStatus === 'processing' || smeplugStatus === 'initiated') {
+              providerStatus = 'pending';
+              message = 'Transaction is still pending/processing on SMEPlug.';
+            } else {
+              message = `SMEPlug returned unrecognised status: ${smeplugStatus}. No changes made.`;
+            }
+          } else if (smeplugResult && smeplugResult.status === true && Array.isArray(smeplugResult.data)) {
+            // Some SMEPlug responses return an array in data
+            const match = smeplugResult.data.find((t: any) => t.customer_reference === tx.reference);
+            if (match) {
+              const matchStatus = String(match.status || match.current_status || '').toLowerCase();
+              if (matchStatus === 'success' || matchStatus === 'successful' || matchStatus === 'completed') {
+                providerStatus = 'success';
+                message = 'Transaction confirmed successful on SMEPlug.';
+                providerMeta.providerReference = match.reference || '';
+              } else if (matchStatus === 'failed' || matchStatus === 'refunded') {
+                providerStatus = 'failed';
+                message = 'Transaction confirmed failed on SMEPlug.';
+              } else {
+                providerStatus = 'pending';
+                message = `Transaction status on SMEPlug: ${matchStatus}.`;
+              }
+            } else {
+              message = 'Transaction reference not found in SMEPlug response. No changes made.';
+            }
+          } else {
+            message = 'Unable to verify transaction status with SMEPlug. No changes made.';
+          }
+        } catch (queryErr: any) {
+          this.logger.error(`SMEPlug requery failed for ${tx.reference}: ${queryErr.message}`);
+          message = `SMEPlug requery failed: ${queryErr.message}. No changes made.`;
+        }
       }
     }
 

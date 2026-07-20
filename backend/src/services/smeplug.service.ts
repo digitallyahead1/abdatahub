@@ -126,4 +126,18 @@ export class SmePlugService {
       };
     }
   }
+
+  async getTransactionStatus(customerReference: string): Promise<any> {
+    try {
+      this.logger.log(`Checking SMEPlug transaction status for ref: ${customerReference}`);
+      const response = await this.client.get('/transactions', {
+        params: { customer_reference: customerReference }
+      });
+      this.logger.log(`SMEPlug transaction status response: ${JSON.stringify(response.data)}`);
+      return response.data;
+    } catch (error: any) {
+      this.logger.error('SMEPlug transaction status check failure:', error.response?.data || error.message);
+      return null;
+    }
+  }
 }

@@ -110,7 +110,7 @@ export class ServicesService {
       amount,
       status: 'pending',
       reference: ref,
-      metadata: { phoneNumber, network: plan.network, planName, profit },
+      metadata: { phoneNumber, network: plan.network, planName, profit, provider: plan.provider || 'smeplug' },
     });
     await this.transactionRepository.save(systemTx);
 
@@ -195,18 +195,20 @@ export class ServicesService {
           };
         }
       } catch (err: any) {
-        // Extract human-readable error from AMZAET's error array: { error: ['...'] }
+        // Distinguish transient errors (timeout, network, 5xx) from hard API failures
+        const isTransient = !err.response || err.response.status >= 500 || err.code === 'ECONNABORTED' || err.message?.includes('timeout');
         const amzaetErrorData = err.response?.data;
         const amzaetMsg =
           (Array.isArray(amzaetErrorData?.error) && amzaetErrorData.error[0]) ||
           amzaetErrorData?.detail ||
           amzaetErrorData?.message ||
           err.message;
-        this.logger.error(`AMZAET API call failed: ${JSON.stringify(amzaetErrorData || err.message)}`);
+        this.logger.error(`AMZAET API call failed (transient=${isTransient}): ${JSON.stringify(amzaetErrorData || err.message)}`);
         result = {
           status: false,
-          current_status: 'failed',
+          current_status: isTransient ? 'pending' : 'failed',
           msg: amzaetMsg,
+          isTransientError: isTransient,
         };
       }
     } else {
@@ -236,6 +238,10 @@ export class ServicesService {
       await this.dataTransactionRepository.save(dataTx);
 
       systemTx.status = finalStatus;
+      systemTx.metadata = {
+        ...(systemTx.metadata || {}),
+        providerReference: result.data?.reference || result.reference || '',
+      };
       await this.transactionRepository.save(systemTx);
 
       if (finalStatus === 'failed') {
@@ -381,7 +387,7 @@ export class ServicesService {
       amount: sellingPrice,
       status: 'pending',
       reference: ref,
-      metadata: { phoneNumber, network: cleanNetwork, faceValue: amount, profit },
+      metadata: { phoneNumber, network: cleanNetwork, faceValue: amount, profit, provider: 'smeplug' },
     });
     await this.transactionRepository.save(systemTx);
 
@@ -410,6 +416,10 @@ export class ServicesService {
       await this.airtimeTransactionRepository.save(airtimeTx);
 
       systemTx.status = finalStatus;
+      systemTx.metadata = {
+        ...(systemTx.metadata || {}),
+        providerReference: result.data?.reference || result.reference || '',
+      };
       await this.transactionRepository.save(systemTx);
 
       if (finalStatus === 'failed') {
