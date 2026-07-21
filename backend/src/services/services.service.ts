@@ -98,8 +98,8 @@ export class ServicesService {
         : { id: planId },
     });
 
-    if (!plan || !plan.visibilityStatus) {
-      throw new BadRequestException('The selected data plan is currently unavailable.');
+    if (!plan) {
+      throw new BadRequestException('The selected data plan was not found.');
     }
 
     const user = await this.usersService.findOneById(userId);
