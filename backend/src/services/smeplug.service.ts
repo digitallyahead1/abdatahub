@@ -73,9 +73,9 @@ export class SmePlugService {
   ): Promise<any> {
     try {
       const payload = {
-        network_id: networkId,
-        plan_id: planId,
-        phone,
+        network_id: Number(networkId),
+        plan_id: Number(planId),
+        phone: String(phone).trim(),
         customer_reference: customerReference,
       };
       
