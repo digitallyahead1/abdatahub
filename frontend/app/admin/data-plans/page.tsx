@@ -85,6 +85,19 @@ export default function AdminDataPlansPage() {
     }
   }
 
+  const handleDeletePlan = async (plan: DataPlan) => {
+    if (!window.confirm(`Are you sure you want to permanently delete "${plan.bundleName}" (Plan ID: ${plan.smeplugPlanId})?`)) {
+      return
+    }
+    try {
+      await api.delete(`/admin/data-plans/${plan.id}`)
+      toast.success(`Plan "${plan.bundleName}" deleted successfully.`)
+      setPlans(plans.filter((p) => p.id !== plan.id))
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to delete data plan.')
+    }
+  }
+
   const startEdit = (plan: DataPlan) => {
     setEditingId(plan.id)
     setEditingPrice(plan.sellingPrice.toString())
@@ -353,11 +366,17 @@ export default function AdminDataPlansPage() {
                               onClick={() => toggleVisibility(plan)}
                               className={`px-3 py-1 text-xs font-semibold rounded-lg border transition-colors ${
                                 plan.visibilityStatus
-                                  ? 'bg-red-500/10 text-red-400 border-red-500/20 hover:bg-red-500/20'
+                                  ? 'bg-amber-500/10 text-amber-400 border-amber-500/20 hover:bg-amber-500/20'
                                   : 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20'
                               }`}
                             >
                               {plan.visibilityStatus ? 'Hide Plan' : 'Show Plan'}
+                            </button>
+                            <button
+                              onClick={() => handleDeletePlan(plan)}
+                              className="px-3 py-1 bg-red-500/20 border border-red-500/30 text-red-300 text-xs font-semibold rounded-lg hover:bg-red-500/30 transition-colors"
+                            >
+                              Delete
                             </button>
                           </>
                         )}

@@ -471,6 +471,21 @@ export class AdminService implements OnModuleInit {
     return savedPlan;
   }
 
+  async deleteDataPlan(id: string, adminUser: any) {
+    const plan = await this.dataPlanRepository.findOne({ where: { id } });
+    if (!plan) throw new NotFoundException('Data plan not found');
+
+    await this.dataPlanRepository.remove(plan);
+
+    await this.auditLogService.log(adminUser.id, adminUser.email, 'data_plan_deleted', {
+      planId: id,
+      bundleName: plan.bundleName,
+      smeplugPlanId: plan.smeplugPlanId,
+    });
+
+    return { success: true, message: 'Data plan deleted successfully' };
+  }
+
   async getAirtimePricing(): Promise<AirtimePricing[]> {
     return this.airtimePricingRepository.find({
       order: { network: 'ASC' },

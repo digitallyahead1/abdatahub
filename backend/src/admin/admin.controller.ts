@@ -236,6 +236,17 @@ export class AdminController {
     };
   }
 
+  @Delete('data-plans/:id')
+  @Permissions('manage:settings')
+  async deleteDataPlan(@Param('id') id: string, @Req() req: any) {
+    const data = await this.adminService.deleteDataPlan(id, req.user);
+    return {
+      success: true,
+      message: 'Data plan deleted successfully!',
+      data,
+    };
+  }
+
   @Get('airtime-pricing')
   @Permissions('manage:settings')
   async getAirtimePricing() {
