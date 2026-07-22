@@ -29,6 +29,7 @@ export default function AdminDataPlansPage() {
   const [editingPrice, setEditingPrice] = useState<string>('')
   const [editingAgentPrice, setEditingAgentPrice] = useState<string>('')
   const [editingBundleName, setEditingBundleName] = useState<string>('')
+  const [editingSmeplugPlanId, setEditingSmeplugPlanId] = useState<string>('')
 
   const fetchPlans = async () => {
     try {
@@ -89,11 +90,18 @@ export default function AdminDataPlansPage() {
     setEditingPrice(plan.sellingPrice.toString())
     setEditingAgentPrice((plan.agentPrice || 0).toString())
     setEditingBundleName(plan.bundleName)
+    setEditingSmeplugPlanId(plan.smeplugPlanId.toString())
   }
 
   const savePrice = async (plan: DataPlan) => {
     const priceVal = parseFloat(editingPrice)
     const agentPriceVal = parseFloat(editingAgentPrice)
+    const apiPlanIdVal = parseInt(editingSmeplugPlanId, 10)
+
+    if (isNaN(apiPlanIdVal) || apiPlanIdVal <= 0) {
+      toast.error('Please enter a valid API Plan ID.')
+      return
+    }
     if (isNaN(priceVal) || priceVal < 0) {
       toast.error('Please enter a valid selling price.')
       return
@@ -105,12 +113,13 @@ export default function AdminDataPlansPage() {
 
     try {
       const updated = await api.put(`/admin/data-plans/${plan.id}`, {
+        smeplugPlanId: apiPlanIdVal,
         bundleName: editingBundleName.trim() || plan.bundleName,
         sellingPrice: priceVal,
         agentPrice: agentPriceVal,
         overrideStatus: true, // Auto-enable override when plan is custom-set
       })
-      toast.success('Prices saved successfully.')
+      toast.success('Plan details saved successfully.')
       setPlans(plans.map((p) => (p.id === plan.id ? updated.data.data : p)))
       setEditingId(null)
     } catch (err) {
@@ -225,7 +234,19 @@ export default function AdminDataPlansPage() {
                     key={plan.id}
                     className="hover:bg-white/[0.02] transition-colors"
                   >
-                    <td className="px-6 py-4 font-mono text-xs">{plan.smeplugPlanId}</td>
+                    <td className="px-6 py-4 font-mono text-xs">
+                      {editingId === plan.id ? (
+                        <input
+                          type="number"
+                          value={editingSmeplugPlanId}
+                          onChange={(e) => setEditingSmeplugPlanId(e.target.value)}
+                          className="w-16 bg-dark-bg border border-primary-glow/50 rounded px-2 py-1 text-white font-mono text-xs focus:outline-none"
+                          placeholder="Plan ID"
+                        />
+                      ) : (
+                        plan.smeplugPlanId
+                      )}
+                    </td>
                     <td className="px-6 py-4 font-semibold text-white">
                       {editingId === plan.id ? (
                         <input

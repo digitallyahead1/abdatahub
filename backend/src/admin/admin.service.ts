@@ -432,6 +432,8 @@ export class AdminService implements OnModuleInit {
     if (!plan) throw new NotFoundException('Data plan not found');
 
     const oldValues = {
+      smeplugPlanId: plan.smeplugPlanId,
+      provider: plan.provider,
       bundleName: plan.bundleName,
       sellingPrice: plan.sellingPrice,
       agentPrice: plan.agentPrice,
@@ -439,6 +441,12 @@ export class AdminService implements OnModuleInit {
       visibilityStatus: plan.visibilityStatus,
     };
 
+    if (updateData.smeplugPlanId !== undefined && !isNaN(parseInt(updateData.smeplugPlanId, 10))) {
+      plan.smeplugPlanId = parseInt(updateData.smeplugPlanId, 10);
+    }
+    if (updateData.provider !== undefined && updateData.provider.trim() !== '') {
+      plan.provider = updateData.provider.trim();
+    }
     if (updateData.bundleName !== undefined && updateData.bundleName.trim() !== '') plan.bundleName = updateData.bundleName.trim();
     if (updateData.sellingPrice !== undefined) plan.sellingPrice = parseFloat(updateData.sellingPrice);
     if (updateData.agentPrice !== undefined) plan.agentPrice = parseFloat(updateData.agentPrice);

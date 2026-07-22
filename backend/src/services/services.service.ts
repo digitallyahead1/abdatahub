@@ -256,6 +256,7 @@ export class ServicesService {
       const networkId = networkMap[plan.network.toLowerCase()];
 
       // 5. Call SMEPlug API
+      this.logger.log(`Sending SMEPlug Data Purchase: networkId=${networkId}, smeplugPlanId=${plan.smeplugPlanId} (${plan.bundleName}), phone=${phoneNumber}, ref=${ref}`);
       result = await this.smePlugService.purchaseData(
         networkId,
         plan.smeplugPlanId,
