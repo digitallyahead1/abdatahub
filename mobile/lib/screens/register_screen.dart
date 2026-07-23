@@ -152,6 +152,18 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         child: Image.asset(
                           'assets/images/logo.png',
                           fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: AppColors.charcoalCard,
+                              child: const Center(
+                                child: Icon(
+                                  Icons.cell_tower,
+                                  color: AppColors.royalBlue,
+                                  size: 32,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ),

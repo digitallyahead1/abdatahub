@@ -12,8 +12,72 @@ import 'wallet_tab.dart';
 import '../widgets/transaction_details_sheet.dart';
 
 
-class HomeTab extends StatelessWidget {
+import '../services/api_service.dart';
+
+class HomeTab extends StatefulWidget {
   const HomeTab({super.key});
+
+  @override
+  State<HomeTab> createState() => _HomeTabState();
+}
+
+class _HomeTabState extends State<HomeTab> {
+  static bool _hasShownNotification = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkNotification();
+    });
+  }
+
+  Future<void> _checkNotification() async {
+    if (_hasShownNotification) return;
+    try {
+      final response = await ApiService().get('/services/notification');
+      final data = response['data'];
+      if (data != null &&
+          data['notificationEnabled'] == true &&
+          data['notificationMessage'] != null &&
+          data['notificationMessage'].toString().trim().isNotEmpty) {
+        _hasShownNotification = true;
+        if (!mounted) return;
+
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            backgroundColor: AppColors.darkBgSecondary,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            title: const Row(
+              children: [
+                Icon(Icons.campaign, color: AppColors.royalBlue, size: 28),
+                SizedBox(width: 10),
+                Text(
+                  'Announcement',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+              ],
+            ),
+            content: SingleChildScrollView(
+              child: Text(
+                data['notificationMessage'].toString(),
+                style: const TextStyle(color: AppColors.silverLight, fontSize: 14, height: 1.5),
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(),
+                child: const Text('Understood', style: TextStyle(color: AppColors.royalBlue, fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      // Ignore notification fetch error silently
+    }
+  }
 
   void _navigateToService(BuildContext context, Widget screen) {
     Navigator.of(context).push(
@@ -104,6 +168,18 @@ class HomeTab extends StatelessWidget {
                         child: Image.asset(
                           'assets/images/logo.png',
                           fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: AppColors.darkBgSecondary,
+                              child: const Center(
+                                child: Icon(
+                                  Icons.cell_tower,
+                                  color: AppColors.royalBlue,
+                                  size: 24,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ),

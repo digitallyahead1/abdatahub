@@ -106,6 +106,18 @@ class _AuthWrapperState extends State<AuthWrapper> {
                 child: Image.asset(
                   'assets/images/logo.png',
                   fit: BoxFit.cover,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Container(
+                      color: const Color(0xFF1E293B),
+                      child: const Center(
+                        child: Icon(
+                          Icons.cell_tower,
+                          color: Color(0xFF3B82F6),
+                          size: 48,
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
             ),

@@ -66,7 +66,7 @@ class ProfileTab extends StatelessWidget {
                     TextFormField(
                       controller: nameController,
                       style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Full Name',
                         labelStyle: TextStyle(color: AppColors.silverMuted),
                         enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.silverMuted)),
@@ -78,7 +78,7 @@ class ProfileTab extends StatelessWidget {
                       controller: phoneController,
                       keyboardType: TextInputType.phone,
                       style: const TextStyle(color: Colors.white),
-                      decoration: const InputDecoration(
+                      decoration: InputDecoration(
                         labelText: 'Phone Number',
                         labelStyle: TextStyle(color: AppColors.silverMuted),
                         enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.silverMuted)),
@@ -98,7 +98,7 @@ class ProfileTab extends StatelessWidget {
               actions: [
                 TextButton(
                   onPressed: auth.isLoading ? null : () => Navigator.of(context).pop(),
-                  child: const Text('CANCEL', style: TextStyle(color: AppColors.silverMuted)),
+                  child: Text('CANCEL', style: TextStyle(color: AppColors.silverMuted)),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue),
@@ -157,7 +157,7 @@ class ProfileTab extends StatelessWidget {
                     if (!otpSent) ...[
                       Text(
                         'A 6-digit confirmation code will be sent to your registered email: $email',
-                        style: const TextStyle(color: AppColors.silverMuted, fontSize: 13, height: 1.4),
+                        style: TextStyle(color: AppColors.silverMuted, fontSize: 13, height: 1.4),
                       ),
                     ] else ...[
                       TextFormField(
@@ -166,7 +166,7 @@ class ProfileTab extends StatelessWidget {
                         maxLength: 6,
                         style: const TextStyle(color: Colors.white, letterSpacing: 8, fontSize: 18),
                         textAlign: TextAlign.center,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Enter Email OTP',
                           labelStyle: TextStyle(color: AppColors.silverMuted),
                           enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.silverMuted)),
@@ -181,7 +181,7 @@ class ProfileTab extends StatelessWidget {
                         obscureText: true,
                         style: const TextStyle(color: Colors.white, letterSpacing: 10, fontSize: 18),
                         textAlign: TextAlign.center,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'New 4-Digit PIN',
                           labelStyle: TextStyle(color: AppColors.silverMuted),
                           enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.silverMuted)),
@@ -202,7 +202,7 @@ class ProfileTab extends StatelessWidget {
               actions: [
                 TextButton(
                   onPressed: auth.isLoading ? null : () => Navigator.of(context).pop(),
-                  child: const Text('CANCEL', style: TextStyle(color: AppColors.silverMuted)),
+                  child: Text('CANCEL', style: TextStyle(color: AppColors.silverMuted)),
                 ),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(backgroundColor: AppColors.primaryBlue),
@@ -303,7 +303,7 @@ class ProfileTab extends StatelessWidget {
                     const SizedBox(height: 16),
                     Text(
                       name,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.silverLight,
                         fontSize: 20,
                         fontWeight: FontWeight.bold,
@@ -313,7 +313,7 @@ class ProfileTab extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       email,
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: AppColors.silverMuted,
                         fontSize: 13,
                       ),
@@ -328,7 +328,7 @@ class ProfileTab extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
+                  gradient: LinearGradient(
                     colors: [AppColors.darkBgSecondary, Color(0xFF0F172A)],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
@@ -356,7 +356,7 @@ class ProfileTab extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 10),
-                    const Text(
+                    Text(
                       'Share your unique referral link below. Get ₦500 immediately when your friend signs up and funds their wallet for the first time.',
                       style: TextStyle(
                         color: AppColors.silverMuted,
@@ -393,7 +393,7 @@ class ProfileTab extends StatelessWidget {
                               refLink,
                               'Referral link copied to clipboard!',
                             ),
-                            child: const Icon(
+                            child: Icon(
                               Icons.copy,
                               color: AppColors.silverLight,
                               size: 18,
@@ -406,7 +406,7 @@ class ProfileTab extends StatelessWidget {
                     Center(
                       child: Text(
                         'Your Referral Code: $refCode',
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: AppColors.silverLight,
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -541,7 +541,7 @@ class ProfileTab extends StatelessWidget {
       leading: Icon(icon, color: AppColors.primaryBlue),
       title: Text(
         title,
-        style: const TextStyle(
+        style: TextStyle(
           color: AppColors.silverMuted,
           fontSize: 12,
         ),
@@ -551,7 +551,7 @@ class ProfileTab extends StatelessWidget {
         children: [
           Text(
             value,
-            style: const TextStyle(
+            style: TextStyle(
               color: AppColors.silverLight,
               fontWeight: FontWeight.bold,
               fontSize: 13,

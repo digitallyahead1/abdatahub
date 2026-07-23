@@ -36,6 +36,13 @@ export class SystemSetting {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 30 })
   serviceFeeAmount: number;
 
+  // Notification Popup
+  @Column({ type: 'boolean', default: false })
+  notificationEnabled: boolean;
+
+  @Column({ type: 'text', nullable: true })
+  notificationMessage: string | null;
+
   @UpdateDateColumn()
   updatedAt: Date;
 }

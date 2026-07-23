@@ -22,6 +22,8 @@ export const metadata: Metadata = {
   },
 }
 
+import NotificationModal from '@/components/NotificationModal'
+
 export default function RootLayout({
   children,
 }: {
@@ -33,6 +35,7 @@ export default function RootLayout({
         <AuthProvider>
           <PinCheckWrapper>
             {children}
+            <NotificationModal />
           </PinCheckWrapper>
           <Toaster richColors position="top-right" closeButton theme="dark" />
         </AuthProvider>

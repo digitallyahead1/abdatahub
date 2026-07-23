@@ -212,7 +212,7 @@ class _ElectricityScreenState extends State<ElectricityScreen> with SingleTicker
                     Text('Subscriber: $customerName', style: const TextStyle(color: Colors.white, fontSize: 13)),
                     const SizedBox(height: 8),
                   ],
-                  const Text('Prepaid Meter Token:', style: TextStyle(color: AppColors.silverMuted, fontSize: 12)),
+                  Text('Prepaid Meter Token:', style: TextStyle(color: AppColors.silverMuted, fontSize: 12)),
                   const SizedBox(height: 8),
                   Container(
                     width: double.infinity,
@@ -245,7 +245,7 @@ class _ElectricityScreenState extends State<ElectricityScreen> with SingleTicker
                   ),
                   if (units.toString().isNotEmpty) ...[
                     const SizedBox(height: 12),
-                    Text('Units: $units', style: const TextStyle(color: AppColors.silverLight, fontSize: 13, fontWeight: FontWeight.bold)),
+                    Text('Units: $units', style: TextStyle(color: AppColors.silverLight, fontSize: 13, fontWeight: FontWeight.bold)),
                   ],
                 ],
               ),
@@ -465,7 +465,7 @@ class _ElectricityScreenState extends State<ElectricityScreen> with SingleTicker
                               const SizedBox(height: 4),
                               Text(
                                 'Address: ${_verifiedCustomer!['customer_address'] ?? _verifiedCustomer!['customerAddress']}',
-                                style: const TextStyle(color: AppColors.silverLight, fontSize: 11),
+                                style: TextStyle(color: AppColors.silverLight, fontSize: 11),
                               ),
                             ],
                           ],
@@ -519,7 +519,7 @@ class _ElectricityScreenState extends State<ElectricityScreen> with SingleTicker
                     style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
                   ),
                   const SizedBox(height: 8),
-                  const Text(
+                  Text(
                     'Enter your meter number below to fetch all active prepaid tokens purchased under this account.',
                     style: TextStyle(color: AppColors.silverMuted, fontSize: 12, height: 1.4),
                   ),
@@ -577,9 +577,9 @@ class _ElectricityScreenState extends State<ElectricityScreen> with SingleTicker
                                             ],
                                           ),
                                           const SizedBox(height: 4),
-                                          Text(dateStr, style: const TextStyle(color: AppColors.silverMuted, fontSize: 11)),
+                                          Text(dateStr, style: TextStyle(color: AppColors.silverMuted, fontSize: 11)),
                                           const SizedBox(height: 12),
-                                          const Text('Prepaid Token:', style: TextStyle(color: AppColors.silverMuted, fontSize: 10)),
+                                          Text('Prepaid Token:', style: TextStyle(color: AppColors.silverMuted, fontSize: 10)),
                                           const SizedBox(height: 4),
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
@@ -613,11 +613,11 @@ class _ElectricityScreenState extends State<ElectricityScreen> with SingleTicker
                                           ),
                                           if (tx['customerName'] != null && tx['customerName'].toString().isNotEmpty) ...[
                                             const SizedBox(height: 8),
-                                            Text('Subscriber: ${tx['customerName']}', style: const TextStyle(color: AppColors.silverLight, fontSize: 11)),
+                                            Text('Subscriber: ${tx['customerName']}', style: TextStyle(color: AppColors.silverLight, fontSize: 11)),
                                           ],
                                           if (tx['units'] != null && tx['units'].toString().isNotEmpty) ...[
                                             const SizedBox(height: 4),
-                                            Text('Units: ${tx['units']}', style: const TextStyle(color: AppColors.silverLight, fontSize: 11)),
+                                            Text('Units: ${tx['units']}', style: TextStyle(color: AppColors.silverLight, fontSize: 11)),
                                           ]
                                         ],
                                       ),
@@ -628,7 +628,7 @@ class _ElectricityScreenState extends State<ElectricityScreen> with SingleTicker
                             : Center(
                                 child: Text(
                                   _hasSearched ? 'No tokens found for this meter' : 'No queries performed yet',
-                                  style: const TextStyle(color: AppColors.silverMuted),
+                                  style: TextStyle(color: AppColors.silverMuted),
                                 ),
                               ),
                   ),

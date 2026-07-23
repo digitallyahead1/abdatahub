@@ -80,15 +80,16 @@ export class SmePlugSyncService implements OnModuleInit {
   }
 
   async seedAmzaetPlans() {
-    const apiPlanId = 500;
+    // --- Plan 1: MTN SME 5.0 GB 14 days (Plan ID 500) ---
+    const apiPlanId1 = 500;
     const provider = 'amzaet';
-    const plan = await this.dataPlanRepository.findOne({
-      where: { smeplugPlanId: apiPlanId, provider },
+    const plan1 = await this.dataPlanRepository.findOne({
+      where: { smeplugPlanId: apiPlanId1, provider },
     });
 
-    if (!plan) {
+    if (!plan1) {
       const newPlan = this.dataPlanRepository.create({
-        smeplugPlanId: apiPlanId,
+        smeplugPlanId: apiPlanId1,
         network: 'mtn',
         bundleName: 'MTN SME 5.0 GB 14 days',
         smeplugCost: 1040,
@@ -99,11 +100,38 @@ export class SmePlugSyncService implements OnModuleInit {
         lastSyncedAt: new Date(),
       });
       await this.dataPlanRepository.save(newPlan);
-      this.logger.log('Seeded default AMZAET MTN Data Plan.');
+      this.logger.log('Seeded AMZAET MTN SME 5.0 GB 14 days plan.');
     } else {
-      plan.smeplugCost = 1040;
-      await this.dataPlanRepository.save(plan);
-      this.logger.log('Updated AMZAET MTN Data Plan cost to 1040.');
+      plan1.smeplugCost = 1040;
+      await this.dataPlanRepository.save(plan1);
+      this.logger.log('Updated AMZAET MTN SME 5.0 GB 14 days cost to 1040.');
+    }
+
+    // --- Plan 2: MTN SME2 1.0 GB 30 days (Plan ID 532) ---
+    const apiPlanId2 = 532;
+    const plan2 = await this.dataPlanRepository.findOne({
+      where: { smeplugPlanId: apiPlanId2, provider },
+    });
+
+    if (!plan2) {
+      const newPlan2 = this.dataPlanRepository.create({
+        smeplugPlanId: apiPlanId2,
+        network: 'mtn',
+        bundleName: 'MTN SME2 1.0 GB 30 days',
+        smeplugCost: 300,
+        sellingPrice: 300,
+        overrideStatus: false,
+        visibilityStatus: true,
+        provider,
+        lastSyncedAt: new Date(),
+      });
+      await this.dataPlanRepository.save(newPlan2);
+      this.logger.log('Seeded AMZAET MTN SME2 1.0 GB 30 days plan (ID 532).');
+    } else {
+      plan2.smeplugCost = 300;
+      if (plan2.sellingPrice === 0) plan2.sellingPrice = 300;
+      await this.dataPlanRepository.save(plan2);
+      this.logger.log('Updated AMZAET MTN SME2 1.0 GB plan (ID 532) cost to 300.');
     }
   }
 

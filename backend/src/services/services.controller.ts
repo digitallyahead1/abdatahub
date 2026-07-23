@@ -21,6 +21,18 @@ export class ServicesController {
     };
   }
 
+  @Get('notification')
+  async getNotification() {
+    const settings = await this.servicesService.getSettingsForUsers();
+    return {
+      success: true,
+      data: {
+        notificationEnabled: settings.notificationEnabled ?? false,
+        notificationMessage: settings.notificationMessage ?? null,
+      },
+    };
+  }
+
   @Get('electricity/discos')
   async getElectricityDiscos() {
     const data = await this.servicesService.getElectricityDiscos();

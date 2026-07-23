@@ -383,6 +383,8 @@ export class AdminService implements OnModuleInit {
     if (settings.serviceFeeMinAmount !== undefined) updatedFields.serviceFeeMinAmount = Number(settings.serviceFeeMinAmount);
     if (settings.serviceFeeMaxAmount !== undefined) updatedFields.serviceFeeMaxAmount = Number(settings.serviceFeeMaxAmount);
     if (settings.serviceFeeAmount !== undefined) updatedFields.serviceFeeAmount = Number(settings.serviceFeeAmount);
+    if (settings.notificationEnabled !== undefined) updatedFields.notificationEnabled = Boolean(settings.notificationEnabled);
+    if (settings.notificationMessage !== undefined) updatedFields.notificationMessage = settings.notificationMessage ?? null;
 
     const merged = this.systemSettingRepository.merge(oldSettings, updatedFields);
     const saved = await this.systemSettingRepository.save(merged);

@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -9,25 +8,42 @@ class ApiService {
   factory ApiService() => _instance;
 
   late final Dio _dio;
-  final _storage = const FlutterSecureStorage();
+
+  // flutter_secure_storage works on both native and web (uses localStorage on web).
+  // We instantiate it with web-specific options to use sessionStorage on web.
+  static const _storage = FlutterSecureStorage(
+    webOptions: WebOptions(dbName: 'abdatahub_secure', publicKey: 'abdatahub'),
+  );
+
   String? _token;
 
   ApiService._internal() {
-    String baseUrl = dotenv.env['API_BASE_URL'] ?? 'http://10.0.2.2:3001/api';
+    String baseUrl = dotenv.env['API_BASE_URL'] ?? 'https://api.abdatahub.com/api';
 
     // On Android emulator, 'localhost' resolves to the emulator itself.
     // Rewrite it to 10.0.2.2, which is the host machine's loopback address.
-    if (!kIsWeb && Platform.isAndroid) {
-      baseUrl = baseUrl
-          .replaceAll('http://localhost', 'http://10.0.2.2')
-          .replaceAll('http://127.0.0.1', 'http://10.0.2.2');
+    // dart:io's Platform is NOT available on Flutter Web — guard with !kIsWeb.
+    if (!kIsWeb) {
+      // ignore: avoid_dynamic_calls, import_of_legacy_library_into_null_safe
+      // We use a conditional import pattern by checking kIsWeb first.
+      // This block only runs on native platforms where dart:io is available.
+      try {
+        // Use a safe runtime check without direct dart:io import at the top level
+        // by using the Flutter engine's defaultTargetPlatform instead.
+        final isAndroid = defaultTargetPlatform == TargetPlatform.android;
+        if (isAndroid) {
+          baseUrl = baseUrl
+              .replaceAll('http://localhost', 'http://10.0.2.2')
+              .replaceAll('http://127.0.0.1', 'http://10.0.2.2');
+        }
+      } catch (_) {}
     }
 
     _dio = Dio(
       BaseOptions(
         baseUrl: baseUrl,
         connectTimeout: const Duration(seconds: 15),
-        receiveTimeout: const Duration(seconds: 60), // Data/airtime provider APIs can take 30-40s
+        receiveTimeout: const Duration(seconds: 60), // Data/airtime APIs can take 30-40s
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
@@ -41,7 +57,7 @@ class ApiService {
           if (_token != null) {
             options.headers['Authorization'] = 'Bearer $_token';
           } else {
-            final savedToken = await _storage.read(key: 'auth_token');
+            final savedToken = await _readToken();
             if (savedToken != null) {
               _token = savedToken;
               options.headers['Authorization'] = 'Bearer $savedToken';
@@ -50,26 +66,45 @@ class ApiService {
           return handler.next(options);
         },
         onError: (DioException e, handler) {
-          // Log errors in debug mode
-          print('API Error: ${e.response?.statusCode} - ${e.response?.data}');
+          if (kDebugMode) {
+            debugPrint('API Error [${e.type}]: ${e.response?.statusCode} - ${e.response?.data}');
+            debugPrint('Request URL: ${e.requestOptions.uri}');
+          }
           return handler.next(e);
         },
       ),
     );
   }
 
+  Future<String?> _readToken() async {
+    try {
+      return await _storage.read(key: 'auth_token');
+    } catch (e) {
+      if (kDebugMode) debugPrint('Token read error: $e');
+      return null;
+    }
+  }
+
   Future<void> saveToken(String token) async {
     _token = token;
-    await _storage.write(key: 'auth_token', value: token);
+    try {
+      await _storage.write(key: 'auth_token', value: token);
+    } catch (e) {
+      if (kDebugMode) debugPrint('Token save error: $e');
+    }
   }
 
   Future<void> clearToken() async {
     _token = null;
-    await _storage.delete(key: 'auth_token');
+    try {
+      await _storage.delete(key: 'auth_token');
+    } catch (e) {
+      if (kDebugMode) debugPrint('Token clear error: $e');
+    }
   }
 
   Future<bool> hasToken() async {
-    final token = await _storage.read(key: 'auth_token');
+    final token = await _readToken();
     return token != null;
   }
 
@@ -99,21 +134,26 @@ class ApiService {
 
   Exception _handleError(DioException e) {
     if (e.response != null) {
-      final message = e.response?.data['message'];
-      if (message is List) {
-        return Exception(message.join(', '));
+      final data = e.response?.data;
+      if (data is Map && data.containsKey('message')) {
+        final message = data['message'];
+        if (message is List) return Exception(message.join(', '));
+        return Exception(message.toString());
       }
-      return Exception(message ?? 'Server error occurred');
-    }
-    
-    if (e.type == DioExceptionType.connectionTimeout) {
-      return Exception('Connection timeout. Please check your internet connection.');
+      return Exception('Server error (${e.response?.statusCode})');
     }
 
-    if (e.type == DioExceptionType.receiveTimeout) {
-      return Exception('Request timed out. The transaction may still be processing — please check your transaction history.');
+    switch (e.type) {
+      case DioExceptionType.connectionTimeout:
+        return Exception('Connection timeout. Please check your internet connection.');
+      case DioExceptionType.receiveTimeout:
+        return Exception(
+          'Request timed out. The transaction may still be processing — please check your transaction history.',
+        );
+      case DioExceptionType.connectionError:
+        return Exception('Cannot reach the server. Please check your internet connection.');
+      default:
+        return Exception(e.message ?? 'Network error. Check your connection.');
     }
-    
-    return Exception('Network error. Check your connection.');
   }
 }

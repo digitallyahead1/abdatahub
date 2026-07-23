@@ -15,14 +15,14 @@ export default function PinCheckWrapper({ children }: { children: React.ReactNod
   const [showPrompt, setShowPrompt] = useState(false)
 
   useEffect(() => {
-    // Show prompt if user is logged in, has no pin, and is on dashboard/admin routes
+    // Show prompt if user is logged in, has no pin, is not being impersonated, and is on dashboard/admin routes
     const isExcludedRoute = pathname === '/' || pathname === '/login' || pathname === '/register'
-    if (auth?.isAuthenticated && auth?.user && !auth.user.transactionPin && !isExcludedRoute) {
+    if (auth?.isAuthenticated && auth?.user && !auth.user.transactionPin && !isExcludedRoute && !auth.isImpersonating) {
       setShowPrompt(true)
     } else {
       setShowPrompt(false)
     }
-  }, [auth?.isAuthenticated, auth?.user, pathname])
+  }, [auth?.isAuthenticated, auth?.user, auth?.isImpersonating, pathname])
 
   if (!showPrompt) {
     return <>{children}</>

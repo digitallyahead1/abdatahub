@@ -58,6 +58,18 @@ class WelcomeScreen extends StatelessWidget {
                         child: Image.asset(
                           'assets/images/logo.png',
                           fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) {
+                            return Container(
+                              color: isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+                              child: const Center(
+                                child: Icon(
+                                  Icons.cell_tower,
+                                  color: Color(0xFF3B82F6),
+                                  size: 40,
+                                ),
+                              ),
+                            );
+                          },
                         ),
                       ),
                     ),
