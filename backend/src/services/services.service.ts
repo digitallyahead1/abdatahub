@@ -177,8 +177,11 @@ export class ServicesService {
         );
         this.logger.log(`AMZAET API Response [HTTP ${response.status}]: ${JSON.stringify(response.data)}`);
         
-        const statusStr = String(response.data?.status || '').toLowerCase();
-        const msg = String(response.data?.message || '').toLowerCase();
+        const rawStatus = response.data?.Status || response.data?.status || response.data?.current_status || '';
+        const statusStr = String(rawStatus).toLowerCase();
+
+        const rawMsg = response.data?.api_response || response.data?.message || response.data?.detail || '';
+        const msg = String(rawMsg).toLowerCase();
 
         // Explicit failure indicators in the response body
         const isExplicitFailure =
