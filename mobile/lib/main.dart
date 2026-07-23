@@ -60,21 +60,28 @@ class _AuthWrapperState extends State<AuthWrapper> {
   }
 
   void _checkAuth() async {
-    // Wait for splash animation feel
-    await Future.delayed(const Duration(seconds: 2));
-    
-    if (!mounted) return;
-    
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final isAuthenticated = await authProvider.checkAuthStatus();
-
-    if (mounted) {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => isAuthenticated ? const DashboardScreen() : const WelcomeScreen(),
-        ),
+    bool isAuthenticated = false;
+    try {
+      final authProvider = Provider.of<AuthProvider>(context, listen: false);
+      isAuthenticated = await authProvider.checkAuthStatus().timeout(
+        const Duration(seconds: 4),
+        onTimeout: () {
+          debugPrint('Auth check timed out — proceeding to welcome screen');
+          return false;
+        },
       );
+    } catch (e) {
+      debugPrint('Auth check error: $e');
+      isAuthenticated = false;
     }
+
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => isAuthenticated ? const DashboardScreen() : const WelcomeScreen(),
+      ),
+    );
   }
 
   @override

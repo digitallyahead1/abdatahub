@@ -154,11 +154,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           fit: BoxFit.cover,
                           errorBuilder: (context, error, stackTrace) {
                             return Container(
-                              color: AppColors.charcoalCard,
+                              color: const Color(0xFF101827),
                               child: const Center(
                                 child: Icon(
                                   Icons.cell_tower,
-                                  color: AppColors.royalBlue,
+                                  color: AppColors.primaryBlue,
                                   size: 32,
                                 ),
                               ),

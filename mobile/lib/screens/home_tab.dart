@@ -36,7 +36,8 @@ class _HomeTabState extends State<HomeTab> {
     if (_hasShownNotification) return;
     try {
       final response = await ApiService().get('/services/notification');
-      final data = response['data'];
+      final resData = response.data;
+      final data = resData != null ? resData['data'] : null;
       if (data != null &&
           data['notificationEnabled'] == true &&
           data['notificationMessage'] != null &&
@@ -51,7 +52,7 @@ class _HomeTabState extends State<HomeTab> {
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             title: const Row(
               children: [
-                Icon(Icons.campaign, color: AppColors.royalBlue, size: 28),
+                Icon(Icons.campaign, color: AppColors.primaryBlue, size: 28),
                 SizedBox(width: 10),
                 Text(
                   'Announcement',
@@ -62,13 +63,13 @@ class _HomeTabState extends State<HomeTab> {
             content: SingleChildScrollView(
               child: Text(
                 data['notificationMessage'].toString(),
-                style: const TextStyle(color: AppColors.silverLight, fontSize: 14, height: 1.5),
+                style: TextStyle(color: AppColors.silverLight, fontSize: 14, height: 1.5),
               ),
             ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),
-                child: const Text('Understood', style: TextStyle(color: AppColors.royalBlue, fontWeight: FontWeight.bold)),
+                child: const Text('Understood', style: TextStyle(color: AppColors.primaryBlue, fontWeight: FontWeight.bold)),
               ),
             ],
           ),
@@ -174,7 +175,7 @@ class _HomeTabState extends State<HomeTab> {
                               child: const Center(
                                 child: Icon(
                                   Icons.cell_tower,
-                                  color: AppColors.royalBlue,
+                                  color: AppColors.primaryBlue,
                                   size: 24,
                                 ),
                               ),
