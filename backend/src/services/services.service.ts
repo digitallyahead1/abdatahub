@@ -306,7 +306,11 @@ export class ServicesService {
         };
         await this.transactionRepository.save(systemTx);
 
-        throw new BadRequestException(result?.data?.msg || result?.msg || 'Data purchase transaction failed on provider gateway');
+        let rawErr = result?.data?.msg || result?.msg || 'Data purchase transaction failed on provider gateway';
+        if (typeof rawErr === 'string' && rawErr.toLowerCase().includes('insufficient')) {
+          rawErr = 'Provider Gateway Error: Insufficient balance on API provider account (amzaet/smeplug). Please contact admin to top up provider API wallet.';
+        }
+        throw new BadRequestException(rawErr);
       }
 
       return {
@@ -361,7 +365,12 @@ export class ServicesService {
       await this.transactionRepository.save(systemTx);
 
       await this.walletService.credit(userId, amount, `Refund for failed Data purchase (${ref})`);
-      throw new BadRequestException(result?.data?.msg || result?.msg || 'Unable to complete data purchase with the provider.');
+
+      let rawErr = result?.data?.msg || result?.msg || 'Unable to complete data purchase with the provider.';
+      if (typeof rawErr === 'string' && rawErr.toLowerCase().includes('insufficient')) {
+        rawErr = 'Provider Gateway Error: Insufficient balance on API provider account (amzaet/smeplug). Please contact admin to top up provider API wallet.';
+      }
+      throw new BadRequestException(rawErr);
     }
   }
 
