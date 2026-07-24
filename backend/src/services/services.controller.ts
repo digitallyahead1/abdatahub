@@ -3,7 +3,6 @@ import { ServicesService } from './services.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('services')
-@UseGuards(JwtAuthGuard)
 export class ServicesController {
   constructor(private servicesService: ServicesService) {}
 
@@ -69,6 +68,7 @@ export class ServicesController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('data/plans')
   async getDataPlans(@Req() req: any) {
     const data = await this.servicesService.getDataPlans(req.user.id);
@@ -78,6 +78,7 @@ export class ServicesController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('airtime/pricing')
   async getAirtimePricing(@Req() req: any) {
     const data = await this.servicesService.getAirtimePricing(req.user.id);
@@ -87,6 +88,7 @@ export class ServicesController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('data')
   async purchaseData(@Req() req: any, @Body() body: any) {
     const data = await this.servicesService.purchaseData(req.user.id, body);
@@ -97,6 +99,7 @@ export class ServicesController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('airtime')
   async purchaseAirtime(@Req() req: any, @Body() body: any) {
     const data = await this.servicesService.purchaseAirtime(req.user.id, body);
@@ -107,6 +110,7 @@ export class ServicesController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('electricity')
   async payElectricity(@Req() req: any, @Body() body: any) {
     const data = await this.servicesService.payElectricity(req.user.id, body);
@@ -117,6 +121,7 @@ export class ServicesController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post('cable')
   async payCable(@Req() req: any, @Body() body: any) {
     const data = await this.servicesService.payCable(req.user.id, body);
@@ -127,6 +132,7 @@ export class ServicesController {
     };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Get('electricity/tokens')
   async getElectricityTokens(@Query('meterNumber') meterNumber: string, @Req() req: any) {
     const data = await this.servicesService.getElectricityTokens(req.user.id, meterNumber);
