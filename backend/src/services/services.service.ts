@@ -402,8 +402,8 @@ export class ServicesService {
     }
 
     const sellingPrice = Number(amount) * Number(rate);
-    const smeplugCost = Number(amount) * Number(pricing.smeplugRate);
-    const profit = sellingPrice - smeplugCost;
+    const providerCost = Number(amount) * Number(pricing.smeplugRate);
+    const profit = sellingPrice - providerCost;
 
     // 2. Debit user's wallet
     await this.walletService.debit(
@@ -419,7 +419,7 @@ export class ServicesService {
       userId,
       network: cleanNetwork,
       amount,
-      smeplugCost,
+      smeplugCost: providerCost,
       sellingPrice,
       profit,
       transactionReference: ref,
@@ -434,45 +434,78 @@ export class ServicesService {
       amount: sellingPrice,
       status: 'pending',
       reference: ref,
-      metadata: { phoneNumber, network: cleanNetwork, faceValue: amount, profit, provider: 'smeplug' },
+      metadata: { phoneNumber, network: cleanNetwork, faceValue: amount, profit, provider: 'amzaet' },
     });
     await this.transactionRepository.save(systemTx);
 
-    // 4. Map network to SMEPlug ID
-    const networkMap: Record<string, number> = {
+    // 4. Map network to AMZAET network IDs (MTN=1, GLO=2, 9mobile=3, Airtel=4)
+    const amzaetNetworkMap: Record<string, number> = {
       mtn: 1,
-      airtel: 2,
+      glo: 2,
       '9mobile': 3,
-      glo: 4,
+      airtel: 4,
     };
-    const networkId = networkMap[cleanNetwork];
+    const amzaetNetworkId = amzaetNetworkMap[cleanNetwork];
 
-    // 5. Call SMEPlug API
-    const result = await this.smePlugService.purchaseAirtime(
-      networkId,
-      phoneNumber,
-      amount,
-      ref,
-    );
+    if (!amzaetNetworkId) {
+      // Refund and fail if network unknown
+      await this.walletService.credit(userId, sellingPrice, `Refund for unsupported network (${cleanNetwork}) - ${ref}`);
+      airtimeTx.status = 'failed';
+      await this.airtimeTransactionRepository.save(airtimeTx);
+      systemTx.status = 'failed';
+      await this.transactionRepository.save(systemTx);
+      throw new BadRequestException(`Airtime is not supported for network: ${cleanNetwork}`);
+    }
 
-    // 6. Handle success or rollback on failure
-    if (result && (result.status === true || result.current_status === 'success' || result.current_status === 'processing')) {
-      const finalStatus = result.current_status === 'failed' ? 'failed' : 'success';
+    // 5. Call AMZAET Topup API for airtime
+    const amzaetToken = process.env.AMZAET_TOKEN;
+    let amzaetResult: any = null;
+    let amzaetError: any = null;
 
+    try {
+      this.logger.log(`Initiating AMZAET Airtime Topup: network=${amzaetNetworkId}, phone=${phoneNumber}, amount=${amount}, ref=${ref}`);
+      const response = await axios.post(
+        'https://amzaet.com/api/topup/',
+        {
+          network: amzaetNetworkId,
+          mobile_number: phoneNumber,
+          amount: Number(amount),
+          Ported_number: true,
+          airtime_type: 'VTU',
+        },
+        {
+          headers: {
+            Authorization: `Token ${amzaetToken}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 30000,
+        },
+      );
+      amzaetResult = response.data;
+      this.logger.log(`AMZAET Airtime Topup Response: ${JSON.stringify(amzaetResult)}`);
+    } catch (err: any) {
+      amzaetError = err;
+      this.logger.error(`AMZAET Airtime Topup Error: ${JSON.stringify(err.response?.data || err.message)}`);
+    }
+
+    // 6. Handle AMZAET response
+    const amzaetStatus = amzaetResult?.Status?.toLowerCase();
+    const isSuccess = amzaetStatus === 'successful' || amzaetStatus === 'success' || amzaetStatus === 'processing';
+
+    if (amzaetResult && isSuccess) {
+      const finalStatus = amzaetStatus === 'failed' ? 'failed' : 'success';
       airtimeTx.status = finalStatus;
       await this.airtimeTransactionRepository.save(airtimeTx);
 
       systemTx.status = finalStatus;
       systemTx.metadata = {
         ...(systemTx.metadata || {}),
-        providerReference: result.data?.reference || result.reference || '',
+        providerReference: String(amzaetResult.id || amzaetResult.ident || ''),
       };
       await this.transactionRepository.save(systemTx);
 
       if (finalStatus === 'failed') {
         await this.walletService.credit(userId, sellingPrice, `Refund for failed Airtime recharge (${ref})`);
-        
-        // Log system-wide refund transaction
         const refundRef = 'REF' + Math.random().toString(36).substring(2, 12).toUpperCase();
         const refundTx = this.transactionRepository.create({
           userId,
@@ -481,52 +514,27 @@ export class ServicesService {
           amount: sellingPrice,
           status: 'success',
           reference: refundRef,
-          metadata: { originalReference: ref, reason: 'Failed airtime purchase refund' },
+          metadata: { originalReference: ref, reason: 'Failed airtime purchase refund (AMZAET)' },
         });
         await this.transactionRepository.save(refundTx);
-
-        systemTx.metadata = {
-          ...(systemTx.metadata || {}),
-          refunded: true,
-          autoRefunded: true,
-          refundedAt: new Date().toISOString(),
-          refundReference: refundRef,
-        };
-        await this.transactionRepository.save(systemTx);
-
-        throw new BadRequestException(result?.data?.msg || result?.msg || 'Airtime purchase failed on provider gateway');
+        throw new BadRequestException('Airtime purchase failed on the provider. Your wallet has been refunded.');
       }
 
       return {
         reference: ref,
-        providerReference: result.data?.reference || '',
+        providerReference: String(amzaetResult.id || amzaetResult.ident || ''),
         network: cleanNetwork,
         phoneNumber,
         amount,
         chargedAmount: sellingPrice,
         status: finalStatus,
       };
-    } else if (result && result.isTransientError) {
-      // Transient error (timeout / gateway error) - do NOT refund, keep status pending
-      airtimeTx.status = 'pending';
-      await this.airtimeTransactionRepository.save(airtimeTx);
-
-      systemTx.status = 'pending';
-      systemTx.metadata = {
-        ...(systemTx.metadata || {}),
-        error: result.msg || 'Gateway timeout or server error. Processing status is pending.',
-      };
-      await this.transactionRepository.save(systemTx);
-
-      throw new BadRequestException('Your transaction is currently processing on the network. Please check your transaction history shortly to verify status.');
     } else {
-      // Hard failure - rollback wallet debit
+      // Hard failure — refund the user
       airtimeTx.status = 'failed';
       await this.airtimeTransactionRepository.save(airtimeTx);
 
       systemTx.status = 'failed';
-
-      // Log system-wide refund transaction
       const refundRef = 'REF' + Math.random().toString(36).substring(2, 12).toUpperCase();
       const refundTx = this.transactionRepository.create({
         userId,
@@ -535,7 +543,7 @@ export class ServicesService {
         amount: sellingPrice,
         status: 'success',
         reference: refundRef,
-        metadata: { originalReference: ref, reason: 'Failed airtime purchase refund' },
+        metadata: { originalReference: ref, reason: 'Failed airtime purchase refund (AMZAET)' },
       });
       await this.transactionRepository.save(refundTx);
 
@@ -545,17 +553,20 @@ export class ServicesService {
         autoRefunded: true,
         refundedAt: new Date().toISOString(),
         refundReference: refundRef,
+        error: amzaetError?.response?.data || amzaetError?.message || amzaetResult,
       };
       await this.transactionRepository.save(systemTx);
 
       await this.walletService.credit(userId, sellingPrice, `Refund for failed Airtime recharge (${ref})`);
 
-      let rawErr = result?.data?.msg || result?.msg || 'Unable to complete airtime recharge with the provider.';
-      if (typeof rawErr === 'string' && rawErr.toLowerCase().includes('insufficient')) {
-        rawErr = 'Provider Gateway Error: Insufficient API balance on provider account (SMEPlug). Please contact admin.';
-      } else if (typeof rawErr === 'string' && (rawErr.includes('503') || rawErr.toLowerCase().includes('unavailable') || rawErr.toLowerCase().includes('down'))) {
-        rawErr = 'Provider Gateway Error: SMEPlug airtime service is currently down or under maintenance. Please try again later.';
-      }
+      const errData = amzaetError?.response?.data;
+      let rawErr =
+        (Array.isArray(errData?.error) && errData.error[0]) ||
+        errData?.detail ||
+        errData?.message ||
+        amzaetResult?.message ||
+        'Airtime purchase failed. Your wallet has been refunded. Please try again.';
+
       throw new BadRequestException(rawErr);
     }
   }
