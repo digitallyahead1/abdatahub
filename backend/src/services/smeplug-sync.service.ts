@@ -135,6 +135,35 @@ export class SmePlugSyncService implements OnModuleInit {
       await this.dataPlanRepository.save(plan2);
       this.logger.log('Updated AMZAET MTN SME2 1.0 GB plan (ID 532) cost and price to ₦220.');
     }
+
+    // --- Plan 3: MTN SME 1.0 GB 30 days (Plan ID 531) ---
+    const apiPlanId3 = 531;
+    const plan3 = await this.dataPlanRepository.findOne({
+      where: { smeplugPlanId: apiPlanId3, provider },
+    });
+
+    if (!plan3) {
+      const newPlan3 = this.dataPlanRepository.create({
+        smeplugPlanId: apiPlanId3,
+        network: 'mtn',
+        bundleName: 'MTN SME 1.0 GB 30 days',
+        smeplugCost: 220,
+        sellingPrice: 220,
+        agentPrice: 220,
+        overrideStatus: false,
+        visibilityStatus: true,
+        provider,
+        lastSyncedAt: new Date(),
+      });
+      await this.dataPlanRepository.save(newPlan3);
+      this.logger.log('Seeded AMZAET MTN SME 1.0 GB 30 days plan (ID 531) at ₦220.');
+    } else {
+      plan3.smeplugCost = 220;
+      plan3.sellingPrice = 220;
+      plan3.agentPrice = 220;
+      await this.dataPlanRepository.save(plan3);
+      this.logger.log('Updated AMZAET MTN SME 1.0 GB plan (ID 531) cost and price to ₦220.');
+    }
   }
 
   async runSync(): Promise<SyncLog> {
