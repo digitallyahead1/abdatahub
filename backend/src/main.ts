@@ -12,22 +12,23 @@ async function bootstrap() {
   app.setGlobalPrefix('api');
 
   // Enable CORS
-  const isDev = process.env.NODE_ENV !== 'production';
-  let corsOrigins: string | string[] | RegExp | RegExp[] | boolean;
-
-  if (isDev) {
-    // In development allow ALL localhost/127.0.0.1 origins (any port)
-    // so Flutter Web, Next.js, Swagger UI etc. work on dynamic ports
-    corsOrigins = /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/;
-  } else {
-    const corsOrigin = process.env.CORS_ORIGIN || 'http://localhost:3000';
-    corsOrigins = corsOrigin.includes(',')
-      ? corsOrigin.split(',').map((o) => o.trim())
-      : corsOrigin;
-  }
-
   app.enableCors({
-    origin: corsOrigins,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like native mobile apps, Postman, curl)
+      if (!origin) return callback(null, true);
+
+      const isAllowed =
+        origin === 'https://abdatahub.com' ||
+        origin === 'https://www.abdatahub.com' ||
+        /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin);
+
+      if (isAllowed) {
+        callback(null, true);
+      } else {
+        // Fallback: allow all origins to prevent mobile web CORS blockage
+        callback(null, true);
+      }
+    },
     credentials: true,
   });
 

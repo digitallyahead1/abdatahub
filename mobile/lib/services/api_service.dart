@@ -151,7 +151,7 @@ class ApiService {
           'Request timed out. The transaction may still be processing — please check your transaction history.',
         );
       case DioExceptionType.connectionError:
-        return Exception('Cannot reach the server. Please check your internet connection.');
+        return Exception('Cannot connect to live server. Please check your network connection.');
       default:
         return Exception(e.message ?? 'Network error. Check your connection.');
     }
