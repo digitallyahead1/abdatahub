@@ -549,7 +549,14 @@ export class ServicesService {
       await this.transactionRepository.save(systemTx);
 
       await this.walletService.credit(userId, sellingPrice, `Refund for failed Airtime recharge (${ref})`);
-      throw new BadRequestException(result?.data?.msg || result?.msg || 'Unable to complete airtime recharge with the provider.');
+
+      let rawErr = result?.data?.msg || result?.msg || 'Unable to complete airtime recharge with the provider.';
+      if (typeof rawErr === 'string' && rawErr.toLowerCase().includes('insufficient')) {
+        rawErr = 'Provider Gateway Error: Insufficient API balance on provider account (SMEPlug). Please contact admin.';
+      } else if (typeof rawErr === 'string' && (rawErr.includes('503') || rawErr.toLowerCase().includes('unavailable') || rawErr.toLowerCase().includes('down'))) {
+        rawErr = 'Provider Gateway Error: SMEPlug airtime service is currently down or under maintenance. Please try again later.';
+      }
+      throw new BadRequestException(rawErr);
     }
   }
 

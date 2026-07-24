@@ -97,13 +97,15 @@ export class UsersService {
     if (!user.transactionPin) {
       throw new BadRequestException('Transaction PIN is not set. Please set it in your account settings.');
     }
+    let isMatch: boolean;
     try {
-      const isMatch = await bcrypt.compare(pin, user.transactionPin);
-      if (!isMatch) {
-        throw new BadRequestException('Invalid transaction PIN.');
-      }
+      isMatch = await bcrypt.compare(pin, user.transactionPin);
     } catch (e) {
-      throw new BadRequestException('Invalid transaction PIN format.');
+      // Only catch actual bcrypt errors (malformed hash etc.), not app exceptions
+      throw new BadRequestException('Invalid transaction PIN format. Please reset your PIN.');
+    }
+    if (!isMatch) {
+      throw new BadRequestException('Incorrect transaction PIN. Please try again.');
     }
     return true;
   }
