@@ -107,7 +107,7 @@ export class SmePlugSyncService implements OnModuleInit {
       this.logger.log('Updated AMZAET MTN SME 5.0 GB 14 days cost to 1040.');
     }
 
-    // --- Plan 2: MTN SME2 1.0 GB 30 days (Plan ID 532) ---
+    // --- Plan 2: MTN AWOOF MONTHLY 1.0 GB (Plan ID 532) ---
     const apiPlanId2 = 532;
     const plan2 = await this.dataPlanRepository.findOne({
       where: { smeplugPlanId: apiPlanId2, provider },
@@ -117,23 +117,24 @@ export class SmePlugSyncService implements OnModuleInit {
       const newPlan2 = this.dataPlanRepository.create({
         smeplugPlanId: apiPlanId2,
         network: 'mtn',
-        bundleName: 'MTN SME2 1.0 GB 30 days',
-        smeplugCost: 220,
-        sellingPrice: 220,
-        agentPrice: 220,
+        bundleName: 'MTN AWOOF MONTHLY 1.0 GB',
+        smeplugCost: 250,
+        sellingPrice: 250,
+        agentPrice: 250,
         overrideStatus: false,
         visibilityStatus: true,
         provider,
         lastSyncedAt: new Date(),
       });
       await this.dataPlanRepository.save(newPlan2);
-      this.logger.log('Seeded AMZAET MTN SME2 1.0 GB 30 days plan (ID 532) at ₦220.');
+      this.logger.log('Seeded AMZAET MTN AWOOF MONTHLY 1.0 GB plan (ID 532) at ₦250.');
     } else {
-      plan2.smeplugCost = 220;
-      plan2.sellingPrice = 220;
-      plan2.agentPrice = 220;
+      plan2.bundleName = 'MTN AWOOF MONTHLY 1.0 GB';
+      plan2.smeplugCost = 250;
+      plan2.sellingPrice = 250;
+      plan2.agentPrice = 250;
       await this.dataPlanRepository.save(plan2);
-      this.logger.log('Updated AMZAET MTN SME2 1.0 GB plan (ID 532) cost and price to ₦220.');
+      this.logger.log('Updated AMZAET MTN AWOOF MONTHLY 1.0 GB plan (ID 532) cost and price to ₦250.');
     }
 
     // --- Plan 3: MTN SME 1.0 GB 30 days (Plan ID 531) ---
