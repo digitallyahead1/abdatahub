@@ -16,7 +16,6 @@ class AuthProvider extends ChangeNotifier {
 
   Future<bool> checkAuthStatus() async {
     _isLoading = true;
-    notifyListeners();
 
     try {
       final hasToken = await _apiService.hasToken();
