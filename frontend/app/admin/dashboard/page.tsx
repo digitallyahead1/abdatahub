@@ -10,6 +10,11 @@ export default function AdminDashboardPage() {
     totalProfit: 0,
     totalUsersCount: 0,
     dailyTransactionsCount: 0,
+    totalDataSales: 0,
+    totalAirtimeSales: 0,
+    totalDataVolumeGB: 0,
+    totalDataTransactions: 0,
+    totalAirtimeTransactions: 0,
     recentSales: [],
   })
   const [pings, setPings] = useState<string[]>(['0.25s', '0.34s', '0.62s', '0.19s'])
@@ -37,10 +42,44 @@ export default function AdminDashboardPage() {
   }, [])
 
   const stats = [
-    { label: 'Total Revenue', value: `₦${Number(data.totalRevenue).toLocaleString()}`, color: 'text-white' },
-    { label: 'Net Profit Margin', value: `₦${Number(data.totalProfit).toLocaleString()}`, color: 'text-amber-400' },
-    { label: 'Active User Accounts', value: data.totalUsersCount.toString(), color: 'text-white' },
-    { label: 'Transactions Today', value: data.dailyTransactionsCount.toString(), color: 'text-primary-glow' },
+    {
+      label: 'Total Data Sold',
+      value: `${Number(data.totalDataVolumeGB || 0).toFixed(1)} GB`,
+      subText: `${data.totalDataTransactions || 0} transactions`,
+      color: 'text-white',
+      accent: 'from-blue-500/10 to-indigo-500/5 border-blue-500/20',
+    },
+    {
+      label: 'Total Airtime Sold',
+      value: `₦${Number(data.totalAirtimeSales || 0).toLocaleString()}`,
+      subText: `${data.totalAirtimeTransactions || 0} transactions`,
+      color: 'text-white',
+      accent: 'from-amber-500/10 to-orange-500/5 border-amber-500/20',
+    },
+    {
+      label: 'Total Revenue',
+      value: `₦${Number(data.totalRevenue || 0).toLocaleString()}`,
+      subText: 'Gross System Volume',
+      color: 'text-emerald-400',
+    },
+    {
+      label: 'Net Profit Margin',
+      value: `₦${Number(data.totalProfit || 0).toLocaleString()}`,
+      subText: 'Calculated Net Margin',
+      color: 'text-amber-400',
+    },
+    {
+      label: 'Active User Accounts',
+      value: (data.totalUsersCount || 0).toString(),
+      subText: 'Registered System Users',
+      color: 'text-white',
+    },
+    {
+      label: 'Transactions Today',
+      value: (data.dailyTransactionsCount || 0).toString(),
+      subText: "Today's Activity Count",
+      color: 'text-primary-glow',
+    },
   ]
 
   // Scales columns dynamically if revenue is recorded
@@ -67,14 +106,17 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-8">
       {/* Stats Cards */}
-      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {stats.map((stat, i) => (
-          <div key={i} className="p-6 bg-gradient-to-br from-dark-bg-secondary to-dark-bg border border-silver-muted/10 rounded-2xl relative overflow-hidden group hover:border-primary-glow/20 transition-all duration-300">
+          <div
+            key={i}
+            className={`p-6 bg-gradient-to-br ${stat.accent || 'from-dark-bg-secondary to-dark-bg border-silver-muted/10'} border rounded-2xl relative overflow-hidden group hover:border-primary-glow/30 transition-all duration-300 shadow-xl`}
+          >
             <p className="text-xs font-semibold text-silver-muted uppercase tracking-wider">{stat.label}</p>
             <p className={`text-3xl font-extrabold mt-2 font-mono ${stat.color}`}>{stat.value}</p>
-            <div className="text-[10px] text-silver-muted mt-4 pt-4 border-t border-white/5 flex items-center justify-between">
-              <span>Updated live</span>
-              <span className="text-emerald-400">● Online</span>
+            <div className="text-xs text-silver-muted mt-3 pt-3 border-t border-white/5 flex items-center justify-between">
+              <span>{stat.subText || 'Updated live'}</span>
+              <span className="text-emerald-400 font-medium">● Online</span>
             </div>
           </div>
         ))}

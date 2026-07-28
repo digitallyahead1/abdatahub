@@ -305,6 +305,13 @@ export class AdminController {
     return { success: true, message: 'Agent request rejected.', data };
   }
 
+  @Post('agent-requests/:id/demote')
+  @Permissions('manage:users')
+  async demoteAgent(@Param('id') userId: string, @Req() req: any) {
+    const data = await this.adminService.demoteAgent(userId, req.user);
+    return { success: true, message: 'Agent role reverted to regular user.', data };
+  }
+
   // ============= IMPERSONATION =============
 
   @Post('impersonate/:id')

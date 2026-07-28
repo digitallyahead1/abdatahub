@@ -103,6 +103,22 @@ export class AdminService implements OnModuleInit {
     const totalDataSales = successfulDataSales.reduce((sum, s) => sum + Number(s.sellingPrice), 0);
     const totalAirtimeSales = successfulAirtimeSales.reduce((sum, s) => sum + Number(s.sellingPrice), 0);
     
+    // Total Data Volume in GB and Transaction counts
+    const parseDataVolumeGB = (bundleName: string): number => {
+      if (!bundleName) return 0;
+      const gbMatch = bundleName.match(/(\d+(?:\.\d+)?)\s*GB/i);
+      if (gbMatch) return parseFloat(gbMatch[1]);
+      const mbMatch = bundleName.match(/(\d+(?:\.\d+)?)\s*MB/i);
+      if (mbMatch) return parseFloat(mbMatch[1]) / 1024;
+      const tbMatch = bundleName.match(/(\d+(?:\.\d+)?)\s*TB/i);
+      if (tbMatch) return parseFloat(tbMatch[1]) * 1024;
+      return 0;
+    };
+
+    const totalDataVolumeGB = successfulDataSales.reduce((sum, s) => sum + parseDataVolumeGB(s.bundleName), 0);
+    const totalDataTransactions = successfulDataSales.length;
+    const totalAirtimeTransactions = successfulAirtimeSales.length;
+
     // Fetch all successful system sales/debits (Cable, Electricity, Exam PINs)
     const successfulDebits = await this.transactionRepository.find({
       where: { type: 'debit', status: 'success' },
@@ -153,6 +169,9 @@ export class AdminService implements OnModuleInit {
       totalDeposits,
       totalDataSales,
       totalAirtimeSales,
+      totalDataVolumeGB,
+      totalDataTransactions,
+      totalAirtimeTransactions,
       totalSales: totalDataSales + totalAirtimeSales + totalCableSales + totalElectricitySales + totalExamPinSales,
       totalProfit,
       totalUsersCount,
@@ -247,6 +266,11 @@ export class AdminService implements OnModuleInit {
     }
 
     user.role = role;
+    if (role === 'user' && user.agentStatus === 'approved') {
+      user.agentStatus = 'none';
+    } else if (role === 'agent') {
+      user.agentStatus = 'approved';
+    }
     user.permissions = permissions;
     const savedUser = await this.userRepository.save(user);
 
@@ -960,6 +984,22 @@ export class AdminService implements OnModuleInit {
     const saved = await this.userRepository.save(user);
 
     await this.auditLogService.log(adminUser.id, adminUser.email, 'agent_rejected', {
+      targetUserId: userId,
+      targetEmail: user.email,
+    });
+
+    return saved;
+  }
+
+  async demoteAgent(userId: string, adminUser: any) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+
+    user.agentStatus = 'none';
+    user.role = 'user';
+    const saved = await this.userRepository.save(user);
+
+    await this.auditLogService.log(adminUser.id, adminUser.email, 'agent_demoted', {
       targetUserId: userId,
       targetEmail: user.email,
     });

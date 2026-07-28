@@ -68,6 +68,20 @@ export default function AgentRequestsPage() {
     }
   }
 
+  const handleDemote = async (id: string, name: string) => {
+    if (!window.confirm(`Are you sure you want to demote ${name} from Agent back to regular User?`)) return
+
+    try {
+      const response = await api.post(`/admin/agent-requests/${id}/demote`)
+      if (response.data.success) {
+        toast.success(`${name}'s role was changed to regular user.`)
+        fetchRequests()
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Could not change agent role.')
+    }
+  }
+
   const handleImpersonate = async (id: string, name: string) => {
     if (!window.confirm(`You will be logged into ${name}'s account. You can revert back to Admin anytime from the banner. Continue?`)) return
 
@@ -88,8 +102,8 @@ export default function AgentRequestsPage() {
     <div className="p-6 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-silver-light">Agent Requests</h1>
-        <p className="text-sm text-silver-muted mt-1">Review and manage user agent applications and access accounts</p>
+        <h1 className="text-2xl font-bold text-silver-light">Agent Requests & Role Management</h1>
+        <p className="text-sm text-silver-muted mt-1">Review agent applications and easily change agent roles to regular users or modify roles</p>
       </div>
 
       {/* Main Table Card */}
@@ -173,6 +187,15 @@ export default function AgentRequestsPage() {
                             Reject
                           </button>
                         </>
+                      )}
+
+                      {req.agentStatus === 'approved' && (
+                        <button
+                          onClick={() => handleDemote(req.id, req.fullName)}
+                          className="px-3 py-1.5 bg-amber-500/10 text-amber-400 hover:bg-amber-500 hover:text-dark-bg text-xs font-semibold rounded-lg transition-all"
+                        >
+                          Change Role to User
+                        </button>
                       )}
 
                       <button
