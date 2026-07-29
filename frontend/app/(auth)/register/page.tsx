@@ -220,11 +220,23 @@ export default function RegisterPage() {
         </button>
       </form>
 
-      <div className="text-center text-xs text-silver-muted pt-4 border-t border-white/5">
-        Already have an account?{' '}
-        <a href="/login" className="text-primary-glow font-semibold hover:text-white transition-all">
-          Sign In
-        </a>
+      <div className="text-center text-xs text-silver-muted pt-4 border-t border-white/5 space-y-2">
+        <div>
+          Already have an account?{' '}
+          <a href="/login" className="text-primary-glow font-semibold hover:text-white transition-all">
+            Sign In
+          </a>
+        </div>
+        <div>
+          By creating an account, you agree to our{' '}
+          <a href="/privacy" className="text-primary-glow hover:text-white transition-all font-semibold">
+            Privacy Policy
+          </a>{' '}
+          &amp;{' '}
+          <a href="/privacy" className="text-primary-glow hover:text-white transition-all font-semibold">
+            Terms of Service
+          </a>
+        </div>
       </div>
     </div>
   )

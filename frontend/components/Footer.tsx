@@ -46,8 +46,8 @@ export default function Footer() {
             <ul className="space-y-2 text-sm text-silver-muted">
               <li><a href="#" className="hover:text-primary-glow transition-all">About Us</a></li>
               <li><a href="#" className="hover:text-primary-glow transition-all">Contact Us</a></li>
-              <li><a href="#" className="hover:text-primary-glow transition-all">Privacy Policy</a></li>
-              <li><a href="#" className="hover:text-primary-glow transition-all">Terms of Service</a></li>
+              <li><a href="/privacy" className="hover:text-primary-glow transition-all">Privacy Policy</a></li>
+              <li><a href="/privacy" className="hover:text-primary-glow transition-all">Terms of Service</a></li>
             </ul>
           </div>
 
@@ -94,6 +94,11 @@ export default function Footer() {
         {/* Full-width sub-footer section */}
         <div className="flex flex-col md:flex-row justify-between items-center gap-4 text-xs text-silver-muted">
           <p>© {new Date().getFullYear()} AB Data Hub. All rights reserved. Registered under CAC.</p>
+          <div className="flex items-center gap-4">
+            <a href="/privacy" className="hover:text-primary-glow transition-all">Privacy Policy</a>
+            <span className="text-silver-muted/30">|</span>
+            <a href="/privacy" className="hover:text-primary-glow transition-all">Terms of Service</a>
+          </div>
           <p>
             Designed by{' '}
             <a
