@@ -180,7 +180,7 @@ export class AdminService implements OnModuleInit {
   }
 
   async getUsers() {
-    return this.userRepository.find({
+    const users = await this.userRepository.find({
       order: { createdAt: 'DESC' },
       select: [
         'id',
@@ -195,6 +195,40 @@ export class AdminService implements OnModuleInit {
         'createdAt',
       ],
     });
+
+    const successfulDataSales = await this.dataTransactionRepository.find({
+      where: { status: 'success' },
+      select: ['userId', 'bundleName', 'sellingPrice'],
+    });
+
+    const parseDataVolumeGB = (bundleName: string): number => {
+      if (!bundleName) return 0;
+      const gbMatch = bundleName.match(/(\d+(?:\.\d+)?)\s*GB/i);
+      if (gbMatch) return parseFloat(gbMatch[1]);
+      const mbMatch = bundleName.match(/(\d+(?:\.\d+)?)\s*MB/i);
+      if (mbMatch) return parseFloat(mbMatch[1]) / 1024;
+      const tbMatch = bundleName.match(/(\d+(?:\.\d+)?)\s*TB/i);
+      if (tbMatch) return parseFloat(tbMatch[1]) * 1024;
+      return 0;
+    };
+
+    const userStatsMap: Record<string, { totalDataGB: number; totalDataTxCount: number; totalDataSpent: number }> = {};
+
+    for (const tx of successfulDataSales) {
+      if (!userStatsMap[tx.userId]) {
+        userStatsMap[tx.userId] = { totalDataGB: 0, totalDataTxCount: 0, totalDataSpent: 0 };
+      }
+      userStatsMap[tx.userId].totalDataGB += parseDataVolumeGB(tx.bundleName);
+      userStatsMap[tx.userId].totalDataTxCount += 1;
+      userStatsMap[tx.userId].totalDataSpent += Number(tx.sellingPrice) || 0;
+    }
+
+    return users.map((u) => ({
+      ...u,
+      totalDataGB: Number((userStatsMap[u.id]?.totalDataGB || 0).toFixed(1)),
+      totalDataTxCount: userStatsMap[u.id]?.totalDataTxCount || 0,
+      totalDataSpent: Number((userStatsMap[u.id]?.totalDataSpent || 0).toFixed(2)),
+    }));
   }
 
   async updateUserStatus(userId: string, status: string, adminUser: any) {

@@ -15,6 +15,9 @@ interface AdminUserRecord {
   phoneVerified: boolean
   permissions?: string[]
   createdAt: string
+  totalDataGB?: number
+  totalDataTxCount?: number
+  totalDataSpent?: number
 }
 
 const ALL_PERMISSIONS = [
@@ -183,6 +186,7 @@ export default function AdminUsersPage() {
                   <th className="px-6 py-4">Email Address</th>
                   <th className="px-6 py-4">Phone Number</th>
                   <th className="px-6 py-4">System Role</th>
+                  <th className="px-6 py-4">Total Data Sold</th>
                   <th className="px-6 py-4">Account Status</th>
                   <th className="px-6 py-4 text-right">Actions</th>
                 </tr>
@@ -207,6 +211,16 @@ export default function AdminUsersPage() {
                       >
                         {user.role === 'super_admin' ? 'Super Admin' : user.role}
                       </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="font-extrabold font-mono text-primary-glow text-sm">
+                          {user.totalDataGB !== undefined ? `${user.totalDataGB} GB` : '0.0 GB'}
+                        </span>
+                        <span className="text-[11px] text-silver-muted font-medium">
+                          {user.totalDataTxCount || 0} transactions (₦{Number(user.totalDataSpent || 0).toLocaleString()})
+                        </span>
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <span
