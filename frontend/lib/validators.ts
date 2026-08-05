@@ -44,7 +44,7 @@ export const airtimeTransactionSchema = z.object({
     .string()
     .regex(/^(\+234|0)[0-9]{10}$/, 'Invalid phone number'),
   network: z.enum(['mtn', 'airtel', 'glo', '9mobile']),
-  amount: z.number().min(10, 'Amount must be at least 10'),
+  amount: z.number().min(100, 'Amount must be at least 100'),
 })
 
 export const walletFundSchema = z.object({

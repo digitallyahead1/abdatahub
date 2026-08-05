@@ -24,7 +24,7 @@ export default function Footer() {
               Nigeria's premium fintech-grade VTU and bill payment hub. Fast, secure, and always reliable.
             </p>
             <div className="text-sm font-semibold text-primary-glow">
-              Contact: <a href="tel:08133887526" className="hover:underline transition-all">08133887526</a>
+              Contact: <a href="tel:07045357195" className="hover:underline transition-all">07045357195</a>
             </div>
           </div>
 

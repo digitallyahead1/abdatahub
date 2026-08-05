@@ -20,6 +20,8 @@ interface AdminTxRecord {
 export default function AdminTransactionsPage() {
   const [loading, setLoading] = useState(true)
   const [transactions, setTransactions] = useState<AdminTxRecord[]>([])
+  const [searchInput, setSearchInput] = useState('')
+  const [activeQuery, setActiveQuery] = useState('')
 
   const fetchTransactions = async () => {
     try {
@@ -32,6 +34,20 @@ export default function AdminTransactionsPage() {
       setLoading(false)
     }
   }
+
+  const handleSearch = (e?: React.FormEvent) => {
+    if (e) e.preventDefault()
+    setActiveQuery(searchInput.trim().toLowerCase())
+  }
+
+  const filteredTransactions = transactions.filter((tx) => {
+    if (!activeQuery) return true
+    const emailMatch = tx.email?.toLowerCase().includes(activeQuery)
+    const nameMatch = tx.fullName?.toLowerCase().includes(activeQuery)
+    const refMatch = tx.reference?.toLowerCase().includes(activeQuery)
+    const phoneMatch = tx.metadata?.phoneNumber?.toLowerCase().includes(activeQuery)
+    return emailMatch || nameMatch || refMatch || phoneMatch
+  })
 
   const makeSuccessful = async (txId: string) => {
     try {
@@ -69,11 +85,43 @@ export default function AdminTransactionsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <h1 className="text-xl font-bold text-white tracking-wide">System Transaction Logs</h1>
-        <button onClick={fetchTransactions} className="px-4 py-2 border border-silver-muted/15 hover:bg-white/5 rounded-xl text-xs font-semibold text-silver-light">
-          Refresh Logs
-        </button>
+
+        {/* Search Bar with Search Button */}
+        <form onSubmit={handleSearch} className="flex items-center gap-2 w-full sm:w-auto">
+          <input
+            type="text"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            placeholder="Search email, phone or reference..."
+            className="bg-white/5 border border-silver-muted/15 rounded-xl px-3.5 py-2 text-xs text-white focus:outline-none focus:border-primary-glow w-full sm:w-64"
+          />
+          <button
+            type="submit"
+            className="px-4 py-2 bg-gradient-blue text-white font-bold rounded-xl text-xs hover:opacity-95 transition-all flex items-center gap-1.5 shrink-0 shadow-glow-blue-sm"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
+            Search
+          </button>
+          {activeQuery && (
+            <button
+              type="button"
+              onClick={() => {
+                setSearchInput('')
+                setActiveQuery('')
+              }}
+              className="px-3 py-2 border border-white/10 hover:bg-white/5 rounded-xl text-xs text-silver-muted shrink-0"
+            >
+              Clear
+            </button>
+          )}
+          <button onClick={fetchTransactions} className="px-3 py-2 border border-silver-muted/15 hover:bg-white/5 rounded-xl text-xs font-semibold text-silver-light shrink-0">
+            Refresh
+          </button>
+        </form>
       </div>
 
       <div className="bg-dark-bg-secondary/40 border border-silver-muted/10 rounded-2xl glass-dark overflow-hidden">
@@ -84,10 +132,10 @@ export default function AdminTransactionsPage() {
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
             </svg>
           </div>
-        ) : transactions.length === 0 ? (
+        ) : filteredTransactions.length === 0 ? (
           <div className="py-20 text-center text-silver-muted">
             <span className="text-4xl">📜</span>
-            <p className="text-sm mt-2">No transaction records found in the database.</p>
+            <p className="text-sm mt-2">{activeQuery ? `No transaction records found matching "${activeQuery}".` : 'No transaction records found in the database.'}</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -105,7 +153,7 @@ export default function AdminTransactionsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {transactions.map((tx) => (
+                {filteredTransactions.map((tx) => (
                   <tr key={tx.id} className="hover:bg-white/5 transition-colors">
                     <td className="px-6 py-4 font-mono text-xs text-primary-glow select-all">{tx.reference}</td>
                     <td className="px-6 py-4 space-y-0.5">

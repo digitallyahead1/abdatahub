@@ -120,7 +120,7 @@ export default function PrivacyPolicyPage() {
           </p>
           <div className="p-4 bg-white/5 border border-white/5 rounded-xl space-y-2 text-silver-light">
             <p><strong className="text-white">Company Name:</strong> AB Data Hub (BitBridge Technologies)</p>
-            <p><strong className="text-white">Customer Support Phone / WhatsApp:</strong> <a href="tel:08133887526" className="text-primary-glow hover:underline">08133887526</a> / <a href="https://wa.me/2348133887526" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">Chat on WhatsApp</a></p>
+            <p><strong className="text-white">Customer Support Phone / WhatsApp:</strong> <a href="tel:07045357195" className="text-primary-glow hover:underline">07045357195</a> / <a href="https://wa.me/2348133887526" target="_blank" rel="noopener noreferrer" className="text-emerald-400 hover:underline">Chat on WhatsApp (08133887526)</a></p>
             <p><strong className="text-white">Technical Support:</strong> BitBridge Technologies (07067382927)</p>
           </div>
         </section>

@@ -118,10 +118,10 @@ export default function DeleteAccountPage() {
             </p>
             <div className="pl-8">
               <a
-                href="tel:08133887526"
+                href="tel:07045357195"
                 className="inline-flex items-center gap-2 px-4 py-2 bg-primary-blue/10 border border-primary-blue/20 text-primary-glow font-semibold rounded-xl text-xs hover:bg-primary-blue/20 transition-all"
               >
-                📞 Call: 08133887526
+                📞 Call: 07045357195
               </a>
             </div>
           </div>

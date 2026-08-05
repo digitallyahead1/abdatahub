@@ -63,10 +63,10 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
     if (!_formKey.currentState!.validate()) return;
 
     final amount = double.tryParse(_amountController.text) ?? 0.0;
-    if (amount < 10 || amount > 50000) {
+    if (amount < 100 || amount > 50000) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Airtime amount must be between ₦10 and ₦50,000'),
+          content: Text('Airtime amount must be between ₦100 and ₦50,000'),
           backgroundColor: AppColors.error,
         ),
       );
@@ -262,15 +262,15 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
                       decoration: InputDecoration(
                         labelText: 'Recharge Amount (₦)',
                         prefixIcon: Icon(Icons.monetization_on_outlined, color: AppColors.silverMuted),
-                        hintText: 'Minimum ₦10',
+                        hintText: 'Minimum ₦100',
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
                           return 'Please enter recharge amount';
                         }
                         final valNum = double.tryParse(value);
-                        if (valNum == null || valNum < 10) {
-                          return 'Minimum airtime amount is ₦10';
+                        if (valNum == null || valNum < 100) {
+                          return 'Minimum airtime amount is ₦100';
                         }
                         return null;
                       },

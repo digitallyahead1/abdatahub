@@ -134,7 +134,7 @@ export default function BuyAirtimePage() {
             <input
               type="number"
               {...register('amount', { valueAsNumber: true })}
-              placeholder="Minimum 10"
+              placeholder="Minimum 100"
               className="w-full bg-dark-bg/60 border border-silver-muted/10 rounded-xl px-4 py-3 text-white focus:border-primary-glow/50 focus:outline-none transition-all text-sm font-mono"
             />
             {errors.amount && (

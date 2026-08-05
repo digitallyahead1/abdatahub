@@ -467,13 +467,9 @@ class ProfileTab extends StatelessWidget {
                     const Divider(height: 1, color: Color(0xFF1F2937)),
                     _buildProfileTile(
                       icon: Icons.support_agent,
-                      title: 'Helpline Support',
-                      value: '08133887526',
-                      onTap: () => _copyToClipboard(
-                        context,
-                        '08133887526',
-                        'Customer Care line copied!',
-                      ),
+                      title: 'Phone Call Support',
+                      value: '07045357195',
+                      onTap: () => _launchURL(context, 'tel:07045357195'),
                     ),
                     const Divider(height: 1, color: Color(0xFF1F2937)),
                     _buildProfileTile(

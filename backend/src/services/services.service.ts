@@ -382,6 +382,10 @@ export class ServicesService {
     await this.usersService.verifyTransactionPin(userId, pin);
     const cleanNetwork = network.toLowerCase();
 
+    if (Number(amount) < 100) {
+      throw new BadRequestException('Minimum airtime purchase amount is ₦100.');
+    }
+
     // 1. Look up airtime pricing rate
     const pricing = await this.airtimePricingRepository.findOne({
       where: { network: cleanNetwork, visibilityStatus: true },
