@@ -187,12 +187,16 @@ export class WalletService {
     return savedWallet;
   }
 
-  async getHistory(userId: string): Promise<WalletTransaction[]> {
+  async getHistory(userId: string): Promise<any[]> {
     const wallet = await this.findOneByUserId(userId);
-    return this.walletTransactionRepository.find({
+    const txs = await this.walletTransactionRepository.find({
       where: { walletId: wallet.id },
       order: { createdAt: 'DESC' },
     });
+    return txs.map((tx) => ({
+      ...tx,
+      status: 'success',
+    }));
   }
 
   async getStats(userId: string) {

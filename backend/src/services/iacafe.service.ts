@@ -132,6 +132,35 @@ export class IacafeService {
     }
   }
 
+  async payAirtime(
+    requestId: string,
+    phone: string,
+    serviceId: string,
+    amount: number,
+  ): Promise<any> {
+    try {
+      const payload = {
+        request_id: requestId,
+        phone,
+        service_id: serviceId,
+        amount,
+      };
+      this.logger.log(`Initiating IACAFE Airtime Purchase: ${JSON.stringify(payload)}`);
+      const response = await this.client.post('/airtime', payload);
+      this.logger.log(`IACAFE Airtime Purchase Response: ${JSON.stringify(response.data)}`);
+      return response.data;
+    } catch (error: any) {
+      const errorMsg = error.response?.data || error.message;
+      this.logger.error('IACAFE airtime purchase failure:', errorMsg);
+      return {
+        status: false,
+        msg: error.response?.data?.error?.message || error.response?.data?.msg || error.response?.data?.message || error.message,
+        error: errorMsg,
+        isTransientError: !error.response || error.response.status >= 500 || error.code === 'ECONNABORTED' || error.message.includes('timeout')
+      };
+    }
+  }
+
   async requeryOrder(requestId: string): Promise<any> {
     try {
       this.logger.log(`Requerying IACAFE order: request_id=${requestId}`);

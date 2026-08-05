@@ -434,20 +434,21 @@ export class ServicesService {
       amount: sellingPrice,
       status: 'pending',
       reference: ref,
-      metadata: { phoneNumber, network: cleanNetwork, faceValue: amount, profit, provider: 'amzaet' },
+      metadata: { phoneNumber, network: cleanNetwork, faceValue: amount, profit, provider: 'iacafe' },
     });
     await this.transactionRepository.save(systemTx);
 
-    // 4. Map network to AMZAET network IDs (MTN=1, GLO=2, 9mobile=3, Airtel=4)
-    const amzaetNetworkMap: Record<string, number> = {
-      mtn: 1,
-      glo: 2,
-      '9mobile': 3,
-      airtel: 4,
+    // 4. Map network to IACAFE service_id
+    const iacafeServiceMap: Record<string, string> = {
+      mtn: 'mtn',
+      glo: 'glo',
+      '9mobile': '9mobile',
+      etisalat: '9mobile',
+      airtel: 'airtel',
     };
-    const amzaetNetworkId = amzaetNetworkMap[cleanNetwork];
+    const iacafeServiceId = iacafeServiceMap[cleanNetwork];
 
-    if (!amzaetNetworkId) {
+    if (!iacafeServiceId) {
       // Refund and fail if network unknown
       await this.walletService.credit(userId, sellingPrice, `Refund for unsupported network (${cleanNetwork}) - ${ref}`);
       airtimeTx.status = 'failed';
@@ -457,78 +458,58 @@ export class ServicesService {
       throw new BadRequestException(`Airtime is not supported for network: ${cleanNetwork}`);
     }
 
-    // 5. Call AMZAET Topup API for airtime
-    const amzaetToken = process.env.AMZAET_TOKEN;
-    let amzaetResult: any = null;
-    let amzaetError: any = null;
+    // 5. Call IACAFE API for airtime
+    const result = await this.iacafeService.payAirtime(
+      ref,
+      phoneNumber,
+      iacafeServiceId,
+      Number(amount)
+    );
 
-    try {
-      this.logger.log(`Initiating AMZAET Airtime Topup: network=${amzaetNetworkId}, phone=${phoneNumber}, amount=${amount}, ref=${ref}`);
-      const response = await axios.post(
-        'https://amzaet.com/api/topup/',
-        {
-          network: amzaetNetworkId,
-          mobile_number: phoneNumber,
-          amount: Number(amount),
-          Ported_number: true,
-          airtime_type: 'VTU',
-        },
-        {
-          headers: {
-            Authorization: `Token ${amzaetToken}`,
-            'Content-Type': 'application/json',
-          },
-          timeout: 30000,
-        },
-      );
-      amzaetResult = response.data;
-      this.logger.log(`AMZAET Airtime Topup Response: ${JSON.stringify(amzaetResult)}`);
-    } catch (err: any) {
-      amzaetError = err;
-      this.logger.error(`AMZAET Airtime Topup Error: ${JSON.stringify(err.response?.data || err.message)}`);
-    }
+    const isSuccess = result && (
+      result.code === 'success' ||
+      result.code === 200 ||
+      result.status === true ||
+      result.status === 'success' ||
+      result.status === 'completed-api'
+    );
 
-    // 6. Handle AMZAET response
-    const amzaetStatus = amzaetResult?.Status?.toLowerCase();
-    const isSuccess = amzaetStatus === 'successful' || amzaetStatus === 'success' || amzaetStatus === 'processing';
-
-    if (amzaetResult && isSuccess) {
-      const finalStatus = amzaetStatus === 'failed' ? 'failed' : 'success';
+    if (isSuccess) {
+      const finalStatus = 'success';
       airtimeTx.status = finalStatus;
       await this.airtimeTransactionRepository.save(airtimeTx);
 
+      const providerRef = String(result.data?.order_id || result.data?.id || result.order_id || result.id || '');
       systemTx.status = finalStatus;
       systemTx.metadata = {
         ...(systemTx.metadata || {}),
-        providerReference: String(amzaetResult.id || amzaetResult.ident || ''),
+        providerReference: providerRef,
+        providerResponse: result.data || result,
       };
       await this.transactionRepository.save(systemTx);
 
-      if (finalStatus === 'failed') {
-        await this.walletService.credit(userId, sellingPrice, `Refund for failed Airtime recharge (${ref})`);
-        const refundRef = 'REF' + Math.random().toString(36).substring(2, 12).toUpperCase();
-        const refundTx = this.transactionRepository.create({
-          userId,
-          type: 'credit',
-          service: 'reversal',
-          amount: sellingPrice,
-          status: 'success',
-          reference: refundRef,
-          metadata: { originalReference: ref, reason: 'Failed airtime purchase refund (AMZAET)' },
-        });
-        await this.transactionRepository.save(refundTx);
-        throw new BadRequestException('Airtime purchase failed on the provider. Your wallet has been refunded.');
-      }
-
       return {
         reference: ref,
-        providerReference: String(amzaetResult.id || amzaetResult.ident || ''),
+        providerReference: providerRef,
         network: cleanNetwork,
         phoneNumber,
         amount,
         chargedAmount: sellingPrice,
         status: finalStatus,
       };
+    } else if (result && result.isTransientError) {
+      // Transient error (timeout / provider 5xx) - keep status pending so admin or user can requery
+      airtimeTx.status = 'pending';
+      await this.airtimeTransactionRepository.save(airtimeTx);
+
+      systemTx.status = 'pending';
+      systemTx.metadata = {
+        ...(systemTx.metadata || {}),
+        error: result.msg || 'Gateway timeout or server error. Processing status is pending.',
+      };
+      await this.transactionRepository.save(systemTx);
+
+      throw new BadRequestException('Your airtime transaction is currently processing on the network. Please check your transaction history shortly.');
     } else {
       // Hard failure — refund the user
       airtimeTx.status = 'failed';
@@ -543,31 +524,24 @@ export class ServicesService {
         amount: sellingPrice,
         status: 'success',
         reference: refundRef,
-        metadata: { originalReference: ref, reason: 'Failed airtime purchase refund (AMZAET)' },
+        metadata: { originalReference: ref, reason: 'Failed airtime purchase refund (IACAFE)' },
       });
       await this.transactionRepository.save(refundTx);
 
+      const errorDetail = result?.msg || result?.error?.message || result?.error || 'Airtime purchase failed on provider.';
       systemTx.metadata = {
         ...(systemTx.metadata || {}),
         refunded: true,
         autoRefunded: true,
         refundedAt: new Date().toISOString(),
         refundReference: refundRef,
-        error: amzaetError?.response?.data || amzaetError?.message || amzaetResult,
+        error: errorDetail,
       };
       await this.transactionRepository.save(systemTx);
 
       await this.walletService.credit(userId, sellingPrice, `Refund for failed Airtime recharge (${ref})`);
 
-      const errData = amzaetError?.response?.data;
-      let rawErr =
-        (Array.isArray(errData?.error) && errData.error[0]) ||
-        errData?.detail ||
-        errData?.message ||
-        amzaetResult?.message ||
-        'Airtime purchase failed. Your wallet has been refunded. Please try again.';
-
-      throw new BadRequestException(rawErr);
+      throw new BadRequestException(errorDetail);
     }
   }
 

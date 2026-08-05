@@ -788,7 +788,31 @@ export class AdminService implements OnModuleInit {
       // Query real provider API for data/airtime transaction status
       const txProvider = tx.metadata?.provider || 'smeplug';
 
-      if (txProvider === 'amzaet') {
+      if (txProvider === 'iacafe') {
+        const result = await this.iacafeService.requeryOrder(tx.reference);
+        if (result && (result.success || result.status === true || result.code === 'success')) {
+          const status = String(result.data?.status || result.status || '').toLowerCase();
+          if (status === 'completed-api' || status === 'success' || status === 'successful' || result.message === 'ORDER COMPLETED') {
+            providerStatus = 'success';
+            message = 'Transaction completed successfully on IACAFE.';
+            providerMeta = {
+              providerReference: String(result.data?.order_id || result.data?.id || ''),
+              amountCharged: result.data?.amount_charged,
+            };
+          } else if (status === 'failed' || status === 'refunded') {
+            providerStatus = 'failed';
+            message = 'Transaction failed on IACAFE.';
+          } else if (status === 'pending' || status === 'processing') {
+            providerStatus = 'pending';
+            message = 'Transaction is still pending on IACAFE.';
+          }
+        } else if (result && result.error && result.error.code === 'not_found') {
+          providerStatus = 'failed';
+          message = 'Order not found on IACAFE. Treating as failed.';
+        } else {
+          message = `Unable to verify status with IACAFE: ${result?.msg || 'Unknown error'}`;
+        }
+      } else if (txProvider === 'amzaet') {
         // AMZAET does not have a standard requery endpoint — keep current status
         message = 'AMZAET transactions cannot be requeried automatically. Please verify manually on the AMZAET dashboard.';
       } else {

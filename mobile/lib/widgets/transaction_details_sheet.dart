@@ -32,7 +32,21 @@ class TransactionDetailsSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final metadata = tx['metadata'] as Map<String, dynamic>? ?? {};
-    final status = (tx['status'] ?? 'pending').toString().toLowerCase();
+    final rawStatus = tx['status']?.toString().toLowerCase();
+    String status;
+    if (rawStatus == null ||
+        rawStatus.isEmpty ||
+        rawStatus == 'success' ||
+        rawStatus == 'successful' ||
+        rawStatus == 'completed' ||
+        rawStatus == 'approved') {
+      status = 'success';
+    } else if (rawStatus == 'failed' || rawStatus == 'cancelled' || rawStatus == 'declined') {
+      status = 'failed';
+    } else {
+      status = rawStatus;
+    }
+
     final service = (tx['service'] ?? '').toString().toLowerCase();
     final desc = tx['description'] ?? 'Transaction';
     final ref = tx['reference'] ?? 'REF';
@@ -82,6 +96,7 @@ class TransactionDetailsSheet extends StatelessWidget {
 
     Color statusColor;
     IconData statusIcon;
+    final displayStatus = status == 'success' ? 'SUCCESSFUL' : status.toUpperCase();
 
     if (status == 'success') {
       statusColor = AppColors.success;
@@ -157,7 +172,7 @@ class TransactionDetailsSheet extends StatelessWidget {
           _buildRowDetail('Date & Time', dateStr, context),
           _buildRowDetail(
             'Status',
-            status.toUpperCase(),
+            displayStatus,
             context,
             customValWidget: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
@@ -167,7 +182,7 @@ class TransactionDetailsSheet extends StatelessWidget {
                 border: Border.all(color: statusColor.withValues(alpha: 0.3)),
               ),
               child: Text(
-                status.toUpperCase(),
+                displayStatus,
                 style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
               ),
             ),
