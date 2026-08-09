@@ -142,27 +142,26 @@ export default function AdminTransactionsPage() {
             <table className="w-full text-left border-collapse text-sm">
               <thead>
                 <tr className="border-b border-white/5 bg-white/5 text-silver-muted text-xs font-semibold uppercase tracking-wider">
-                  <th className="px-6 py-4">Reference</th>
-                  <th className="px-6 py-4">User Details</th>
-                  <th className="px-6 py-4">Service</th>
-                  <th className="px-6 py-4">Type</th>
-                  <th className="px-6 py-4">Amount</th>
-                  <th className="px-6 py-4">Status</th>
-                  <th className="px-6 py-4">Date</th>
-                  <th className="px-6 py-4 text-right">Actions</th>
+                  <th className="px-4 py-4">Reference</th>
+                  <th className="px-3 py-4">User Details</th>
+                  <th className="px-4 py-4">Service / Type</th>
+                  <th className="px-4 py-4">Amount</th>
+                  <th className="px-4 py-4">Status</th>
+                  <th className="px-4 py-4 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
                 {filteredTransactions.map((tx) => (
                   <tr key={tx.id} className="hover:bg-white/5 transition-colors">
-                    <td className="px-6 py-4 font-mono text-xs text-primary-glow select-all">{tx.reference}</td>
-                    <td className="px-6 py-4 space-y-0.5">
-                      <p className="font-semibold text-white">{tx.fullName}</p>
+                    <td className="px-4 py-4 font-mono text-xs text-primary-glow select-all">{tx.reference}</td>
+                    <td className="px-3 py-4 space-y-0.5">
+                      <p className="font-semibold text-white text-sm">{tx.fullName}</p>
                       <p className="text-xs text-silver-muted">{tx.email}</p>
                     </td>
-                    <td className="px-6 py-4 font-semibold text-white capitalize">{tx.service}</td>
-                    <td className="px-6 py-4">
-                      <span className={`inline-flex px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
+                    {/* Service + Type combined */}
+                    <td className="px-4 py-4">
+                      <p className="font-semibold text-white capitalize text-sm">{tx.service}</p>
+                      <span className={`inline-flex mt-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase ${
                         tx.status === 'failed'
                           ? 'bg-white/5 text-silver-muted border border-silver-muted/20'
                           : tx.type === 'credit'
@@ -172,20 +171,21 @@ export default function AdminTransactionsPage() {
                         {tx.status === 'failed' ? 'failed' : tx.type}
                       </span>
                     </td>
-                    <td className={`px-6 py-4 font-mono ${tx.status === 'failed' ? 'text-silver-muted line-through font-normal' : 'font-bold text-white'}`}>
+                    <td className={`px-4 py-4 font-mono ${tx.status === 'failed' ? 'text-silver-muted line-through font-normal' : 'font-bold text-white'}`}>
                       ₦{tx.amount.toLocaleString()}
                     </td>
-                    <td className="px-6 py-4">
+                    {/* Status + Date combined */}
+                    <td className="px-4 py-4">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
                         tx.status === 'success' ? 'bg-emerald-500/10 text-emerald-400' : tx.status === 'failed' ? 'bg-red-500/10 text-red-400' : 'bg-amber-500/10 text-amber-400'
                       }`}>
                         {tx.status}
                       </span>
+                      <p className="text-[10px] text-silver-muted mt-1.5 leading-tight">
+                        {new Date(tx.createdAt).toLocaleString()}
+                      </p>
                     </td>
-                    <td className="px-6 py-4 text-xs text-silver-muted">
-                      {new Date(tx.createdAt).toLocaleString()}
-                    </td>
-                    <td className="px-6 py-4 text-right space-x-1.5 whitespace-nowrap">
+                    <td className="px-4 py-4 text-right space-x-1.5 whitespace-nowrap">
                       {tx.status !== 'success' && (
                         <button
                           onClick={() => makeSuccessful(tx.id)}

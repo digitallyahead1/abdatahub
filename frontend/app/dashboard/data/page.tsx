@@ -361,17 +361,13 @@ export default function BuyDataPage() {
             <input type="hidden" {...register('planId')} />
 
             {fetchingPlans ? (
-              <div className="flex flex-col gap-2.5 animate-pulse">
-                {[...Array(5)].map((_, i) => (
-                  <div key={i} className="h-14 bg-white/5 border border-silver-muted/10 rounded-xl p-3.5 flex items-center justify-between">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-4 h-4 rounded-full bg-white/10" />
-                      <div className="space-y-1">
-                        <div className="w-20 h-4 bg-white/10 rounded" />
-                        <div className="w-32 h-3 bg-white/5 rounded" />
-                      </div>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 animate-pulse">
+                {[...Array(6)].map((_, i) => (
+                  <div key={i} className="h-28 bg-white/5 border border-silver-muted/10 rounded-2xl p-4 flex flex-col justify-between">
+                    <div className="w-full flex justify-between">
+                      <div className="w-8 h-3.5 bg-white/10 rounded" />
+                      <div className="w-12 h-3.5 bg-white/10 rounded" />
                     </div>
-                    <div className="w-14 h-4 bg-white/10 rounded" />
                   </div>
                 ))}
               </div>
@@ -403,7 +399,7 @@ export default function BuyDataPage() {
                   </div>
                 )}
 
-                <div className="flex flex-col gap-2 max-h-[360px] overflow-y-auto pr-1">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[360px] overflow-y-auto pr-1">
                   {filteredPlans.map((plan) => {
                     const isSelected = selectedPlanId === plan.id
                     return (
@@ -411,42 +407,37 @@ export default function BuyDataPage() {
                         key={plan.id}
                         type="button"
                         onClick={() => handleCardClick(plan.id)}
-                        className={`relative flex items-center justify-between p-3.5 rounded-xl border text-left transition-all duration-200 cursor-pointer ${
+                        className={`relative flex flex-col justify-between p-3.5 rounded-2xl border text-left transition-all duration-200 cursor-pointer min-h-[90px] ${
                           isSelected
-                            ? 'bg-gradient-to-r from-primary-blue/25 to-primary-dark-blue/20 border-primary-glow shadow-glow-blue-sm scale-[1.01]'
+                            ? 'bg-gradient-to-br from-primary-blue/25 to-primary-dark-blue/20 border-primary-glow shadow-glow-blue scale-[1.02]'
                             : 'bg-white/5 border-silver-muted/10 text-silver-muted hover:border-silver-muted/30 hover:bg-white/10 hover:text-white'
                         }`}
                       >
-                        <div className="flex items-center space-x-3.5">
-                          {/* Radio circle indicator */}
-                          <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
-                            isSelected ? 'border-primary-glow bg-primary-glow' : 'border-silver-muted/30 bg-transparent'
-                          }`}>
-                            {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-dark-bg" />}
-                          </div>
-
-                          {/* Data Size & Details */}
-                          <div className="flex flex-col">
-                            <div className="flex items-center space-x-2">
-                              <span className="text-base font-extrabold text-white tracking-tight">
-                                {plan.parsed.size}
-                              </span>
-                              <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded tracking-wide uppercase ${getTypeBadgeStyles(plan.parsed.type)}`}>
-                                {plan.parsed.type}
-                              </span>
-                            </div>
-                            <span className="text-[11px] text-silver-muted/60 font-medium">
-                              {plan.bundleName} • {plan.parsed.validity}
+                        <div className="flex flex-col space-y-1">
+                          <div className="flex items-center justify-between gap-1">
+                            <span className="text-base font-extrabold text-white tracking-tight">
+                              {plan.parsed.size}
+                            </span>
+                            <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded tracking-wide uppercase ${getTypeBadgeStyles(plan.parsed.type)}`}>
+                              {plan.parsed.type}
                             </span>
                           </div>
+                          <span className="text-[10px] text-silver-muted/70 font-medium line-clamp-1">
+                            {plan.parsed.validity}
+                          </span>
                         </div>
 
                         {/* Cost */}
-                        <div className="text-right">
-                          <span className="text-sm sm:text-base font-bold text-primary-glow font-mono">
+                        <div className="mt-2 text-right">
+                          <span className="text-sm font-bold text-primary-glow font-mono">
                             ₦{plan.sellingPrice.toLocaleString()}
                           </span>
                         </div>
+
+                        {/* Selected Indicator Dot */}
+                        {isSelected && (
+                          <div className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-primary-glow animate-pulse" />
+                        )}
                       </button>
                     )
                   })}
