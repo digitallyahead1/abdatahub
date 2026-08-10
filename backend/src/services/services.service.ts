@@ -235,11 +235,32 @@ export class ServicesService {
         // Distinguish transient errors (timeout, network, 5xx) from hard API failures
         const isTransient = !err.response || err.response.status >= 500 || err.code === 'ECONNABORTED' || err.message?.includes('timeout');
         const amzaetErrorData = err.response?.data;
-        const amzaetMsg =
-          (Array.isArray(amzaetErrorData?.error) && amzaetErrorData.error[0]) ||
-          amzaetErrorData?.detail ||
-          amzaetErrorData?.message ||
-          err.message;
+        let amzaetMsg = '';
+
+        if (typeof amzaetErrorData === 'string') {
+          amzaetMsg = amzaetErrorData;
+        } else if (Array.isArray(amzaetErrorData) && amzaetErrorData.length > 0) {
+          amzaetMsg = typeof amzaetErrorData[0] === 'string' ? amzaetErrorData[0] : JSON.stringify(amzaetErrorData[0]);
+        } else if (amzaetErrorData && typeof amzaetErrorData === 'object') {
+          const directMsg = amzaetErrorData.detail || amzaetErrorData.message || amzaetErrorData.api_response || (Array.isArray(amzaetErrorData.error) && amzaetErrorData.error[0]);
+          if (directMsg) {
+            amzaetMsg = directMsg;
+          } else {
+            // Extract error from first field property (e.g. { plan: ['Invalid pk...'] })
+            const firstKey = Object.keys(amzaetErrorData)[0];
+            const val = firstKey ? amzaetErrorData[firstKey] : null;
+            if (Array.isArray(val) && val.length > 0) {
+              amzaetMsg = `${firstKey}: ${val[0]}`;
+            } else if (typeof val === 'string') {
+              amzaetMsg = `${firstKey}: ${val}`;
+            } else {
+              amzaetMsg = err.message;
+            }
+          }
+        } else {
+          amzaetMsg = err.message;
+        }
+
         this.logger.error(`AMZAET API call failed (transient=${isTransient}): ${JSON.stringify(amzaetErrorData || err.message)}`);
         result = {
           status: false,
