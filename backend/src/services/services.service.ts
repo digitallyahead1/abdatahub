@@ -93,12 +93,22 @@ export class ServicesService {
     const { phoneNumber, network, planId, pin } = payload;
     await this.usersService.verifyTransactionPin(userId, pin);
     
-    const planIdNum = parseInt(planId, 10);
-    const plan = await this.dataPlanRepository.findOne({
-      where: !isNaN(planIdNum)
-        ? [{ id: planId }, { smeplugPlanId: planIdNum }]
-        : { id: planId },
-    });
+    const planIdStr = String(planId || '').trim();
+    const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(planIdStr);
+    
+    let plan: DataPlan | null = null;
+    if (isUuid) {
+      plan = await this.dataPlanRepository.findOne({ where: { id: planIdStr } });
+    } else if (/^\d+$/.test(planIdStr)) {
+      const planIdNum = parseInt(planIdStr, 10);
+      const whereCondition: any = { smeplugPlanId: planIdNum };
+      if (network) {
+        whereCondition.network = network.toLowerCase().trim();
+      }
+      plan = await this.dataPlanRepository.findOne({ where: whereCondition });
+    } else {
+      plan = await this.dataPlanRepository.findOne({ where: { id: planIdStr } });
+    }
 
     if (!plan) {
       throw new BadRequestException('The selected data plan was not found.');
