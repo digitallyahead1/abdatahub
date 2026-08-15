@@ -13,6 +13,7 @@ import { UsersModule } from '../users/users.module';
 import { SmePlugService } from './smeplug.service';
 import { SmePlugSyncService } from './smeplug-sync.service';
 import { IacafeService } from './iacafe.service';
+import { SwiftbillsService } from './swiftbills.service';
 import { AdminModule } from '../admin/admin.module';
 
 @Module({
@@ -30,7 +31,8 @@ import { AdminModule } from '../admin/admin.module';
     forwardRef(() => AdminModule),
   ],
   controllers: [ServicesController],
-  providers: [ServicesService, SmePlugService, SmePlugSyncService, IacafeService],
-  exports: [ServicesService, SmePlugService, SmePlugSyncService, IacafeService],
+  providers: [ServicesService, SmePlugService, SmePlugSyncService, IacafeService, SwiftbillsService],
+  exports: [ServicesService, SmePlugService, SmePlugSyncService, IacafeService, SwiftbillsService],
 })
 export class ServicesModule {}
+

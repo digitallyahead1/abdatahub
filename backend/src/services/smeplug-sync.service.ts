@@ -37,6 +37,11 @@ export class SmePlugSyncService implements OnModuleInit {
       this.logger.error('Failed to seed AMZAET plans:', err);
     });
 
+    // Seed Swiftbills data plans on startup
+    this.seedSwiftbillsPlans().catch(err => {
+      this.logger.error('Failed to seed Swiftbills plans:', err);
+    });
+
     // Run first sync in background after a brief delay
     setTimeout(() => {
       this.runSync().catch(err => {
@@ -140,6 +145,67 @@ export class SmePlugSyncService implements OnModuleInit {
       plan2.visibilityStatus = true;
       await this.dataPlanRepository.save(plan2);
       this.logger.log('Updated AMZAET MTN SME 1.0 GB 30 days plan (ID 532) cost and price to ₦220.');
+    }
+  }
+
+  async seedSwiftbillsPlans() {
+    const provider = 'swiftbills';
+
+    const plansToSeed = [
+      {
+        smeplugPlanId: 283,
+        network: 'mtn',
+        bundleName: 'MTN SME 1GB 30 days',
+        smeplugCost: 220,
+        sellingPrice: 220,
+        agentPrice: 0,
+      },
+      {
+        smeplugPlanId: 284,
+        network: 'mtn',
+        bundleName: 'MTN SME 2GB 30 days',
+        smeplugCost: 420,
+        sellingPrice: 420,
+        agentPrice: 0,
+      },
+      {
+        smeplugPlanId: 286,
+        network: 'mtn',
+        bundleName: 'MTN SME 5GB 30 days',
+        smeplugCost: 1040,
+        sellingPrice: 1040,
+        agentPrice: 0,
+      },
+    ];
+
+    for (const p of plansToSeed) {
+      const existing = await this.dataPlanRepository.findOne({
+        where: { smeplugPlanId: p.smeplugPlanId, provider },
+      });
+
+      if (!existing) {
+        const newPlan = this.dataPlanRepository.create({
+          ...p,
+          overrideStatus: false,
+          visibilityStatus: true,
+          provider,
+          lastSyncedAt: new Date(),
+        });
+        await this.dataPlanRepository.save(newPlan);
+        this.logger.log(`Seeded Swiftbills plan: ${p.bundleName} (ID ${p.smeplugPlanId}) at ₦${p.smeplugCost}.`);
+      } else {
+        // Only update cost fields if not under admin override
+        if (!existing.overrideStatus) {
+          existing.bundleName = p.bundleName;
+          existing.smeplugCost = p.smeplugCost;
+          existing.network = p.network;
+          existing.lastSyncedAt = new Date();
+          await this.dataPlanRepository.save(existing);
+          this.logger.log(`Updated Swiftbills plan: ${p.bundleName} (ID ${p.smeplugPlanId}).`);
+        } else {
+          this.logger.log(`Skipped Swiftbills plan update (admin override active): ${p.bundleName} (ID ${p.smeplugPlanId}).`);
+        }
+      }
     }
   }
 

@@ -815,6 +815,9 @@ export class AdminService implements OnModuleInit {
       } else if (txProvider === 'amzaet') {
         // AMZAET does not have a standard requery endpoint — keep current status
         message = 'AMZAET transactions cannot be requeried automatically. Please verify manually on the AMZAET dashboard.';
+      } else if (txProvider === 'swiftbills') {
+        // Swiftbills does not have a standard requery endpoint — keep current status
+        message = 'Swiftbills transactions cannot be requeried automatically. Please verify manually on the Swiftbills dashboard.';
       } else {
         // SMEPlug: query /transactions by customer_reference
         try {

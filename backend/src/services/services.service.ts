@@ -10,6 +10,7 @@ import { AirtimeTransaction } from '../entities/airtime-transaction.entity';
 import { WalletService } from '../wallet/wallet.service';
 import { SmePlugService } from './smeplug.service';
 import { IacafeService } from './iacafe.service';
+import { SwiftbillsService } from './swiftbills.service';
 import { AdminService } from '../admin/admin.service';
 import { UsersService } from '../users/users.service';
 
@@ -21,6 +22,7 @@ export class ServicesService {
     private walletService: WalletService,
     private smePlugService: SmePlugService,
     private iacafeService: IacafeService,
+    private swiftbillsService: SwiftbillsService,
     @Inject(forwardRef(() => AdminService))
     private adminService: AdminService,
     private usersService: UsersService,
@@ -150,7 +152,15 @@ export class ServicesService {
 
     let result: any;
 
-    if (plan.provider === 'amzaet') {
+    if (plan.provider === 'swiftbills') {
+      this.logger.log(`Purchasing data via Swiftbills API for plan ${plan.smeplugPlanId} (${plan.bundleName}) on phone ${phoneNumber}`);
+      result = await this.swiftbillsService.purchaseData(
+        plan.network,
+        phoneNumber,
+        plan.smeplugPlanId,
+        ref,
+      );
+    } else if (plan.provider === 'amzaet') {
       const amzaetToken = process.env.AMZAET_TOKEN;
       if (!amzaetToken) {
         this.logger.error('AMZAET_TOKEN is not configured in the environment variables.');
@@ -332,7 +342,7 @@ export class ServicesService {
 
         let rawErr = result?.data?.msg || result?.msg || 'Data purchase transaction failed on provider gateway';
         if (typeof rawErr === 'string' && rawErr.toLowerCase().includes('insufficient')) {
-          rawErr = 'Provider Gateway Error: Insufficient balance on API provider account (amzaet/smeplug). Please contact admin to top up provider API wallet.';
+          rawErr = 'Provider Gateway Error: Insufficient balance on API provider account (swiftbills/amzaet/smeplug). Please contact admin to top up provider API wallet.';
         }
         throw new BadRequestException(rawErr);
       }

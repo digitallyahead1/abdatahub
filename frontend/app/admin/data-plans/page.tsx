@@ -18,7 +18,7 @@ interface DataPlan {
   provider?: string
 }
 
-type TabType = 'mtn' | 'airtel' | 'glo' | '9mobile' | 'amzaet'
+type TabType = 'mtn' | 'airtel' | 'glo' | '9mobile' | 'amzaet' | 'swiftbills'
 
 export default function AdminDataPlansPage() {
   const [plans, setPlans] = useState<DataPlan[]>([])
@@ -144,6 +144,9 @@ export default function AdminDataPlansPage() {
     if (activeTab === 'amzaet') {
       return p.provider === 'amzaet'
     }
+    if (activeTab === 'swiftbills') {
+      return p.provider === 'swiftbills'
+    }
     // Treat null/undefined provider as 'smeplug' (pre-migration rows)
     return p.network === activeTab && (!p.provider || p.provider === 'smeplug')
   })
@@ -200,6 +203,7 @@ export default function AdminDataPlansPage() {
           { id: 'glo', name: 'Glo' },
           { id: '9mobile', name: '9mobile' },
           { id: 'amzaet', name: 'AMZAET (MTN)' },
+          { id: 'swiftbills', name: 'Swiftbills (MTN)' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -226,7 +230,7 @@ export default function AdminDataPlansPage() {
               <tr className="bg-white/5 border-b border-silver-muted/10 text-xs font-bold text-silver-muted uppercase tracking-wider">
                 <th className="px-6 py-4">Plan ID</th>
                 <th className="px-6 py-4">Bundle Name</th>
-                <th className="px-6 py-4">{activeTab === 'amzaet' ? 'AMZAET Cost' : 'SMEPlug Cost'}</th>
+                <th className="px-6 py-4">{activeTab === 'amzaet' ? 'AMZAET Cost' : activeTab === 'swiftbills' ? 'Swiftbills Cost' : 'SMEPlug Cost'}</th>
                 <th className="px-6 py-4">Selling Price</th>
                 <th className="px-6 py-4">Agent Price</th>
                 <th className="px-6 py-4">Override Status</th>
