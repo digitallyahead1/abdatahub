@@ -153,6 +153,14 @@ export class SmePlugSyncService implements OnModuleInit {
 
     const plansToSeed = [
       {
+        smeplugPlanId: 275,
+        network: 'mtn',
+        bundleName: 'MTN 5GB (AWOOF) 14 days',
+        smeplugCost: 1040,
+        sellingPrice: 1040,
+        agentPrice: 0,
+      },
+      {
         smeplugPlanId: 283,
         network: 'mtn',
         bundleName: 'MTN SME 1GB 30 days',
@@ -177,6 +185,7 @@ export class SmePlugSyncService implements OnModuleInit {
         agentPrice: 0,
       },
     ];
+
 
     for (const p of plansToSeed) {
       const existing = await this.dataPlanRepository.findOne({
