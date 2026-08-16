@@ -240,53 +240,32 @@ class _HomeTabState extends State<HomeTab> {
                                 fontFamily: 'Poppins',
                               ),
                             ),
-                      const SizedBox(height: 18),
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Ledger Balance',
-                                style: TextStyle(
-                                  color: AppColors.silverMuted,
-                                  fontSize: 11,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '₦${walletProvider.ledgerBalance.toStringAsFixed(2)}',
-                                style: TextStyle(
-                                  color: AppColors.silverLight,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                      const SizedBox(height: 20),
+                      // Fund Wallet Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 44,
+                        child: ElevatedButton.icon(
+                          onPressed: () => _navigateToService(context, const WalletTab()),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white.withValues(alpha: 0.15),
+                            foregroundColor: Colors.white,
+                            elevation: 0,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              side: BorderSide(color: Colors.white.withValues(alpha: 0.3)),
+                            ),
                           ),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                'Referral Commission',
-                                style: TextStyle(
-                                  color: AppColors.silverMuted,
-                                  fontSize: 11,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '₦${walletProvider.referralEarnings.toStringAsFixed(2)}',
-                                style: const TextStyle(
-                                  color: AppColors.success,
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
+                          icon: const Icon(Icons.add_circle_outline_rounded, size: 18, color: Colors.white),
+                          label: const Text(
+                            'Fund Wallet',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 14,
+                            ),
                           ),
-                        ],
+                        ),
                       ),
                     ],
                   ),
