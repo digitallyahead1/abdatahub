@@ -1,14 +1,9 @@
-import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:pdf/pdf.dart';
-import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import '../providers/wallet_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/pin_input_dialog.dart';
+import '../utils/pdf_helper.dart';
 
 class BuyDataScreen extends StatefulWidget {
   const BuyDataScreen({super.key});
@@ -152,6 +147,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
       builder: (_) => const PinInputDialog(),
     );
     if (pin == null || pin.length != 4) return;
+    if (!mounted) return;
 
     final wallet = Provider.of<WalletProvider>(context, listen: false);
     final response = await wallet.purchaseService(
@@ -194,7 +190,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
           decoration: BoxDecoration(
             color: AppColors.darkBgSecondary,
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white.withOpacity(0.1)),
+            border: Border.all(color: AppColors.silverMuted.withValues(alpha: 0.2)),
           ),
           padding: const EdgeInsets.all(24),
           child: Column(
@@ -205,29 +201,29 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                 width: 64,
                 height: 64,
                 decoration: BoxDecoration(
-                  color: Colors.green.withOpacity(0.15),
+                  color: Colors.green.withValues(alpha: 0.15),
                   shape: BoxShape.circle,
-                  border: Border.all(color: Colors.green.withOpacity(0.3)),
+                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
                 ),
-                child: const Icon(Icons.check_rounded, color: Colors.greenAccent, size: 32),
+                child: const Icon(Icons.check_rounded, color: Colors.green, size: 32),
               ),
               const SizedBox(height: 12),
               Text(
                 'Purchase Successful!',
                 style: TextStyle(color: AppColors.silverLight, fontSize: 18, fontWeight: FontWeight.bold),
               ),
-              const Text(
+              Text(
                 'Your data has been sent',
-                style: TextStyle(color: Color(0xFF9CA3AF), fontSize: 13),
+                style: TextStyle(color: AppColors.silverMuted, fontSize: 13),
               ),
               const SizedBox(height: 20),
 
               // Receipt rows
               Container(
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.05),
+                  color: AppColors.primaryBlue.withValues(alpha: 0.04),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                  border: Border.all(color: AppColors.silverMuted.withValues(alpha: 0.15)),
                 ),
                 padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 child: Column(
@@ -249,13 +245,21 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                   Expanded(
                     child: OutlinedButton.icon(
                       onPressed: () async {
-                        await _shareReceiptPdf(data);
+                        await PdfHelper.shareTransactionReceipt(context, data);
                       },
-                      icon: const Icon(Icons.share_outlined, size: 16, color: Colors.white),
-                      label: const Text('Share PDF', style: TextStyle(color: Colors.white)),
+                      icon: const Icon(Icons.picture_as_pdf_outlined, size: 16, color: AppColors.primaryBlue),
+                      label: const Text(
+                        'Share PDF',
+                        style: TextStyle(
+                          color: AppColors.primaryBlue,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 14),
-                        side: BorderSide(color: Colors.white.withOpacity(0.15)),
+                        backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.12),
+                        side: const BorderSide(color: AppColors.primaryBlue, width: 1.5),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
                     ),
@@ -269,6 +273,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                       },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primaryBlue,
+                        foregroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
@@ -284,111 +289,12 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
     );
   }
 
-  Future<void> _shareReceiptPdf(Map<String, dynamic> data) async {
-    try {
-      final pdf = pw.Document();
-
-      pdf.addPage(
-        pw.Page(
-          pageFormat: PdfPageFormat(80 * PdfPageFormat.mm, 150 * PdfPageFormat.mm, marginAll: 5 * PdfPageFormat.mm),
-          build: (pw.Context context) {
-            return pw.Container(
-              decoration: pw.BoxDecoration(
-                border: pw.Border.all(color: PdfColors.grey300, width: 1),
-                borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8)),
-              ),
-              padding: const pw.EdgeInsets.all(10),
-              child: pw.Column(
-                crossAxisAlignment: pw.CrossAxisAlignment.start,
-                children: [
-                  pw.Center(
-                    child: pw.Text('AB DATA HUB', style: pw.TextStyle(fontSize: 14, fontWeight: pw.FontWeight.bold, color: PdfColors.blue800)),
-                  ),
-                  pw.Center(
-                    child: pw.Text('TRANSACTION RECEIPT', style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600)),
-                  ),
-                  pw.SizedBox(height: 8),
-                  pw.Divider(thickness: 1, borderStyle: pw.BorderStyle.dashed),
-                  pw.SizedBox(height: 8),
-                  _pdfRow('Phone Number', data['phoneNumber']?.toString() ?? ''),
-                  _pdfRow('Network', (data['network'] ?? '').toString().toUpperCase()),
-                  _pdfRow('Plan', data['planName']?.toString() ?? ''),
-                  _pdfRow('Amount Paid', 'N${_formatAmount(data['amount'])}'),
-                  _pdfRow('Reference', data['reference']?.toString() ?? ''),
-                  _pdfRow('Status', 'Successful'),
-                  pw.SizedBox(height: 12),
-                  pw.Divider(thickness: 1, borderStyle: pw.BorderStyle.dashed),
-                  pw.SizedBox(height: 8),
-                  pw.Center(
-                    child: pw.Text('Thank you for choosing AB Data Hub!', style: pw.TextStyle(fontSize: 8, color: PdfColors.grey600, fontStyle: pw.FontStyle.italic)),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      );
-
-      final output = await getTemporaryDirectory();
-      final file = File('${output.path}/receipt_${data['reference']}.pdf');
-      await file.writeAsBytes(await pdf.save());
-
-      final xFile = XFile(file.path);
-      await Share.shareXFiles([xFile], text: 'AB Data Hub Transaction Receipt');
-    } catch (e) {
-      debugPrint('Error generating/sharing PDF: $e');
-      // Fallback to text copy
-      final receiptText =
-          'AB Data Hub Receipt\n-------------------'
-          '\nPhone: ${data['phoneNumber'] ?? ''}'
-          '\nNetwork: ${(data['network'] ?? '').toString().toUpperCase()}'
-          '\nPlan: ${data['planName'] ?? ''}'
-          '\nAmount: ₦${_formatAmount(data['amount'])}'
-          '\nReference: ${data['reference'] ?? ''}'
-          '\nStatus: Successful';
-      await _copyToClipboard(receiptText, context);
-    }
-  }
-
-  pw.Widget _pdfRow(String label, String value) {
-    return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 3),
-      child: pw.Row(
-        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-        children: [
-          pw.Text(label, style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey700)),
-          pw.Text(value, style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold)),
-        ],
-      ),
-    );
-  }
 
   String _formatAmount(dynamic amount) {
     if (amount == null) return '0';
     final num = double.tryParse(amount.toString()) ?? 0;
     return num.toStringAsFixed(num.truncateToDouble() == num ? 0 : 2)
         .replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
-  }
-
-  Future<void> _copyToClipboard(String text, BuildContext ctx) async {
-    // Copy to clipboard since Share plugin may not be installed
-    final clipboard = await _tryShare(text);
-    if (!clipboard && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Receipt copied to clipboard'), backgroundColor: Colors.green),
-      );
-    }
-  }
-
-  Future<bool> _tryShare(String text) async {
-    try {
-      // Use Clipboard as fallback; if share_plus is added it can be used here
-      final data = ClipboardData(text: text);
-      await Clipboard.setData(data);
-      return false; // returns false to show "copied" snackbar
-    } catch (_) {
-      return false;
-    }
   }
 
   Widget _receiptRow(String label, String value, {bool mono = false}) {
