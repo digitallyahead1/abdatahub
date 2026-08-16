@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../providers/auth_provider.dart';
 import '../providers/theme_provider.dart';
 import '../theme/app_theme.dart';
+import 'agent_services_screen.dart';
 import 'login_screen.dart';
 
 class ProfileTab extends StatelessWidget {
@@ -34,6 +35,7 @@ class ProfileTab extends StatelessWidget {
   void _launchURL(BuildContext context, String urlString) async {
     final Uri url = Uri.parse(urlString);
     if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+      if (!context.mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text('Could not launch $urlString'),
@@ -283,7 +285,7 @@ class ProfileTab extends StatelessWidget {
                         ),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primaryBlue.withOpacity(0.25),
+                            color: AppColors.primaryBlue.withValues(alpha: 0.25),
                             blurRadius: 15,
                             offset: const Offset(0, 5),
                           )
@@ -328,14 +330,14 @@ class ProfileTab extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [AppColors.darkBgSecondary, Color(0xFF0F172A)],
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF101827), Color(0xFF0F172A)],
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                   ),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: AppColors.accentGlow.withOpacity(0.15),
+                    color: AppColors.accentGlow.withValues(alpha: 0.15),
                   ),
                 ),
                 child: Column(
@@ -370,7 +372,7 @@ class ProfileTab extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: AppColors.darkBg,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.silverMuted.withOpacity(0.1)),
+                        border: Border.all(color: AppColors.silverMuted.withValues(alpha: 0.1)),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -423,7 +425,7 @@ class ProfileTab extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.darkBgSecondary,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: AppColors.silverMuted.withOpacity(0.05)),
+                  border: Border.all(color: AppColors.silverMuted.withValues(alpha: 0.05)),
                 ),
                 child: Column(
                   children: [
@@ -473,6 +475,22 @@ class ProfileTab extends StatelessWidget {
                     ),
                     Divider(height: 1, color: AppColors.silverMuted.withValues(alpha: 0.15)),
                     _buildProfileTile(
+                      icon: Icons.verified_user_outlined,
+                      title: 'Agent Services',
+                      value: (() {
+                        final s = auth.user?['agentStatus'] as String? ?? 'none';
+                        if (s == 'approved') return 'Active Agent';
+                        if (s == 'pending') return 'Pending Approval';
+                        if (s == 'rejected') return 'Rejected — Re-apply';
+                        return 'Apply to Become Agent';
+                      })(),
+                      iconColor: AppColors.accentGlow,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const AgentServicesScreen()),
+                      ),
+                    ),
+                    Divider(height: 1, color: AppColors.silverMuted.withValues(alpha: 0.15)),
+                    _buildProfileTile(
                       icon: Icons.info_outline,
                       title: 'App Version',
                       value: 'v1.0.0',
@@ -517,10 +535,11 @@ class ProfileTab extends StatelessWidget {
     required String title,
     required String value,
     VoidCallback? onTap,
+    Color? iconColor,
   }) {
     return ListTile(
       onTap: onTap,
-      leading: Icon(icon, color: AppColors.primaryBlue),
+      leading: Icon(icon, color: iconColor ?? AppColors.primaryBlue),
       title: Text(
         title,
         style: TextStyle(
@@ -543,7 +562,7 @@ class ProfileTab extends StatelessWidget {
             const SizedBox(width: 8),
             Icon(
               Icons.chevron_right,
-              color: AppColors.silverMuted.withOpacity(0.5),
+              color: AppColors.silverMuted.withValues(alpha: 0.5),
               size: 16,
             )
           ]
