@@ -631,12 +631,17 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                                     const SizedBox(height: 4),
                                   ],
                                   
-                                  // List view of plans
-                                  ListView.separated(
+                                  // Grid view of plans
+                                  GridView.builder(
                                     shrinkWrap: true,
                                     physics: const NeverScrollableScrollPhysics(),
+                                    gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 3,
+                                      crossAxisSpacing: 10,
+                                      mainAxisSpacing: 10,
+                                      childAspectRatio: 0.95,
+                                    ),
                                     itemCount: filteredPlans.length,
-                                    separatorBuilder: (context, index) => const SizedBox(height: 8),
                                     itemBuilder: (context, idx) {
                                       final item = filteredPlans[idx];
                                       final plan = item['plan'] as Map<String, dynamic>;
@@ -652,7 +657,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                                           });
                                         },
                                         child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                                           decoration: BoxDecoration(
                                             color: isSelected 
                                                 ? AppColors.primaryBlue.withValues(alpha: 0.12) 
@@ -661,80 +666,73 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                                             border: Border.all(
                                               color: isSelected 
                                                   ? AppColors.primaryBlue 
-                                                  : AppColors.silverMuted.withValues(alpha: 0.1),
-                                              width: isSelected ? 1.5 : 1,
+                                                  : AppColors.silverMuted.withValues(alpha: 0.15),
+                                              width: isSelected ? 2 : 1,
                                             ),
+                                            boxShadow: isSelected ? [
+                                              BoxShadow(
+                                                color: AppColors.primaryBlue.withValues(alpha: 0.25),
+                                                blurRadius: 8,
+                                                offset: const Offset(0, 2),
+                                              )
+                                            ] : null,
                                           ),
-                                          child: Row(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
-                                              // Radio indicator
-                                              Container(
-                                                width: 18,
-                                                height: 18,
-                                                decoration: BoxDecoration(
-                                                  shape: BoxShape.circle,
-                                                  border: Border.all(
-                                                    color: isSelected ? AppColors.primaryBlue : AppColors.silverMuted.withValues(alpha: 0.4),
-                                                    width: isSelected ? 5 : 1.5,
+                                              Row(
+                                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                children: [
+                                                  Container(
+                                                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                                    decoration: BoxDecoration(
+                                                      color: typeColor.withValues(alpha: 0.12),
+                                                      borderRadius: BorderRadius.circular(4),
+                                                      border: Border.all(color: typeColor.withValues(alpha: 0.25)),
+                                                    ),
+                                                    child: Text(
+                                                      (parsed['type'] ?? '').toUpperCase(),
+                                                      style: TextStyle(
+                                                        color: typeColor,
+                                                        fontSize: 8,
+                                                        fontWeight: FontWeight.bold,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                  Flexible(
+                                                    child: Text(
+                                                      parsed['validity'] ?? '',
+                                                      overflow: TextOverflow.ellipsis,
+                                                      style: TextStyle(
+                                                        color: AppColors.silverMuted,
+                                                        fontSize: 8,
+                                                        fontWeight: FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                              const SizedBox(height: 4),
+                                              Center(
+                                                child: Text(
+                                                  parsed['size'] ?? '',
+                                                  style: TextStyle(
+                                                    color: AppColors.silverLight,
+                                                    fontSize: 16,
+                                                    fontWeight: FontWeight.bold,
                                                   ),
                                                 ),
                                               ),
-                                              const SizedBox(width: 12),
-
-                                              // Plan details
-                                              Expanded(
-                                                child: Column(
-                                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                                  children: [
-                                                    Row(
-                                                      children: [
-                                                        Text(
-                                                          parsed['size'] ?? '',
-                                                          style: TextStyle(
-                                                            color: AppColors.silverLight,
-                                                            fontSize: 16,
-                                                            fontWeight: FontWeight.bold,
-                                                          ),
-                                                        ),
-                                                        const SizedBox(width: 8),
-                                                        Container(
-                                                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                          decoration: BoxDecoration(
-                                                            color: typeColor.withValues(alpha: 0.12),
-                                                            borderRadius: BorderRadius.circular(4),
-                                                            border: Border.all(color: typeColor.withValues(alpha: 0.25)),
-                                                          ),
-                                                          child: Text(
-                                                            (parsed['type'] ?? '').toUpperCase(),
-                                                            style: TextStyle(
-                                                              color: typeColor,
-                                                              fontSize: 9,
-                                                              fontWeight: FontWeight.bold,
-                                                            ),
-                                                          ),
-                                                        ),
-                                                      ],
-                                                    ),
-                                                    const SizedBox(height: 2),
-                                                    Text(
-                                                      '${plan['name'] ?? ''} • ${parsed['validity'] ?? ''}',
-                                                      style: TextStyle(
-                                                        color: AppColors.silverMuted,
-                                                        fontSize: 11,
-                                                      ),
-                                                      overflow: TextOverflow.ellipsis,
-                                                    ),
-                                                  ],
-                                                ),
-                                              ),
-
-                                              // Price
-                                              Text(
-                                                '₦${price.toStringAsFixed(0)}',
-                                                style: const TextStyle(
-                                                  color: AppColors.accentGlow,
-                                                  fontSize: 15,
-                                                  fontWeight: FontWeight.bold,
+                                              const SizedBox(height: 4),
+                                              Center(
+                                                child: Text(
+                                                  '₦${price.toStringAsFixed(0)}',
+                                                  style: const TextStyle(
+                                                    color: AppColors.accentGlow,
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.bold,
+                                                  ),
                                                 ),
                                               ),
                                             ],
