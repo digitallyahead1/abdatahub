@@ -212,9 +212,9 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                 child: const Icon(Icons.check_rounded, color: Colors.greenAccent, size: 32),
               ),
               const SizedBox(height: 12),
-              const Text(
+              Text(
                 'Purchase Successful!',
-                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(color: AppColors.silverLight, fontSize: 18, fontWeight: FontWeight.bold),
               ),
               const Text(
                 'Your data has been sent',
@@ -403,7 +403,7 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
               value,
               textAlign: TextAlign.right,
               style: TextStyle(
-                color: Colors.white,
+                color: AppColors.silverLight,
                 fontSize: mono ? 11 : 13,
                 fontWeight: FontWeight.w600,
                 fontFamily: mono ? 'monospace' : null,
@@ -465,8 +465,8 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                     ),
                     Text(
                       '₦${wallet.balance.toStringAsFixed(2)}',
-                      style: const TextStyle(
-                        color: Colors.white,
+                      style: TextStyle(
+                        color: AppColors.silverLight,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -690,8 +690,8 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                                                       children: [
                                                         Text(
                                                           parsed['size'] ?? '',
-                                                          style: const TextStyle(
-                                                            color: Colors.white,
+                                                          style: TextStyle(
+                                                            color: AppColors.silverLight,
                                                             fontSize: 16,
                                                             fontWeight: FontWeight.bold,
                                                           ),

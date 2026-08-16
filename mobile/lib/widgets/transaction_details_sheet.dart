@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_theme.dart';
+import '../utils/pdf_helper.dart';
 
 class TransactionDetailsSheet extends StatelessWidget {
   final Map<String, dynamic> tx;
@@ -222,6 +223,29 @@ class TransactionDetailsSheet extends StatelessWidget {
           ],
 
           const SizedBox(height: 24),
+          // Share PDF Receipt button
+          SizedBox(
+            width: double.infinity,
+            height: 52,
+            child: ElevatedButton.icon(
+              onPressed: () => PdfHelper.shareTransactionReceipt(context, tx),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primaryBlue,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+              icon: const Icon(Icons.picture_as_pdf_outlined, color: Colors.white, size: 18),
+              label: const Text(
+                'Share PDF Receipt',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           SizedBox(
             width: double.infinity,
             height: 52,

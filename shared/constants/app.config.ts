@@ -7,6 +7,8 @@ export const APP_CONFIG = {
   version: '1.0.0',
   tagline: 'Fast • Reliable • Always Connected',
   contact: '08133887526',
+  whatsapp: '07045357195',
+  whatsappLink: 'https://wa.me/2347045357195',
   website: 'https://abdatahub.com',
 }
 

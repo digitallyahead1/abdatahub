@@ -24,7 +24,7 @@ export default function Footer() {
               Nigeria's premium fintech-grade VTU and bill payment hub. Fast, secure, and always reliable.
             </p>
             <div className="text-sm font-semibold text-primary-glow">
-              Contact: <a href="tel:07045357195" className="hover:underline transition-all">07045357195</a>
+              Contact: <a href="tel:08133887526" className="hover:underline transition-all">08133887526</a>
             </div>
           </div>
 
@@ -57,7 +57,7 @@ export default function Footer() {
             <h3 className="text-white font-semibold mb-4 text-sm tracking-wider uppercase">Connect With Us</h3>
             <div className="flex space-x-4">
               <a 
-                href="https://wa.me/2348133887526" 
+                href="https://wa.me/2347045357195" 
                 target="_blank" 
                 rel="noopener noreferrer" 
                 className="p-2 bg-white/5 hover:bg-emerald-500/20 rounded-lg text-silver-muted hover:text-[#25D366] transition-all"

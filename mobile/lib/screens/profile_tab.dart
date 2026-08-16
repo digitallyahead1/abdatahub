@@ -57,7 +57,7 @@ class ProfileTab extends StatelessWidget {
             return AlertDialog(
               backgroundColor: AppColors.darkBgSecondary,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: const Text('Edit Profile', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              title: Text('Edit Profile', style: TextStyle(color: AppColors.silverLight, fontWeight: FontWeight.bold)),
               content: Form(
                 key: formKey,
                 child: Column(
@@ -65,7 +65,7 @@ class ProfileTab extends StatelessWidget {
                   children: [
                     TextFormField(
                       controller: nameController,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: AppColors.silverLight),
                       decoration: InputDecoration(
                         labelText: 'Full Name',
                         labelStyle: TextStyle(color: AppColors.silverMuted),
@@ -77,7 +77,7 @@ class ProfileTab extends StatelessWidget {
                     TextFormField(
                       controller: phoneController,
                       keyboardType: TextInputType.phone,
-                      style: const TextStyle(color: Colors.white),
+                      style: TextStyle(color: AppColors.silverLight),
                       decoration: InputDecoration(
                         labelText: 'Phone Number',
                         labelStyle: TextStyle(color: AppColors.silverMuted),
@@ -148,7 +148,7 @@ class ProfileTab extends StatelessWidget {
             return AlertDialog(
               backgroundColor: AppColors.darkBgSecondary,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-              title: const Text('Reset Transaction PIN', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+              title: Text('Reset Transaction PIN', style: TextStyle(color: AppColors.silverLight, fontWeight: FontWeight.bold)),
               content: Form(
                 key: formKey,
                 child: Column(
@@ -164,7 +164,7 @@ class ProfileTab extends StatelessWidget {
                         controller: otpController,
                         keyboardType: TextInputType.number,
                         maxLength: 6,
-                        style: const TextStyle(color: Colors.white, letterSpacing: 8, fontSize: 18),
+                        style: TextStyle(color: AppColors.silverLight, letterSpacing: 8, fontSize: 18),
                         textAlign: TextAlign.center,
                         decoration: InputDecoration(
                           labelText: 'Enter Email OTP',
@@ -179,7 +179,7 @@ class ProfileTab extends StatelessWidget {
                         keyboardType: TextInputType.number,
                         maxLength: 4,
                         obscureText: true,
-                        style: const TextStyle(color: Colors.white, letterSpacing: 10, fontSize: 18),
+                        style: TextStyle(color: AppColors.silverLight, letterSpacing: 10, fontSize: 18),
                         textAlign: TextAlign.center,
                         decoration: InputDecoration(
                           labelText: 'New 4-Digit PIN',
@@ -341,14 +341,14 @@ class ProfileTab extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.card_giftcard, color: AppColors.accentGlow, size: 20),
-                        SizedBox(width: 8),
+                        const Icon(Icons.card_giftcard, color: AppColors.accentGlow, size: 20),
+                        const SizedBox(width: 8),
                         Text(
                           'Refer and Earn ₦500!',
                           style: TextStyle(
-                            color: Colors.white,
+                            color: AppColors.silverLight,
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                           ),
@@ -451,45 +451,31 @@ class ProfileTab extends StatelessWidget {
                           : 'Light Mode',
                       onTap: () => Provider.of<ThemeProvider>(context, listen: false).toggleTheme(),
                     ),
-                    const Divider(height: 1, color: Color(0xFF1F2937)),
+                    Divider(height: 1, color: AppColors.silverMuted.withValues(alpha: 0.15)),
                     _buildProfileTile(
                       icon: Icons.phone_android,
                       title: 'Phone Number',
                       value: phone,
                     ),
-                    const Divider(height: 1, color: Color(0xFF1F2937)),
+                    Divider(height: 1, color: AppColors.silverMuted.withValues(alpha: 0.15)),
                     _buildProfileTile(
                       icon: Icons.chat_outlined,
                       title: 'Chat on WhatsApp',
-                      value: '08133887526',
-                      onTap: () => _launchURL(context, 'https://wa.me/2348133887526?text=Hello%20AB%20Data%20Hub%20Support,%20I%20have%20an%20inquiry.'),
+                      value: '07045357195',
+                      onTap: () => _launchURL(context, 'https://wa.me/2347045357195?text=Hello%20AB%20Data%20Hub%20Support,%20I%20have%20an%20inquiry.'),
                     ),
-                    const Divider(height: 1, color: Color(0xFF1F2937)),
+                    Divider(height: 1, color: AppColors.silverMuted.withValues(alpha: 0.15)),
                     _buildProfileTile(
                       icon: Icons.support_agent,
                       title: 'Phone Call Support',
-                      value: '07045357195',
-                      onTap: () => _launchURL(context, 'tel:07045357195'),
+                      value: '08133887526',
+                      onTap: () => _launchURL(context, 'tel:08133887526'),
                     ),
-                    const Divider(height: 1, color: Color(0xFF1F2937)),
-                    _buildProfileTile(
-                      icon: Icons.alternate_email_outlined,
-                      title: 'Twitter / X',
-                      value: '@asserdiq360',
-                      onTap: () => _launchURL(context, 'https://x.com/asserdiq360'),
-                    ),
-                    const Divider(height: 1, color: Color(0xFF1F2937)),
-                    _buildProfileTile(
-                      icon: Icons.facebook_outlined,
-                      title: 'Facebook Page',
-                      value: 'AB Data Hub',
-                      onTap: () => _launchURL(context, 'https://www.facebook.com/share/1JD9G8vaVH/'),
-                    ),
-                    const Divider(height: 1, color: Color(0xFF1F2937)),
+                    Divider(height: 1, color: AppColors.silverMuted.withValues(alpha: 0.15)),
                     _buildProfileTile(
                       icon: Icons.info_outline,
                       title: 'App Version',
-                      value: 'v1.0.0 (Beta)',
+                      value: 'v1.0.0',
                     ),
                   ],
                 ),
