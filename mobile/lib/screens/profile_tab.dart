@@ -320,6 +320,33 @@ class ProfileTab extends StatelessWidget {
                         fontSize: 13,
                       ),
                     ),
+                    if ((user?['role']?.toString().toLowerCase() == 'agent') || (user?['agentStatus'] == 'approved')) ...[
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.verified, color: Color(0xFF10B981), size: 14),
+                            SizedBox(width: 6),
+                            Text(
+                              'VERIFIED AGENT',
+                              style: TextStyle(
+                                color: Color(0xFF10B981),
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 0.5,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -455,6 +482,23 @@ class ProfileTab extends StatelessWidget {
                     ),
                     Divider(height: 1, color: AppColors.silverMuted.withValues(alpha: 0.15)),
                     _buildProfileTile(
+                      icon: Icons.verified_user_outlined,
+                      title: 'Agent Services',
+                      value: (() {
+                        final s = auth.user?['agentStatus'] as String? ?? 'none';
+                        final r = auth.user?['role']?.toString().toLowerCase() ?? '';
+                        if (s == 'approved' || r == 'agent') return 'Active Agent';
+                        if (s == 'pending') return 'Pending Approval';
+                        if (s == 'rejected') return 'Rejected — Re-apply';
+                        return 'Apply to Become Agent';
+                      })(),
+                      iconColor: AppColors.accentGlow,
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const AgentServicesScreen()),
+                      ),
+                    ),
+                    Divider(height: 1, color: AppColors.silverMuted.withValues(alpha: 0.15)),
+                    _buildProfileTile(
                       icon: Icons.phone_android,
                       title: 'Phone Number',
                       value: phone,
@@ -472,22 +516,6 @@ class ProfileTab extends StatelessWidget {
                       title: 'Phone Call Support',
                       value: '08133887526',
                       onTap: () => _launchURL(context, 'tel:08133887526'),
-                    ),
-                    Divider(height: 1, color: AppColors.silverMuted.withValues(alpha: 0.15)),
-                    _buildProfileTile(
-                      icon: Icons.verified_user_outlined,
-                      title: 'Agent Services',
-                      value: (() {
-                        final s = auth.user?['agentStatus'] as String? ?? 'none';
-                        if (s == 'approved') return 'Active Agent';
-                        if (s == 'pending') return 'Pending Approval';
-                        if (s == 'rejected') return 'Rejected — Re-apply';
-                        return 'Apply to Become Agent';
-                      })(),
-                      iconColor: AppColors.accentGlow,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const AgentServicesScreen()),
-                      ),
                     ),
                     Divider(height: 1, color: AppColors.silverMuted.withValues(alpha: 0.15)),
                     _buildProfileTile(

@@ -5,6 +5,7 @@ import 'buy_airtime_screen.dart';
 import 'electricity_screen.dart';
 import 'cable_screen.dart';
 import 'exam_pins_screen.dart';
+import 'agent_services_screen.dart';
 
 class ServicesTab extends StatelessWidget {
   const ServicesTab({super.key});
@@ -97,6 +98,15 @@ class ServicesTab extends StatelessWidget {
               Icons.school,
               Colors.purple,
               const ExamPinsScreen(),
+            ),
+            const SizedBox(height: 12),
+            _buildServiceRow(
+              context,
+              'Agent Services & Reseller Hub',
+              'Access discounted reseller pricing, application status, and agent perks.',
+              Icons.verified_user,
+              AppColors.accentGlow,
+              const AgentServicesScreen(),
             ),
           ],
         ),
