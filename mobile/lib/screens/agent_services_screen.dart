@@ -5,7 +5,8 @@ import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 
 class AgentServicesScreen extends StatefulWidget {
-  const AgentServicesScreen({super.key});
+  final bool showBackButton;
+  const AgentServicesScreen({super.key, this.showBackButton = true});
 
   @override
   State<AgentServicesScreen> createState() => _AgentServicesScreenState();
@@ -60,6 +61,7 @@ class _AgentServicesScreenState extends State<AgentServicesScreen> {
       appBar: AppBar(
         title: const Text('Agent Services'),
         elevation: 0,
+        automaticallyImplyLeading: widget.showBackButton,
       ),
       body: SafeArea(
         child: SingleChildScrollView(

@@ -6,7 +6,7 @@ import '../theme/app_theme.dart';
 import 'home_tab.dart';
 import 'services_tab.dart';
 import 'transactions_tab.dart';
-import 'wallet_tab.dart';
+import 'agent_services_screen.dart';
 import 'profile_tab.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -23,7 +23,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     const HomeTab(),
     const ServicesTab(),
     const TransactionsTab(),
-    const WalletTab(),
+    const AgentServicesScreen(showBackButton: false),
     const ProfileTab(),
   ];
 
@@ -54,9 +54,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
             setState(() {
               _currentIndex = index;
             });
-            // Refresh data when toggling back to Home or Transactions tab
-            if (index == 0 || index == 2 || index == 3) {
+            // Refresh data when toggling between tabs
+            if (index == 0 || index == 2) {
               Provider.of<WalletProvider>(context, listen: false).fetchWalletData();
+            } else if (index == 3 || index == 4) {
+              Provider.of<AuthProvider>(context, listen: false).fetchProfile();
             }
           },
           type: BottomNavigationBarType.fixed,
@@ -89,9 +91,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
               label: 'Transactions',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.account_balance_wallet_outlined),
-              activeIcon: Icon(Icons.account_balance_wallet),
-              label: 'Wallet',
+              icon: Icon(Icons.badge_outlined),
+              activeIcon: Icon(Icons.badge),
+              label: 'Agent',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.person_outline),
