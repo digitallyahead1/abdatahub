@@ -11,24 +11,53 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { IsString, IsNotEmpty, IsOptional, IsObject, IsIn } from 'class-validator';
 import { PushNotificationService, SendPushOptions } from './push-notification.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 // ── DTOs ────────────────────────────────────────────────────────────────────
 
-class RegisterTokenDto {
+export class RegisterTokenDto {
+  @IsString()
+  @IsNotEmpty()
   token: string;
+
+  @IsString()
+  @IsOptional()
   platform?: string;
+
+  @IsString()
+  @IsOptional()
   deviceModel?: string;
+
+  @IsString()
+  @IsOptional()
   appVersion?: string;
 }
 
-class SendPushDto {
+export class SendPushDto {
+  @IsString()
+  @IsNotEmpty()
   title: string;
+
+  @IsString()
+  @IsNotEmpty()
   body: string;
+
+  @IsString()
+  @IsOptional()
   imageUrl?: string;
+
+  @IsObject()
+  @IsOptional()
   data?: Record<string, string>;
+
+  @IsString()
+  @IsIn(['all', 'agents', 'user'])
   targetType: 'all' | 'agents' | 'user';
+
+  @IsString()
+  @IsOptional()
   targetValue?: string;
 }
 
