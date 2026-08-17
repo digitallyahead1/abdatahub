@@ -85,6 +85,9 @@ class ApiService {
     }
   }
 
+  /// Public accessor for push notification token registration
+  Future<String?> getAuthToken() => _readToken();
+
   Future<void> saveToken(String token) async {
     _token = token;
     try {

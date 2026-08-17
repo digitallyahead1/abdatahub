@@ -1,22 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'theme/app_theme.dart';
 import 'providers/theme_provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/wallet_provider.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/dashboard_screen.dart';
+import 'services/api_service.dart';
+import 'services/push_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
-    print("Error loading .env file: $e");
+    debugPrint("Error loading .env file: $e");
   }
+
+  // Initialise Firebase (required before using FCM)
+  await Firebase.initializeApp();
+
   runApp(const MyApp());
 }
+
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -78,6 +86,15 @@ class _AuthWrapperState extends State<AuthWrapper> {
     }
 
     if (!mounted) return;
+
+    // Initialize push notifications now that we know the auth state
+    if (isAuthenticated) {
+      final baseUrl = dotenv.env['API_BASE_URL'] ?? 'https://api.abdatahub.com/api';
+      PushNotificationService().initialize(
+        baseUrl: baseUrl,
+        getToken: () => ApiService().getAuthToken(),
+      );
+    }
 
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(

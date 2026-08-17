@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "935471576116",
+    "project_id": "ab-data-hub",
+    "storage_bucket": "ab-data-hub.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:935471576116:android:76462756a5fb6fb94e8661",
+        "android_client_info": {
+          "package_name": "com.abdatahub.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAt0o3dKZgkho0Us2uJb6-enUX1m1wEopU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -15,6 +15,7 @@ import { ExamsModule } from './exams/exams.module';
 import { EmailModule } from './email/email.module';
 import { DatabaseConfig } from './config/database.config';
 import { PaymentModule } from './payment/payment.module';
+import { PushNotificationModule } from './push-notification/push-notification.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { PaymentModule } from './payment/payment.module';
     ExamsModule,
     EmailModule,
     PaymentModule,
+    PushNotificationModule,
   ],
 })
 export class AppModule {}

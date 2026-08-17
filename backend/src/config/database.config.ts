@@ -16,6 +16,8 @@ import { ExamPin } from '../entities/exam-pin.entity';
 import { PasswordResetOtp } from '../entities/password-reset-otp.entity';
 import { UserVirtualAccount } from '../entities/user-virtual-account.entity';
 import { GafiapayVirtualAccount } from '../entities/gafiapay-virtual-account.entity';
+import { DeviceToken } from '../entities/device-token.entity';
+import { PushNotificationLog } from '../entities/push-notification-log.entity';
 
 // Parse DATABASE_URL if provided (e.g. Supabase pooler URL)
 const databaseUrl = process.env.DATABASE_URL;
@@ -65,6 +67,8 @@ export const DatabaseConfig: TypeOrmModuleOptions = {
     PasswordResetOtp,
     UserVirtualAccount,
     GafiapayVirtualAccount,
+    DeviceToken,
+    PushNotificationLog,
   ],
   synchronize: process.env.NODE_ENV !== 'production',
   logging: process.env.NODE_ENV === 'development',
