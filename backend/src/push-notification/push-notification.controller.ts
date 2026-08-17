@@ -103,7 +103,7 @@ export class PushNotificationController {
   async sendPush(@Request() req: any, @Body() body: any) {
     // Only admins may send broadcasts
     const role: string = req.user?.role ?? '';
-    if (!['admin', 'superadmin'].includes(role)) {
+    if (!['admin', 'super_admin', 'superadmin', 'owner'].includes(role.toLowerCase())) {
       return { success: false, message: 'Forbidden: admin access required' };
     }
 
@@ -137,7 +137,7 @@ export class PushNotificationController {
   @UseGuards(JwtAuthGuard)
   async getHistory(@Request() req: any, @Query('limit') limit?: string) {
     const role: string = req.user?.role ?? '';
-    if (!['admin', 'superadmin'].includes(role)) {
+    if (!['admin', 'super_admin', 'superadmin', 'owner'].includes(role.toLowerCase())) {
       return { success: false, message: 'Forbidden' };
     }
     const logs = await this.pushService.getHistory(limit ? parseInt(limit, 10) : 50);
@@ -150,7 +150,7 @@ export class PushNotificationController {
   @UseGuards(JwtAuthGuard)
   async getStats(@Request() req: any) {
     const role: string = req.user?.role ?? '';
-    if (!['admin', 'superadmin'].includes(role)) {
+    if (!['admin', 'super_admin', 'superadmin', 'owner'].includes(role.toLowerCase())) {
       return { success: false, message: 'Forbidden' };
     }
     const activeTokens = await this.pushService.getActiveTokenCount();
