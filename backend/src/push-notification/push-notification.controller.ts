@@ -71,14 +71,18 @@ export class PushNotificationController {
   @Post('device-token')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async registerToken(@Request() req: any, @Body() dto: RegisterTokenDto) {
+  async registerToken(@Request() req: any, @Body() body: any) {
     const userId: string = req.user?.userId ?? req.user?.sub ?? req.user?.id;
+    const token = body?.token;
+    if (!token) {
+      return { success: false, message: 'token is required' };
+    }
     await this.pushService.registerDeviceToken(
       userId,
-      dto.token,
-      dto.platform ?? 'android',
-      dto.deviceModel,
-      dto.appVersion,
+      token,
+      body?.platform ?? 'android',
+      body?.deviceModel,
+      body?.appVersion,
     );
     return { success: true, message: 'Device token registered' };
   }
@@ -96,20 +100,26 @@ export class PushNotificationController {
   @Post('send')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
-  async sendPush(@Request() req: any, @Body() dto: SendPushDto) {
+  async sendPush(@Request() req: any, @Body() body: any) {
     // Only admins may send broadcasts
     const role: string = req.user?.role ?? '';
     if (!['admin', 'superadmin'].includes(role)) {
       return { success: false, message: 'Forbidden: admin access required' };
     }
 
+    const title = body?.title?.trim();
+    const messageBody = body?.body?.trim();
+    if (!title || !messageBody) {
+      return { success: false, message: 'title and body are required' };
+    }
+
     const options: SendPushOptions = {
-      title: dto.title,
-      body: dto.body,
-      imageUrl: dto.imageUrl,
-      data: dto.data,
-      targetType: dto.targetType,
-      targetValue: dto.targetValue,
+      title,
+      body: messageBody,
+      imageUrl: body?.imageUrl,
+      data: body?.data,
+      targetType: body?.targetType || 'all',
+      targetValue: body?.targetValue,
       sentBy: req.user?.email,
     };
 
