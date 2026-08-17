@@ -123,12 +123,19 @@ export class PushNotificationController {
       sentBy: req.user?.email,
     };
 
-    const result = await this.pushService.sendPush(options);
-    return {
-      success: true,
-      message: `Push sent — ${result.successCount} delivered, ${result.failureCount} failed`,
-      data: result,
-    };
+    try {
+      const result = await this.pushService.sendPush(options);
+      return {
+        success: true,
+        message: `Push broadcast completed — ${result.successCount} delivered, ${result.failureCount} failed`,
+        data: result,
+      };
+    } catch (err: any) {
+      return {
+        success: false,
+        message: err?.message || 'Failed to dispatch push notification',
+      };
+    }
   }
 
   // ── Admin: Notification History ─────────────────────────────────────────
@@ -140,8 +147,12 @@ export class PushNotificationController {
     if (!['admin', 'super_admin', 'superadmin', 'owner'].includes(role.toLowerCase())) {
       return { success: false, message: 'Forbidden' };
     }
-    const logs = await this.pushService.getHistory(limit ? parseInt(limit, 10) : 50);
-    return { success: true, data: logs };
+    try {
+      const logs = await this.pushService.getHistory(limit ? parseInt(limit, 10) : 50);
+      return { success: true, data: logs };
+    } catch (err: any) {
+      return { success: true, data: [] };
+    }
   }
 
   // ── Admin: Token Stats ───────────────────────────────────────────────────
@@ -153,7 +164,11 @@ export class PushNotificationController {
     if (!['admin', 'super_admin', 'superadmin', 'owner'].includes(role.toLowerCase())) {
       return { success: false, message: 'Forbidden' };
     }
-    const activeTokens = await this.pushService.getActiveTokenCount();
-    return { success: true, data: { activeTokens } };
+    try {
+      const activeTokens = await this.pushService.getActiveTokenCount();
+      return { success: true, data: { activeTokens } };
+    } catch (err: any) {
+      return { success: true, data: { activeTokens: 0 } };
+    }
   }
 }

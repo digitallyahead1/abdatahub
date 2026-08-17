@@ -158,126 +158,153 @@ export class PushNotificationService implements OnModuleInit {
       }
     }
 
-    if (tokens.length === 0) {
-      this.logger.warn(`sendPush: no active tokens found for target ${targetType}/${targetValue}`);
-      const log = await this.pushLogRepo.save(
-        this.pushLogRepo.create({
-          title,
-          body,
-          imageUrl: imageUrl ?? null,
-          targetType,
-          targetValue: targetValue ?? null,
-          successCount: 0,
-          failureCount: 0,
-          dataPayload: data,
-          sentBy: sentBy ?? null,
-        }),
-      );
-      return { successCount: 0, failureCount: 0, logId: log.id };
-    }
+    try {
+      if (tokens.length === 0) {
+        this.logger.warn(`sendPush: no active registered device tokens found for target ${targetType}/${targetValue}`);
+        let logId = 'log-none';
+        try {
+          const log = await this.pushLogRepo.save(
+            this.pushLogRepo.create({
+              title,
+              body,
+              imageUrl: imageUrl ?? null,
+              targetType,
+              targetValue: targetValue ?? null,
+              successCount: 0,
+              failureCount: 0,
+              dataPayload: data,
+              sentBy: sentBy ?? null,
+            }),
+          );
+          logId = log.id;
+        } catch (dbErr: any) {
+          this.logger.warn('Could not save push log to DB (table may be syncing): ' + dbErr?.message);
+        }
+        return { successCount: 0, failureCount: 0, logId };
+      }
 
-    if (!admin.apps.length) {
-      this.logger.warn('sendPush: Firebase Admin is not initialized. Cannot dispatch push notifications.');
-      const log = await this.pushLogRepo.save(
-        this.pushLogRepo.create({
-          title,
-          body,
-          imageUrl: imageUrl ?? null,
-          targetType,
-          targetValue: targetValue ?? null,
-          successCount: 0,
-          failureCount: tokens.length,
-          dataPayload: data,
-          sentBy: sentBy ?? null,
-        }),
-      );
-      return { successCount: 0, failureCount: tokens.length, logId: log.id };
-    }
+      if (!admin.apps.length) {
+        this.logger.warn('sendPush: Firebase Admin is not initialized. Cannot dispatch push notifications.');
+        let logId = 'log-uninit';
+        try {
+          const log = await this.pushLogRepo.save(
+            this.pushLogRepo.create({
+              title,
+              body,
+              imageUrl: imageUrl ?? null,
+              targetType,
+              targetValue: targetValue ?? null,
+              successCount: 0,
+              failureCount: tokens.length,
+              dataPayload: data,
+              sentBy: sentBy ?? null,
+            }),
+          );
+          logId = log.id;
+        } catch (dbErr: any) {
+          this.logger.warn('Could not save push log to DB: ' + dbErr?.message);
+        }
+        return { successCount: 0, failureCount: tokens.length, logId };
+      }
 
-    // FCM allows max 500 tokens per sendEachForMulticast call
-    const CHUNK = 500;
-    let totalSuccess = 0;
-    let totalFailure = 0;
-    const invalidTokens: string[] = [];
+      // FCM allows max 500 tokens per sendEachForMulticast call
+      const CHUNK = 500;
+      let totalSuccess = 0;
+      let totalFailure = 0;
+      const invalidTokens: string[] = [];
 
-    for (let i = 0; i < tokens.length; i += CHUNK) {
-      const chunk = tokens.slice(i, i + CHUNK);
-      const message: admin.messaging.MulticastMessage = {
-        tokens: chunk,
-        notification: {
-          title,
-          body,
-          ...(imageUrl ? { imageUrl } : {}),
-        },
-        android: {
-          priority: 'high',
+      for (let i = 0; i < tokens.length; i += CHUNK) {
+        const chunk = tokens.slice(i, i + CHUNK);
+        const message: admin.messaging.MulticastMessage = {
+          tokens: chunk,
           notification: {
-            sound: 'default',
-            channelId: 'ab_data_hub_alerts',
+            title,
+            body,
             ...(imageUrl ? { imageUrl } : {}),
           },
-        },
-        apns: {
-          payload: {
-            aps: {
+          android: {
+            priority: 'high',
+            notification: {
               sound: 'default',
-              badge: 1,
+              channelId: 'ab_data_hub_alerts',
+              ...(imageUrl ? { imageUrl } : {}),
             },
           },
-        },
-        data: {
-          ...data,
-          click_action: 'FLUTTER_NOTIFICATION_CLICK',
-        },
-      };
+          apns: {
+            payload: {
+              aps: {
+                sound: 'default',
+                badge: 1,
+              },
+            },
+          },
+          data: {
+            ...data,
+            click_action: 'FLUTTER_NOTIFICATION_CLICK',
+          },
+        };
 
-      const response = await admin.messaging().sendEachForMulticast(message);
-      totalSuccess += response.successCount;
-      totalFailure += response.failureCount;
+        const response = await admin.messaging().sendEachForMulticast(message);
+        totalSuccess += response.successCount;
+        totalFailure += response.failureCount;
 
-      // Collect invalid / unregistered tokens to deactivate
-      response.responses.forEach((resp, idx) => {
-        if (!resp.success) {
-          const code = resp.error?.code;
-          if (
-            code === 'messaging/registration-token-not-registered' ||
-            code === 'messaging/invalid-registration-token'
-          ) {
-            invalidTokens.push(chunk[idx]);
+        // Collect invalid / unregistered tokens to deactivate
+        response.responses.forEach((resp, idx) => {
+          if (!resp.success) {
+            const code = resp.error?.code;
+            if (
+              code === 'messaging/registration-token-not-registered' ||
+              code === 'messaging/invalid-registration-token'
+            ) {
+              invalidTokens.push(chunk[idx]);
+            }
+            this.logger.warn(`FCM error for token ${chunk[idx]}: ${code}`);
           }
-          this.logger.warn(`FCM error for token ${chunk[idx]}: ${code}`);
+        });
+      }
+
+      // Deactivate stale tokens
+      if (invalidTokens.length > 0) {
+        try {
+          await this.deviceTokenRepo.update(
+            { token: In(invalidTokens) },
+            { isActive: false },
+          );
+          this.logger.log(`Deactivated ${invalidTokens.length} stale FCM tokens`);
+        } catch (e: any) {
+          this.logger.warn('Failed to deactivate invalid tokens: ' + e?.message);
         }
-      });
-    }
+      }
 
-    // Deactivate stale tokens
-    if (invalidTokens.length > 0) {
-      await this.deviceTokenRepo.update(
-        { token: In(invalidTokens) },
-        { isActive: false },
+      // Save log
+      let logId = 'log-done';
+      try {
+        const log = await this.pushLogRepo.save(
+          this.pushLogRepo.create({
+            title,
+            body,
+            imageUrl: imageUrl ?? null,
+            targetType,
+            targetValue: targetValue ?? null,
+            successCount: totalSuccess,
+            failureCount: totalFailure,
+            dataPayload: data,
+            sentBy: sentBy ?? null,
+          }),
+        );
+        logId = log.id;
+      } catch (dbErr: any) {
+        this.logger.warn('Could not save push log to DB: ' + dbErr?.message);
+      }
+
+      this.logger.log(
+        `Push sent — success: ${totalSuccess}, failure: ${totalFailure}, logId: ${logId}`,
       );
-      this.logger.log(`Deactivated ${invalidTokens.length} stale FCM tokens`);
+      return { successCount: totalSuccess, failureCount: totalFailure, logId };
+    } catch (err: any) {
+      this.logger.error('Unhandled error in sendPush', err?.stack || err);
+      throw err;
     }
-
-    // Save log
-    const log = await this.pushLogRepo.save(
-      this.pushLogRepo.create({
-        title,
-        body,
-        imageUrl: imageUrl ?? null,
-        targetType,
-        targetValue: targetValue ?? null,
-        successCount: totalSuccess,
-        failureCount: totalFailure,
-        dataPayload: data,
-        sentBy: sentBy ?? null,
-      }),
-    );
-
-    this.logger.log(
-      `Push sent — success: ${totalSuccess}, failure: ${totalFailure}, logId: ${log.id}`,
-    );
-    return { successCount: totalSuccess, failureCount: totalFailure, logId: log.id };
   }
 
   // ─── History ─────────────────────────────────────────────────────────────────
