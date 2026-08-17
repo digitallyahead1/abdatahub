@@ -6,7 +6,7 @@ import '../theme/app_theme.dart';
 import 'home_tab.dart';
 import 'services_tab.dart';
 import 'transactions_tab.dart';
-import 'agent_services_screen.dart';
+import 'agent_tab.dart';
 import 'profile_tab.dart';
 
 class DashboardScreen extends StatefulWidget {
@@ -23,7 +23,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     HomeTab(),
     ServicesTab(),
     TransactionsTab(),
-    AgentServicesScreen(showBackButton: false),
+    AgentTab(),
     ProfileTab(),
   ];
 
