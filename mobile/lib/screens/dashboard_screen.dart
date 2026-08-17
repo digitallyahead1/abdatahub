@@ -19,12 +19,12 @@ class DashboardScreen extends StatefulWidget {
 class _DashboardScreenState extends State<DashboardScreen> {
   int _currentIndex = 0;
 
-  final List<Widget> _tabs = [
-    const HomeTab(),
-    const ServicesTab(),
-    const TransactionsTab(),
-    const AgentServicesScreen(showBackButton: false),
-    const ProfileTab(),
+  List<Widget> get _tabs => const [
+    HomeTab(),
+    ServicesTab(),
+    TransactionsTab(),
+    AgentServicesScreen(showBackButton: false),
+    ProfileTab(),
   ];
 
   @override
