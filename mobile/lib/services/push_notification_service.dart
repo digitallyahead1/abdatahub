@@ -32,21 +32,26 @@ class PushNotificationService {
     required String baseUrl,
     required Future<String?> Function() getToken,
   }) async {
-    // Request permission (Android 13+, iOS)
-    final settings = await _fcm.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-      announcement: false,
-      carPlay: false,
-      criticalAlert: false,
-      provisional: false,
-    );
-
-    if (settings.authorizationStatus == AuthorizationStatus.denied) {
-      debugPrint('[FCM] Notification permission denied');
+    if (kIsWeb) {
+      // FCM foreground/background channels are specific to native mobile apps
       return;
     }
+    try {
+      // Request permission (Android 13+, iOS)
+      final settings = await _fcm.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+        announcement: false,
+        carPlay: false,
+        criticalAlert: false,
+        provisional: false,
+      );
+
+      if (settings.authorizationStatus == AuthorizationStatus.denied) {
+        debugPrint('[FCM] Notification permission denied');
+        return;
+      }
 
     // Create Android notification channel
     await _localNotifications
@@ -101,7 +106,10 @@ class PushNotificationService {
         getToken: getToken,
       );
     }
+  } catch (e) {
+    debugPrint('[FCM] PushNotificationService init error: $e');
   }
+}
 
   void _showLocalNotification(RemoteMessage message) {
     final notification = message.notification;

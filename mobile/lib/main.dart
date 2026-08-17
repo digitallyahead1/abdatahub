@@ -16,11 +16,15 @@ void main() async {
   try {
     await dotenv.load(fileName: ".env");
   } catch (e) {
-    debugPrint("Error loading .env file: $e");
+    debugPrint("Note: .env file could not be loaded: $e");
   }
 
   // Initialise Firebase (required before using FCM)
-  await Firebase.initializeApp();
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint("Firebase.initializeApp notice: $e");
+  }
 
   runApp(const MyApp());
 }
@@ -89,7 +93,12 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
     // Initialize push notifications now that we know the auth state
     if (isAuthenticated) {
-      final baseUrl = dotenv.env['API_BASE_URL'] ?? 'https://api.abdatahub.com/api';
+      String baseUrl = 'https://api.abdatahub.com/api';
+      try {
+        if (dotenv.isInitialized) {
+          baseUrl = dotenv.maybeGet('API_BASE_URL') ?? baseUrl;
+        }
+      } catch (_) {}
       PushNotificationService().initialize(
         baseUrl: baseUrl,
         getToken: () => ApiService().getAuthToken(),

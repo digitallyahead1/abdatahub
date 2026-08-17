@@ -18,7 +18,12 @@ class ApiService {
   String? _token;
 
   ApiService._internal() {
-    String baseUrl = dotenv.env['API_BASE_URL'] ?? 'https://api.abdatahub.com/api';
+    String baseUrl = 'https://api.abdatahub.com/api';
+    try {
+      if (dotenv.isInitialized) {
+        baseUrl = dotenv.maybeGet('API_BASE_URL') ?? baseUrl;
+      }
+    } catch (_) {}
 
     // On Android emulator, 'localhost' resolves to the emulator itself.
     // Rewrite it to 10.0.2.2, which is the host machine's loopback address.
