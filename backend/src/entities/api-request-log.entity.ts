@@ -35,10 +35,10 @@ export class ApiRequestLog {
   responseTimeMs: number | null;
 
   /** Hashed/anonymised — last 3 octets zeroed */
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   ipAddress: string | null;
 
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   errorCode: string | null;
 
   @CreateDateColumn()

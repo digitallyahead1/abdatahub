@@ -19,7 +19,7 @@ export class DataTransaction {
   bundleName: string;
 
   /** Recipient phone number */
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   phoneNumber: string | null;
 
   @Column({ type: 'decimal', precision: 20, scale: 2, transformer: {
@@ -44,7 +44,7 @@ export class DataTransaction {
   transactionReference: string;
 
   /** Provider's own transaction/order ID */
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   providerTransactionId: string | null;
 
   /** Full raw response payload from the provider */
@@ -52,7 +52,7 @@ export class DataTransaction {
   providerResponse: any;
 
   /** Human-readable failure reason, if status=failed */
-  @Column({ nullable: true })
+  @Column({ type: 'varchar', nullable: true })
   failureReason: string | null;
 
   /** Which API key triggered this transaction (null = web/dashboard purchase) */
