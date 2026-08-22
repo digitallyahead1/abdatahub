@@ -25,7 +25,7 @@ export class WalletService {
     return wallet;
   }
 
-  async deposit(userId: string, amount: number, paymentMethod: string): Promise<Wallet> {
+  async deposit(userId: string, amount: number, paymentMethod: string, customReference?: string): Promise<Wallet> {
     if (amount <= 0) {
       throw new BadRequestException('Amount must be greater than zero');
     }
@@ -40,7 +40,7 @@ export class WalletService {
     const savedWallet = await this.walletRepository.save(wallet);
 
     // Create wallet transaction log
-    const ref = 'DEP' + Math.random().toString(36).substring(2, 12).toUpperCase();
+    const ref = customReference || ('DEP' + Math.random().toString(36).substring(2, 12).toUpperCase());
     const walletTx = this.walletTransactionRepository.create({
       walletId: wallet.id,
       type: 'credit',

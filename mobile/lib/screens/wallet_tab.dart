@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -13,11 +12,7 @@ class WalletTab extends StatefulWidget {
 }
 
 class _WalletTabState extends State<WalletTab> {
-  final _formKey = GlobalKey<FormState>();
-  final _amountController = TextEditingController();
   String _activeTab = 'gafiapay'; // default to Gafiapay/PalmPay
-  Timer? _countdownTimer;
-  String _countdownText = '';
 
   @override
   void initState() {
@@ -31,40 +26,7 @@ class _WalletTabState extends State<WalletTab> {
 
   @override
   void dispose() {
-    _amountController.dispose();
-    _countdownTimer?.cancel();
     super.dispose();
-  }
-
-  void _startCountdown(String expiresAtStr) {
-    _countdownTimer?.cancel();
-    final expiresAt = DateTime.parse(expiresAtStr).toLocal();
-
-    void updateText() {
-      final now = DateTime.now();
-      final diff = expiresAt.difference(now);
-
-      if (diff.isNegative) {
-        setState(() {
-          _countdownText = 'Expired';
-        });
-        _countdownTimer?.cancel();
-        final walletProv = Provider.of<WalletProvider>(context, listen: false);
-        walletProv.clearGafiapayAccount();
-      } else {
-        final hours = diff.inHours;
-        final minutes = diff.inMinutes.remainder(60);
-        final seconds = diff.inSeconds.remainder(60);
-        setState(() {
-          _countdownText = '${hours}h ${minutes}m ${seconds}s';
-        });
-      }
-    }
-
-    updateText();
-    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      updateText();
-    });
   }
 
   void _copyToClipboard(String text, String label) {
@@ -248,22 +210,30 @@ class _WalletTabState extends State<WalletTab> {
                       ),
                     ),
                     Expanded(
-                      child: Tooltip(
-                        message: 'Monnify is currently unavailable',
+                      child: GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _activeTab = 'monnify';
+                          });
+                        },
                         child: Container(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           decoration: BoxDecoration(
-                            color: Colors.transparent,
+                            color: _activeTab == 'monnify'
+                                ? AppColors.accentGlow.withValues(alpha: 0.15)
+                                : Colors.transparent,
                             borderRadius: BorderRadius.circular(8),
+                            border: _activeTab == 'monnify'
+                                ? Border.all(color: AppColors.accentGlow.withValues(alpha: 0.3))
+                                : null,
                           ),
                           child: Center(
                             child: Text(
-                              'Monnify (Unavail)',
+                              'Monnify (Perm)',
                               style: TextStyle(
-                                color: AppColors.silverMuted.withValues(alpha: 0.4),
+                                color: _activeTab == 'monnify' ? Colors.white : AppColors.silverMuted,
                                 fontWeight: FontWeight.bold,
                                 fontSize: 13,
-                                decoration: TextDecoration.lineThrough,
                               ),
                             ),
                           ),

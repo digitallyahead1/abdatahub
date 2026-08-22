@@ -154,11 +154,14 @@ export default function FundWalletPage() {
             PalmPay (Permanent)
           </button>
           <button
-            disabled
-            className="flex-1 py-2.5 rounded-lg text-xs font-bold uppercase transition-all text-silver-muted/40 cursor-not-allowed bg-black/10 border border-transparent"
-            title="Monnify integration is not available yet"
+            onClick={() => setGateway('monnify')}
+            className={`flex-1 py-2.5 rounded-lg text-xs font-bold uppercase transition-all ${
+              gateway === 'monnify'
+                ? 'bg-gradient-blue text-white shadow-glow-blue'
+                : 'text-silver-muted hover:text-white'
+            }`}
           >
-            Monnify (Unavailable)
+            Monnify (Permanent)
           </button>
         </div>
 
@@ -265,10 +268,10 @@ export default function FundWalletPage() {
               ) : (
                 <button
                   onClick={generateMonnifyAccount}
-                  disabled={true}
-                  className="w-full py-3 bg-white/5 text-silver-muted font-bold rounded-xl transition-all cursor-not-allowed text-sm flex items-center justify-center space-x-2"
+                  disabled={loading}
+                  className="w-full py-3 bg-gradient-blue hover:opacity-95 text-white font-bold rounded-xl shadow-glow-blue transition-all disabled:opacity-50 text-sm flex items-center justify-center space-x-2"
                 >
-                  Monnify Unavailable
+                  {loading ? 'Generating...' : 'Generate Monnify Reserved Account'}
                 </button>
               )}
             </div>
