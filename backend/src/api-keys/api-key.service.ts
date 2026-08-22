@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ApiKey, ApiKeyScope, ApiKeyStatus } from '../entities/api-key.entity';
@@ -6,13 +6,88 @@ import * as crypto from 'crypto';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
-export class ApiKeyService {
+export class ApiKeyService implements OnApplicationBootstrap {
   private readonly logger = new Logger(ApiKeyService.name);
 
   constructor(
     @InjectRepository(ApiKey)
     private apiKeyRepository: Repository<ApiKey>,
   ) {}
+
+  async onApplicationBootstrap() {
+    try {
+      this.logger.log('Ensuring API platform tables exist...');
+      const manager = this.apiKeyRepository.manager;
+
+      await manager.query(`
+        CREATE TABLE IF NOT EXISTS "api_key" (
+          "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+          "userId" uuid NOT NULL,
+          "name" character varying NOT NULL DEFAULT 'Default Key',
+          "keyHash" character varying NOT NULL,
+          "keyPrefix" character varying(8) NOT NULL,
+          "scope" character varying NOT NULL DEFAULT 'full',
+          "status" character varying NOT NULL DEFAULT 'active',
+          "requestCount" bigint NOT NULL DEFAULT 0,
+          "successCount" bigint NOT NULL DEFAULT 0,
+          "failCount" bigint NOT NULL DEFAULT 0,
+          "lastUsedAt" TIMESTAMP,
+          "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+          "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+          CONSTRAINT "PK_api_key_id" PRIMARY KEY ("id"),
+          CONSTRAINT "FK_api_key_user" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE
+        );
+      `);
+
+      await manager.query(`
+        CREATE TABLE IF NOT EXISTS "api_request_log" (
+          "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+          "apiKeyId" uuid,
+          "userId" uuid,
+          "endpoint" character varying NOT NULL,
+          "method" character varying(10) NOT NULL,
+          "statusCode" integer,
+          "responseTimeMs" integer,
+          "ipAddress" character varying,
+          "errorCode" character varying,
+          "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+          CONSTRAINT "PK_api_request_log_id" PRIMARY KEY ("id"),
+          CONSTRAINT "FK_api_request_log_apiKey" FOREIGN KEY ("apiKeyId") REFERENCES "api_key"("id") ON DELETE SET NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS "IDX_api_request_log_apiKeyId_createdAt" ON "api_request_log" ("apiKeyId", "createdAt");
+        CREATE INDEX IF NOT EXISTS "IDX_api_request_log_userId_createdAt" ON "api_request_log" ("userId", "createdAt");
+      `);
+
+      await manager.query(`
+        CREATE TABLE IF NOT EXISTS "idempotency_key" (
+          "id" uuid NOT NULL DEFAULT gen_random_uuid(),
+          "key" character varying NOT NULL,
+          "userId" uuid NOT NULL,
+          "response" jsonb,
+          "statusCode" integer,
+          "expiresAt" TIMESTAMP NOT NULL,
+          "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+          CONSTRAINT "PK_idempotency_key_id" PRIMARY KEY ("id"),
+          CONSTRAINT "UQ_idempotency_key_userId_key" UNIQUE ("userId", "key")
+        );
+      `);
+
+      await manager.query(`
+        ALTER TABLE "data_transaction" ADD COLUMN IF NOT EXISTS "phoneNumber" character varying;
+        ALTER TABLE "data_transaction" ADD COLUMN IF NOT EXISTS "providerTransactionId" character varying;
+        ALTER TABLE "data_transaction" ADD COLUMN IF NOT EXISTS "providerResponse" jsonb;
+        ALTER TABLE "data_transaction" ADD COLUMN IF NOT EXISTS "failureReason" character varying;
+        ALTER TABLE "data_transaction" ADD COLUMN IF NOT EXISTS "apiKeyId" uuid;
+        ALTER TABLE "data_transaction" ADD COLUMN IF NOT EXISTS "completedAt" TIMESTAMP;
+        ALTER TABLE "data_transaction" ADD COLUMN IF NOT EXISTS "updatedAt" TIMESTAMP DEFAULT now();
+      `);
+
+      this.logger.log('API platform tables and columns verified.');
+    } catch (err: any) {
+      this.logger.error('Failed to auto-verify API platform tables:', err.message);
+    }
+  }
 
   /**
    * Generate a new API key for a user. Returns the raw key only once.

@@ -39,11 +39,11 @@ export class ApiKey {
   @Column({ length: 8 })
   keyPrefix: string;
 
-  @Column({ type: 'enum', enum: ApiKeyScope, default: ApiKeyScope.FULL })
-  scope: ApiKeyScope;
+  @Column({ default: 'full' })
+  scope: string; // 'full' or 'read'
 
-  @Column({ type: 'enum', enum: ApiKeyStatus, default: ApiKeyStatus.ACTIVE })
-  status: ApiKeyStatus;
+  @Column({ default: 'active' })
+  status: string; // 'active' or 'revoked'
 
   @Column({ type: 'bigint', default: 0, transformer: {
     to: (v: number) => v,
