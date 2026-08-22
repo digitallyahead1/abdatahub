@@ -19,6 +19,7 @@ import { SmePlugService } from '../services/smeplug.service';
 import { WalletService } from '../wallet/wallet.service';
 import { IacafeService } from '../services/iacafe.service';
 import { AuthService } from '../auth/auth.service';
+import { ApiRequestLog } from '../entities/api-request-log.entity';
 
 @Injectable()
 export class AdminService implements OnModuleInit {
@@ -57,6 +58,8 @@ export class AdminService implements OnModuleInit {
     private jwtService: JwtService,
     @InjectRepository(ExamCategory)
     private examCategoryRepository: Repository<ExamCategory>,
+    @InjectRepository(ApiRequestLog)
+    private apiRequestLogRepository: Repository<ApiRequestLog>,
   ) {}
 
   async onModuleInit() {
@@ -1120,5 +1123,93 @@ export class AdminService implements OnModuleInit {
     });
 
     return saved;
+  }
+
+  async getApiLogs(page = 1, limit = 50, userId?: string) {
+    const query = this.apiRequestLogRepository.createQueryBuilder('log')
+      .leftJoinAndSelect('log.apiKey', 'apiKey');
+
+    if (userId) {
+      query.where('log.userId = :userId', { userId });
+    }
+
+    const [items, total] = await query
+      .orderBy('log.createdAt', 'DESC')
+      .skip((page - 1) * limit)
+      .take(limit)
+      .getManyAndCount();
+
+    return {
+      data: items.map(l => ({
+        id: l.id,
+        endpoint: l.endpoint,
+        method: l.method,
+        statusCode: l.statusCode,
+        responseTimeMs: l.responseTimeMs,
+        errorCode: l.errorCode,
+        userId: l.userId,
+        apiKeyName: l.apiKey?.name || null,
+        apiKeyPrefix: l.apiKey?.keyPrefix || null,
+        createdAt: l.createdAt,
+      })),
+      pagination: { page, limit, total, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  async getApiStats() {
+    const total = await this.apiRequestLogRepository.count();
+    const success = await this.apiRequestLogRepository
+      .createQueryBuilder('l')
+      .where('l.statusCode < 400')
+      .getCount();
+    const failed = total - success;
+
+    // Today
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayCount = await this.apiRequestLogRepository
+      .createQueryBuilder('l')
+      .where('l.createdAt >= :today', { today })
+      .getCount();
+
+    // This week
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - 7);
+    const weekCount = await this.apiRequestLogRepository
+      .createQueryBuilder('l')
+      .where('l.createdAt >= :weekStart', { weekStart })
+      .getCount();
+
+    // This month
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const monthCount = await this.apiRequestLogRepository
+      .createQueryBuilder('l')
+      .where('l.createdAt >= :monthStart', { monthStart })
+      .getCount();
+
+    const avgTime = await this.apiRequestLogRepository
+      .createQueryBuilder('l')
+      .select('AVG(l.responseTimeMs)', 'avg')
+      .getRawOne();
+
+    const activeApiUsers = await this.apiRequestLogRepository
+      .createQueryBuilder('l')
+      .select('COUNT(DISTINCT l.userId)', 'count')
+      .where('l.createdAt >= :weekStart', { weekStart })
+      .getRawOne();
+
+    return {
+      totalRequests: total,
+      successRequests: success,
+      failedRequests: failed,
+      errorRate: total > 0 ? ((failed / total) * 100).toFixed(1) : '0.0',
+      todayRequests: todayCount,
+      weekRequests: weekCount,
+      monthRequests: monthCount,
+      avgResponseTimeMs: parseFloat(avgTime?.avg || '0').toFixed(0),
+      activeApiUsers: parseInt(activeApiUsers?.count || '0', 10),
+    };
   }
 }

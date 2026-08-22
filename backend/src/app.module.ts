@@ -16,6 +16,8 @@ import { EmailModule } from './email/email.module';
 import { DatabaseConfig } from './config/database.config';
 import { PaymentModule } from './payment/payment.module';
 import { PushNotificationModule } from './push-notification/push-notification.module';
+import { ApiKeysModule } from './api-keys/api-key.module';
+import { PublicApiModule } from './public-api/public-api.module';
 
 @Module({
   imports: [
@@ -42,6 +44,8 @@ import { PushNotificationModule } from './push-notification/push-notification.mo
     EmailModule,
     PaymentModule,
     PushNotificationModule,
+    ApiKeysModule,
+    PublicApiModule,
   ],
 })
 export class AppModule {}

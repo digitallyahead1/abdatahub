@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { User } from './user.entity';
 
 @Entity('data_transaction')
@@ -17,6 +17,10 @@ export class DataTransaction {
 
   @Column()
   bundleName: string;
+
+  /** Recipient phone number */
+  @Column({ nullable: true })
+  phoneNumber: string | null;
 
   @Column({ type: 'decimal', precision: 20, scale: 2, transformer: {
     to: (value: number) => value,
@@ -39,11 +43,33 @@ export class DataTransaction {
   @Column({ unique: true })
   transactionReference: string;
 
+  /** Provider's own transaction/order ID */
+  @Column({ nullable: true })
+  providerTransactionId: string | null;
+
+  /** Full raw response payload from the provider */
+  @Column({ type: 'jsonb', nullable: true })
+  providerResponse: any;
+
+  /** Human-readable failure reason, if status=failed */
+  @Column({ nullable: true })
+  failureReason: string | null;
+
+  /** Which API key triggered this transaction (null = web/dashboard purchase) */
+  @Column({ type: 'uuid', nullable: true })
+  apiKeyId: string | null;
+
   @Column({ default: 'pending' })
-  status: string; // success, failed, pending
+  status: string; // pending, processing, success, failed, refunded
+
+  @Column({ type: 'timestamp', nullable: true })
+  completedAt: Date | null;
 
   @CreateDateColumn()
   createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })

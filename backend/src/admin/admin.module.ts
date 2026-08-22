@@ -19,6 +19,9 @@ import { AuthModule } from '../auth/auth.module';
 import { SystemSetting } from '../entities/system-setting.entity';
 import { ExamCategory } from '../entities/exam-category.entity';
 
+import { ApiRequestLog } from '../entities/api-request-log.entity';
+import { ApiKeysModule } from '../api-keys/api-key.module';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -34,11 +37,13 @@ import { ExamCategory } from '../entities/exam-category.entity';
       AirtimeTransaction,
       SystemSetting,
       ExamCategory,
+      ApiRequestLog,
     ]),
     AuditLogModule,
     forwardRef(() => ServicesModule),
     WalletModule,
     AuthModule,
+    ApiKeysModule,
   ],
   controllers: [AdminController],
   providers: [AdminService],

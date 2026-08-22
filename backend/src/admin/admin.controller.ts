@@ -3,11 +3,15 @@ import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
 import { Permissions } from '../auth/permissions.decorator';
+import { ApiKeyService } from '../api-keys/api-key.service';
 
 @Controller('admin')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class AdminController {
-  constructor(private adminService: AdminService) {}
+  constructor(
+    private adminService: AdminService,
+    private apiKeyService: ApiKeyService,
+  ) {}
 
   @Get('dashboard-stats')
   @Permissions('view:dashboard')
@@ -339,5 +343,61 @@ export class AdminController {
   ) {
     const data = await this.adminService.updateExamAgentPricing(examType, agentPrice, req.user);
     return { success: true, message: 'Exam agent pricing updated!', data };
+  }
+
+  // ============= API MANAGEMENT =============
+
+  @Get('api-keys')
+  @Permissions('manage:settings')
+  async getApiKeys() {
+    const data = await this.apiKeyService.adminFindAll();
+    return {
+      success: true,
+      data: data.map(k => ({
+        id: k.id,
+        userId: k.userId,
+        userName: k.user?.fullName || null,
+        userEmail: k.user?.email || null,
+        name: k.name,
+        keyPrefix: k.keyPrefix,
+        maskedKey: `${k.keyPrefix}${'*'.repeat(34)}`,
+        scope: k.scope,
+        status: k.status,
+        requestCount: k.requestCount,
+        successCount: k.successCount,
+        failCount: k.failCount,
+        lastUsedAt: k.lastUsedAt,
+        createdAt: k.createdAt,
+      })),
+    };
+  }
+
+  @Post('api-keys/:id/revoke')
+  @Permissions('manage:settings')
+  async revokeApiKey(@Param('id') keyId: string, @Req() req: any) {
+    await this.apiKeyService.adminRevoke(keyId);
+    return { success: true, message: 'API key revoked.' };
+  }
+
+  @Get('api-logs')
+  @Permissions('manage:settings')
+  async getApiLogs(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('userId') userId?: string,
+  ) {
+    const data = await this.adminService.getApiLogs(
+      page ? parseInt(page, 10) : 1,
+      limit ? Math.min(parseInt(limit, 10), 100) : 50,
+      userId,
+    );
+    return { success: true, ...data };
+  }
+
+  @Get('api-stats')
+  @Permissions('manage:settings')
+  async getApiStats() {
+    const data = await this.adminService.getApiStats();
+    return { success: true, data };
   }
 }

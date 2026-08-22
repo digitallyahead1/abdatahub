@@ -18,6 +18,9 @@ import { UserVirtualAccount } from '../entities/user-virtual-account.entity';
 import { GafiapayVirtualAccount } from '../entities/gafiapay-virtual-account.entity';
 import { DeviceToken } from '../entities/device-token.entity';
 import { PushNotificationLog } from '../entities/push-notification-log.entity';
+import { ApiKey } from '../entities/api-key.entity';
+import { ApiRequestLog } from '../entities/api-request-log.entity';
+import { IdempotencyKey } from '../entities/idempotency-key.entity';
 
 // Parse DATABASE_URL if provided (e.g. Supabase pooler URL)
 const databaseUrl = process.env.DATABASE_URL;
@@ -69,6 +72,9 @@ export const DatabaseConfig: TypeOrmModuleOptions = {
     GafiapayVirtualAccount,
     DeviceToken,
     PushNotificationLog,
+    ApiKey,
+    ApiRequestLog,
+    IdempotencyKey,
   ],
   synchronize: process.env.NODE_ENV !== 'production',
   logging: process.env.NODE_ENV === 'development',
