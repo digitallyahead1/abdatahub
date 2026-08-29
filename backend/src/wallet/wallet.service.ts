@@ -83,8 +83,8 @@ export class WalletService {
 
           if (referrerWallet) {
             const referrerPrevBalance = referrerWallet.balance;
-            referrerWallet.balance = referrerPrevBalance + 500;
-            referrerWallet.ledgerBalance = referrerPrevBalance + 500;
+            referrerWallet.balance = referrerPrevBalance + 1;
+            referrerWallet.ledgerBalance = referrerPrevBalance + 1;
             await this.walletRepository.save(referrerWallet);
 
             const refRef = 'REF' + Math.random().toString(36).substring(2, 12).toUpperCase();
@@ -93,11 +93,11 @@ export class WalletService {
             const refWalletTx = this.walletTransactionRepository.create({
               walletId: referrerWallet.id,
               type: 'credit',
-              amount: 500,
+              amount: 1,
               description: `Referral commission for inviting ${user.fullName}`,
               reference: refRef,
               previousBalance: referrerPrevBalance,
-              newBalance: referrerPrevBalance + 500,
+              newBalance: referrerPrevBalance + 1,
             });
             await this.walletTransactionRepository.save(refWalletTx);
 
@@ -106,7 +106,7 @@ export class WalletService {
               userId: user.referredBy,
               type: 'credit',
               service: 'referral',
-              amount: 500,
+              amount: 1,
               status: 'success',
               reference: refRef,
               metadata: { referredUserId: userId },

@@ -386,7 +386,7 @@ class ProfileTab extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'Share your unique referral link below. Get ₦500 immediately when your friend signs up and funds their wallet for the first time.',
+                      'Share your unique referral link below. Get ₦1 immediately when your friend signs up and funds their wallet for the first time.',
                       style: TextStyle(
                         color: AppColors.silverMuted,
                         fontSize: 11,
