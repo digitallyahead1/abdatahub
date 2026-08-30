@@ -7,7 +7,7 @@
     "license": "UNLICENSED",
     "scripts": {
         "dev": "nest start --watch",
-        "build": "nest build",
+        "build": "nest build && node -e \"const fs=require('fs'); if(!fs.existsSync('dist/config')) fs.mkdirSync('dist/config', {recursive:true}); if(fs.existsSync('src/config/firebase-service-account.json')) fs.copyFileSync('src/config/firebase-service-account.json', 'dist/config/firebase-service-account.json');\"",
         "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
         "start": "nest start",
         "start:dev": "nest start --watch",

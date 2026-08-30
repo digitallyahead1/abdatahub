@@ -37,16 +37,37 @@ export class PushNotificationService implements OnModuleInit {
         let credential: admin.ServiceAccount | undefined;
 
         if (process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-          credential = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
-        } else {
-          const customPath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH;
-          const serviceAccountPath = customPath
-            ? path.resolve(customPath)
-            : path.resolve(__dirname, '../config/firebase-service-account.json');
+          try {
+            credential = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_JSON);
+            this.logger.log('Loaded Firebase Admin credentials from FIREBASE_SERVICE_ACCOUNT_JSON');
+          } catch (e: any) {
+            this.logger.error('Failed to parse FIREBASE_SERVICE_ACCOUNT_JSON environment variable', e);
+          }
+        }
 
+        if (!credential) {
           const fs = require('fs');
-          if (fs.existsSync(serviceAccountPath)) {
-            credential = require(serviceAccountPath);
+          const candidatePaths = [
+            process.env.FIREBASE_SERVICE_ACCOUNT_PATH,
+            path.resolve(__dirname, '../config/firebase-service-account.json'),
+            path.resolve(__dirname, '../../src/config/firebase-service-account.json'),
+            path.resolve(process.cwd(), 'src/config/firebase-service-account.json'),
+            path.resolve(process.cwd(), 'dist/config/firebase-service-account.json'),
+            path.resolve(process.cwd(), 'config/firebase-service-account.json'),
+            path.resolve(process.cwd(), 'backend/src/config/firebase-service-account.json'),
+            path.resolve(__dirname, '../../../backend/src/config/firebase-service-account.json'),
+          ].filter(Boolean);
+
+          for (const p of candidatePaths) {
+            if (p && fs.existsSync(p)) {
+              try {
+                credential = require(p);
+                this.logger.log(`Loaded Firebase Admin credentials from: ${p}`);
+                break;
+              } catch (loadErr) {
+                this.logger.warn(`Failed reading credential from ${p}: ${loadErr}`);
+              }
+            }
           }
         }
 
@@ -240,6 +261,8 @@ export class PushNotificationService implements OnModuleInit {
           },
           data: {
             ...data,
+            title,
+            body,
             click_action: 'FLUTTER_NOTIFICATION_CLICK',
           },
         };

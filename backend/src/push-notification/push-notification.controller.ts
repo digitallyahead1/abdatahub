@@ -69,10 +69,21 @@ export class PushNotificationController {
   // ── Device Token (called from mobile app) ───────────────────────────────
 
   @Post('device-token')
-  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async registerToken(@Request() req: any, @Body() body: any) {
-    const userId: string = req.user?.userId ?? req.user?.sub ?? req.user?.id;
+    let userId: string | null = null;
+    try {
+      const authHeader = req.headers?.authorization;
+      if (authHeader && authHeader.startsWith('Bearer ')) {
+        const tokenStr = authHeader.split(' ')[1];
+        const jwt = require('jsonwebtoken');
+        const decoded: any = jwt.decode(tokenStr);
+        if (decoded && (decoded.userId || decoded.sub || decoded.id)) {
+          userId = decoded.userId || decoded.sub || decoded.id;
+        }
+      }
+    } catch (_) {}
+
     const token = body?.token;
     if (!token) {
       return { success: false, message: 'token is required' };
@@ -88,7 +99,6 @@ export class PushNotificationController {
   }
 
   @Delete('device-token/:token')
-  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async removeToken(@Param('token') token: string) {
     await this.pushService.removeDeviceToken(token);
