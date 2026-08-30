@@ -342,4 +342,51 @@ export class PushNotificationService implements OnModuleInit {
   async getActiveTokenCount(): Promise<number> {
     return this.deviceTokenRepo.count({ where: { isActive: true } });
   }
+
+  // ─── Diagnostics ─────────────────────────────────────────────────────────────
+
+  async listActiveTokens(): Promise<DeviceToken[]> {
+    return this.deviceTokenRepo.find({
+      where: { isActive: true },
+      order: { lastSeenAt: 'DESC' },
+    });
+  }
+
+  async clearAllStaleTokens(): Promise<{ cleared: number }> {
+    const staleTokens = await this.deviceTokenRepo.find({ where: { isActive: false } });
+    if (staleTokens.length > 0) {
+      await this.deviceTokenRepo.delete(staleTokens.map((t) => t.id));
+    }
+    return { cleared: staleTokens.length };
+  }
+
+  async clearAllTokens(): Promise<{ cleared: number }> {
+    const all = await this.deviceTokenRepo.find();
+    if (all.length > 0) {
+      await this.deviceTokenRepo.delete(all.map((t) => t.id));
+    }
+    this.logger.log(`Cleared ALL ${all.length} device tokens from database`);
+    return { cleared: all.length };
+  }
+
+  async sendTestToSingleToken(fcmToken: string, title: string, body: string): Promise<any> {
+    if (!admin.apps.length) {
+      return { success: false, error: 'Firebase Admin not initialized' };
+    }
+    try {
+      const message: admin.messaging.Message = {
+        token: fcmToken,
+        notification: { title, body },
+        android: {
+          priority: 'high',
+          notification: { sound: 'default', channelId: 'ab_data_hub_alerts' },
+        },
+        data: { title, body, click_action: 'FLUTTER_NOTIFICATION_CLICK' },
+      };
+      const result = await admin.messaging().send(message);
+      return { success: true, messageId: result };
+    } catch (err: any) {
+      return { success: false, error: err?.message, code: err?.errorInfo?.code };
+    }
+  }
 }

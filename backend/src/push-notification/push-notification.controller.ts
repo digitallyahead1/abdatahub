@@ -181,4 +181,57 @@ export class PushNotificationController {
       return { success: true, data: { activeTokens: 0 } };
     }
   }
+
+  // ── Admin: List Device Tokens ────────────────────────────────────────────
+
+  @Get('tokens')
+  @UseGuards(JwtAuthGuard)
+  async listTokens(@Request() req: any) {
+    const role: string = req.user?.role ?? '';
+    if (!['admin', 'super_admin', 'superadmin', 'owner'].includes(role.toLowerCase())) {
+      return { success: false, message: 'Forbidden' };
+    }
+    try {
+      const tokens = await this.pushService.listActiveTokens();
+      return { success: true, count: tokens.length, data: tokens };
+    } catch (err: any) {
+      return { success: false, message: err?.message };
+    }
+  }
+
+  // ── Admin: Clear All Stale Tokens ────────────────────────────────────────
+
+  @Post('clear-stale-tokens')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async clearStaleTokens(@Request() req: any) {
+    const role: string = req.user?.role ?? '';
+    if (!['admin', 'super_admin', 'superadmin', 'owner'].includes(role.toLowerCase())) {
+      return { success: false, message: 'Forbidden' };
+    }
+    try {
+      const result = await this.pushService.clearAllTokens();
+      return { success: true, message: `Cleared ${result.cleared} device tokens. Users will re-register on next app open.`, data: result };
+    } catch (err: any) {
+      return { success: false, message: err?.message };
+    }
+  }
+
+  // ── Admin: Send Test to Single FCM Token ────────────────────────────────
+
+  @Post('test-token')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  async testSingleToken(@Request() req: any, @Body() body: any) {
+    const role: string = req.user?.role ?? '';
+    if (!['admin', 'super_admin', 'superadmin', 'owner'].includes(role.toLowerCase())) {
+      return { success: false, message: 'Forbidden' };
+    }
+    const { fcmToken, title = 'Test', body: msgBody = 'Test notification' } = body || {};
+    if (!fcmToken) {
+      return { success: false, message: 'fcmToken is required' };
+    }
+    const result = await this.pushService.sendTestToSingleToken(fcmToken, title, msgBody);
+    return { success: result.success, data: result };
+  }
 }

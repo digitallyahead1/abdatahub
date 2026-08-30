@@ -66,6 +66,7 @@ export default function AdminNotificationsPage() {
   const [targetType, setTargetType] = useState<TargetType>('all')
   const [targetValue, setTargetValue] = useState('')
   const [sending, setSending] = useState(false)
+  const [clearingTokens, setClearingTokens] = useState(false)
   const [activeTokenCount, setActiveTokenCount] = useState<number | null>(null)
   const [pushLogs, setPushLogs] = useState<PushLog[]>([])
   const [logsLoading, setLogsLoading] = useState(true)
@@ -168,6 +169,21 @@ export default function AdminNotificationsPage() {
     }
   }
 
+  // ── Clear all stale device tokens ──────────────────────────────────────
+  const handleClearTokens = async () => {
+    if (!confirm('This will delete ALL stored FCM device tokens from the database. Users will automatically re-register fresh tokens the next time they open the app. Continue?')) return
+    setClearingTokens(true)
+    try {
+      const res = await api.post('/notifications/clear-stale-tokens')
+      toast.success(res.data.message || 'All tokens cleared. Users will re-register on next app open.')
+      setActiveTokenCount(0)
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Failed to clear tokens')
+    } finally {
+      setClearingTokens(false)
+    }
+  }
+
   // ── Target label helpers ────────────────────────────────────────────────
   const targetLabel: Record<TargetType, string> = {
     all: 'All App Users',
@@ -198,12 +214,29 @@ export default function AdminNotificationsPage() {
           </p>
         </div>
         {activeTokenCount !== null && (
-          <div className="bg-primary-glow/10 border border-primary-glow/20 rounded-xl px-4 py-3 text-center shrink-0">
-            <p className="text-2xl font-bold text-primary-glow">{activeTokenCount.toLocaleString()}</p>
-            <p className="text-xs text-silver-muted mt-0.5">Active Devices</p>
+          <div className="flex items-center gap-3 shrink-0">
+            <div className="bg-primary-glow/10 border border-primary-glow/20 rounded-xl px-4 py-3 text-center">
+              <p className="text-2xl font-bold text-primary-glow">{activeTokenCount.toLocaleString()}</p>
+              <p className="text-xs text-silver-muted mt-0.5">Active Devices</p>
+            </div>
+            <button
+              onClick={handleClearTokens}
+              disabled={clearingTokens}
+              className="px-3 py-2 bg-red-500/10 border border-red-500/30 text-red-400 hover:bg-red-500/20 rounded-xl text-xs font-semibold transition-all disabled:opacity-50"
+              title="Clear all stale device tokens — users will re-register on next app open"
+            >
+              {clearingTokens ? 'Clearing...' : '🗑 Reset Tokens'}
+            </button>
           </div>
         )}
       </div>
+
+      {/* Token Warning Banner */}
+      {activeTokenCount === 0 && (
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-4 text-sm text-amber-300">
+          <strong>⚠ No active device tokens.</strong> Ask users to open the app while logged in — their devices will automatically register for push notifications.
+        </div>
+      )}
 
       {/* Tab Bar */}
       <div className="flex gap-1 bg-dark-bg/50 border border-silver-muted/10 rounded-xl p-1">
