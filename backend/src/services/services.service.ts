@@ -13,6 +13,7 @@ import { IacafeService } from './iacafe.service';
 import { SwiftbillsService } from './swiftbills.service';
 import { AdminService } from '../admin/admin.service';
 import { UsersService } from '../users/users.service';
+import { formatToWatIso } from '../common/date.util';
 
 @Injectable()
 export class ServicesService {
@@ -365,6 +366,7 @@ export class ServicesService {
         phoneNumber,
         amount,
         status: finalStatus,
+        createdAt: formatToWatIso(systemTx.createdAt || new Date()),
       };
     } else if (result && result.isTransientError) {
       // Transient error (timeout / gateway error) - do NOT refund, keep status pending
@@ -541,6 +543,7 @@ export class ServicesService {
         amount,
         chargedAmount: sellingPrice,
         status: finalStatus,
+        createdAt: formatToWatIso(systemTx.createdAt || new Date()),
       };
     } else if (result && result.isTransientError) {
       // Transient error (timeout / provider 5xx) - keep status pending so admin or user can requery
@@ -699,6 +702,9 @@ export class ServicesService {
         units: result.data.units || '',
         band: result.data.band || '',
         customerName: result.data.customer_name || '',
+        amount: totalDebit,
+        status: finalStatus,
+        createdAt: formatToWatIso(systemTx.createdAt || new Date()),
       };
     } else if (result && result.isTransientError) {
       // Transient error (timeout / gateway error) - do NOT refund, keep status pending
@@ -803,6 +809,9 @@ export class ServicesService {
         packageName,
         customerName: result.data.customer_name || '',
         bouquet: result.data.bouquet || '',
+        amount: totalDebit,
+        status: finalStatus,
+        createdAt: formatToWatIso(systemTx.createdAt || new Date()),
       };
     } else if (result && result.isTransientError) {
       // Transient error (timeout / gateway error) - do NOT refund, keep status pending

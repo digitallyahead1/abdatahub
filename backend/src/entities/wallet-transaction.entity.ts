@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { Wallet } from './wallet.entity';
+import { DateTransformer } from '../common/date.util';
 
 @Entity('wallet_transaction')
 export class WalletTransaction {
@@ -36,7 +37,7 @@ export class WalletTransaction {
   }})
   newBalance: number;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ transformer: DateTransformer })
   createdAt: Date;
 
   @ManyToOne(() => Wallet, (wallet) => wallet.transactions, { onDelete: 'CASCADE' })

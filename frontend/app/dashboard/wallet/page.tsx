@@ -336,7 +336,7 @@ export default function FundWalletPage() {
                       <td className="px-6 py-4 font-mono">₦{record.newBalance.toLocaleString()}</td>
                       <td className="px-6 py-4 text-silver-muted">{record.description}</td>
                       <td className="px-6 py-4 text-xs text-silver-muted">
-                        {new Date(record.createdAt).toLocaleString()}
+                        {new Date(record.createdAt).toLocaleString('en-GB', { timeZone: 'Africa/Lagos', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
                       </td>
                     </tr>
                   ))}

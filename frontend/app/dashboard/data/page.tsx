@@ -183,7 +183,11 @@ export default function BuyDataPage() {
       doc.setFontSize(9)
       doc.setTextColor(50, 50, 50)
 
+      const txDate = rcpt.createdAt
+        ? new Date(rcpt.createdAt).toLocaleString('en-GB', { timeZone: 'Africa/Lagos', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
+        : new Date().toLocaleString('en-GB', { timeZone: 'Africa/Lagos', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })
       const rows = [
+        ['Date', txDate],
         ['Phone Number', rcpt.phoneNumber],
         ['Network', rcpt.network.toUpperCase()],
         ['Plan', rcpt.planName],
@@ -277,6 +281,7 @@ export default function BuyDataPage() {
         reference: data?.reference || 'N/A',
         network: (data?.network || capturedPending.network).toUpperCase(),
         status: data?.status || 'success',
+        createdAt: data?.createdAt || new Date().toISOString(),
       })
     } catch (err: any) {
       const errMsg = err.response?.data?.message || 'Transaction failed. Please try again.'
@@ -503,6 +508,7 @@ export default function BuyDataPage() {
             {/* Receipt Details */}
             <div className="space-y-3 bg-white/5 rounded-xl p-4 border border-white/5 mb-5">
               {[
+                { label: 'Date', value: receipt.createdAt ? new Date(receipt.createdAt).toLocaleString('en-GB', { timeZone: 'Africa/Lagos', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : new Date().toLocaleString('en-GB', { timeZone: 'Africa/Lagos', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) },
                 { label: 'Phone Number', value: receipt.phoneNumber },
                 { label: 'Network', value: receipt.network.toUpperCase() },
                 { label: 'Plan', value: receipt.planName },
@@ -512,7 +518,7 @@ export default function BuyDataPage() {
               ].map(({ label, value, mono }) => (
                 <div key={label} className="flex justify-between items-center text-sm">
                   <span className="text-silver-muted">{label}</span>
-                  <span className={`text-white font-semibold ${mono ? 'font-mono text-xs' : ''}`}>{value}</span>
+                  <span className={`text-white font-semibold ${(mono as any) ? 'font-mono text-xs' : ''}`}>{value}</span>
                 </div>
               ))}
             </div>

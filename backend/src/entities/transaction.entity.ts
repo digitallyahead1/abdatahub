@@ -1,5 +1,6 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, ManyToOne, JoinColumn } from 'typeorm';
 import { User } from './user.entity';
+import { DateTransformer } from '../common/date.util';
 
 @Entity('transaction')
 export class Transaction {
@@ -30,10 +31,10 @@ export class Transaction {
   @Column({ type: 'jsonb', nullable: true })
   metadata: any;
 
-  @CreateDateColumn()
+  @CreateDateColumn({ transformer: DateTransformer })
   createdAt: Date;
 
-  @UpdateDateColumn()
+  @UpdateDateColumn({ transformer: DateTransformer })
   updatedAt: Date;
 
   @ManyToOne(() => User, (user) => user.transactions, { onDelete: 'CASCADE' })

@@ -37,8 +37,9 @@ export default function TransactionReceiptModal({
   }
   const serviceLabel = serviceLabels[tx.service] || tx.service
 
-  // Format date
+  // Format date in West Africa Time (WAT / Africa/Lagos)
   const formattedDate = new Date(tx.createdAt).toLocaleString('en-GB', {
+    timeZone: 'Africa/Lagos',
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',

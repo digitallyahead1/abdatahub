@@ -407,6 +407,10 @@ export default function BuyExamPinsPage() {
             {/* Receipt Summary Card */}
             <div className="p-4 bg-white/5 border border-silver-muted/10 rounded-xl text-left space-y-2 text-xs font-mono text-silver-muted">
               <div className="flex justify-between">
+                <span>Date:</span>
+                <span className="text-white font-bold">{successData.createdAt ? new Date(successData.createdAt).toLocaleString('en-GB', { timeZone: 'Africa/Lagos', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : new Date().toLocaleString('en-GB', { timeZone: 'Africa/Lagos', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+              </div>
+              <div className="flex justify-between">
                 <span>Reference:</span>
                 <span className="text-white select-all font-bold">{successData.reference}</span>
               </div>

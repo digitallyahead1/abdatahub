@@ -9,6 +9,7 @@ import { Transaction } from '../entities/transaction.entity';
 import { WalletTransaction } from '../entities/wallet-transaction.entity';
 import { UsersService } from '../users/users.service';
 import { AuditLogService } from '../audit-log/audit-log.service';
+import { formatToWatIso } from '../common/date.util';
 
 @Injectable()
 export class ExamsService implements OnModuleInit {
@@ -392,7 +393,10 @@ export class ExamsService implements OnModuleInit {
         reference: ref,
         examType: cleanType,
         quantity,
+        amount: totalAmount,
+        status: 'success',
         pins: availablePins.map(p => ({ pinCode: p.pinCode, serialNumber: p.serialNumber })),
+        createdAt: formatToWatIso(systemTx.createdAt || new Date()),
       };
     } catch (err) {
       await queryRunner.rollbackTransaction();

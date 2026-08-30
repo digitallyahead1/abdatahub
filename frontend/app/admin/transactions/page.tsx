@@ -182,7 +182,7 @@ export default function AdminTransactionsPage() {
                         {tx.status}
                       </span>
                       <p className="text-[10px] text-silver-muted mt-1.5 leading-tight">
-                        {new Date(tx.createdAt).toLocaleString()}
+                        {new Date(tx.createdAt).toLocaleString('en-GB', { timeZone: 'Africa/Lagos', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}
                       </p>
                     </td>
                     <td className="px-4 py-4 text-right space-x-1.5 whitespace-nowrap">
