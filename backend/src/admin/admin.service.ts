@@ -348,56 +348,87 @@ export class AdminService implements OnModuleInit {
     const user = await this.userRepository.findOne({ where: { email } });
     if (!user) throw new NotFoundException('User with this email not found');
 
-    const wallet = await this.walletRepository.findOne({ where: { userId: user.id } });
-    if (!wallet) throw new NotFoundException('Wallet not found');
-
-    const previousBalance = wallet.balance;
-    let newBalance = previousBalance;
-
-    if (operation === 'credit') {
-      newBalance = Number(previousBalance) + Number(amount);
-    } else if (operation === 'debit' || operation === 'reverse') {
-      if (previousBalance < amount && operation === 'debit') {
-        throw new BadRequestException('User has insufficient wallet balance to debit');
-      }
-      newBalance = Number(previousBalance) - Number(amount);
+    const numAmount = Number(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      throw new BadRequestException('Amount must be a positive number');
     }
 
-    // Update wallet balance
-    wallet.balance = newBalance;
-    wallet.ledgerBalance = newBalance;
-    await this.walletRepository.save(wallet);
-
-    // Log wallet transaction
     const ref = 'MAN' + Math.random().toString(36).substring(2, 12).toUpperCase();
-    const walletTx = this.walletTransactionRepository.create({
-      walletId: wallet.id,
-      type: operation === 'credit' ? 'credit' : 'debit',
-      amount,
-      description: `Manual adjustment: ${description}`,
-      reference: ref,
-      previousBalance,
-      newBalance,
-    });
-    await this.walletTransactionRepository.save(walletTx);
 
-    // Log system-wide transaction
-    const systemTx = this.transactionRepository.create({
-      userId: user.id,
-      type: operation === 'credit' ? 'credit' : 'debit',
-      service: operation === 'reverse' ? 'reversal' : 'adjustment',
-      amount,
-      status: 'success',
-      reference: ref,
-      metadata: { description },
+    await this.walletRepository.manager.transaction(async (em) => {
+      const wallet = await em
+        .getRepository(Wallet)
+        .createQueryBuilder('wallet')
+        .setLock('pessimistic_write')
+        .where('wallet."userId" = :userId', { userId: user.id })
+        .getOne();
+
+      if (!wallet) throw new NotFoundException('Wallet not found');
+
+      const previousBalance = Number(wallet.balance);
+      let newBalance = previousBalance;
+
+      if (operation === 'credit') {
+        newBalance = previousBalance + numAmount;
+        await em
+          .createQueryBuilder()
+          .update(Wallet)
+          .set({
+            balance: () => `balance + ${numAmount}`,
+            ledgerBalance: () => `"ledgerBalance" + ${numAmount}`,
+          })
+          .where('id = :id', { id: wallet.id })
+          .execute();
+      } else if (operation === 'debit' || operation === 'reverse') {
+        if (previousBalance < numAmount && operation === 'debit') {
+          throw new BadRequestException('User has insufficient wallet balance to debit');
+        }
+        newBalance = previousBalance - numAmount;
+        await em
+          .createQueryBuilder()
+          .update(Wallet)
+          .set({
+            balance: () => `balance - ${numAmount}`,
+            ledgerBalance: () => `"ledgerBalance" - ${numAmount}`,
+          })
+          .where('id = :id', { id: wallet.id })
+          .execute();
+      } else {
+        throw new BadRequestException('Invalid operation');
+      }
+
+      // Log wallet ledger transaction
+      await em.getRepository(WalletTransaction).save(
+        em.getRepository(WalletTransaction).create({
+          walletId: wallet.id,
+          type: operation === 'credit' ? 'credit' : 'debit',
+          amount: numAmount,
+          description: `Manual adjustment: ${description}`,
+          reference: ref,
+          previousBalance,
+          newBalance,
+        }),
+      );
+
+      // Log system-wide transaction
+      await em.getRepository(Transaction).save(
+        em.getRepository(Transaction).create({
+          userId: user.id,
+          type: operation === 'credit' ? 'credit' : 'debit',
+          service: operation === 'reverse' ? 'reversal' : 'adjustment',
+          amount: numAmount,
+          status: 'success',
+          reference: ref,
+          metadata: { description },
+        }),
+      );
     });
-    await this.transactionRepository.save(systemTx);
 
     await this.auditLogService.log(adminUser.id, adminUser.email, 'wallet_adjust', {
       targetUserId: user.id,
       targetEmail: user.email,
       operation,
-      amount,
+      amount: numAmount,
       description,
       reference: ref,
     });

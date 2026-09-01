@@ -51,5 +51,8 @@
     "engines": {
         "node": ">=18.0.0",
         "npm": ">=9.0.0"
+    },
+    "optionalDependencies": {
+        "@next/swc-win32-x64-msvc": "^14.2.33"
     }
 }

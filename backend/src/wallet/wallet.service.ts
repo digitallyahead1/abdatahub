@@ -25,164 +25,276 @@ export class WalletService {
     return wallet;
   }
 
-  async deposit(userId: string, amount: number, paymentMethod: string, customReference?: string): Promise<Wallet> {
+  /**
+   * Atomically credit a user's wallet on deposit (bank transfer, etc).
+   *
+   * Uses a pessimistic row-level lock (SELECT FOR UPDATE) inside a DB
+   * transaction so that the previousBalance snapshot is always accurate
+   * in the audit log even under concurrent requests.
+   */
+  async deposit(
+    userId: string,
+    amount: number,
+    paymentMethod: string,
+    customReference?: string,
+  ): Promise<Wallet> {
     if (amount <= 0) {
       throw new BadRequestException('Amount must be greater than zero');
     }
 
-    const wallet = await this.findOneByUserId(userId);
-    const previousBalance = wallet.balance;
-    const newBalance = previousBalance + amount;
+    const ref =
+      customReference ||
+      'DEP' + Math.random().toString(36).substring(2, 12).toUpperCase();
 
-    // Update wallet balance
-    wallet.balance = newBalance;
-    wallet.ledgerBalance = newBalance;
-    const savedWallet = await this.walletRepository.save(wallet);
+    // ─── Atomic credit inside a DB transaction with pessimistic row lock ───
+    const savedWallet = await this.walletRepository.manager.transaction(
+      async (em) => {
+        // Lock the wallet row — any concurrent request must wait here
+        const wallet = await em
+          .getRepository(Wallet)
+          .createQueryBuilder('wallet')
+          .setLock('pessimistic_write')
+          .where('wallet."userId" = :userId', { userId })
+          .getOne();
 
-    // Create wallet transaction log
-    const ref = customReference || ('DEP' + Math.random().toString(36).substring(2, 12).toUpperCase());
-    const walletTx = this.walletTransactionRepository.create({
-      walletId: wallet.id,
-      type: 'credit',
-      amount,
-      description: `Funded wallet via ${paymentMethod}`,
-      reference: ref,
-      previousBalance,
-      newBalance,
-    });
-    await this.walletTransactionRepository.save(walletTx);
+        if (!wallet) throw new NotFoundException('Wallet not found');
 
-    // Create system-wide transaction log
-    const systemTx = this.transactionRepository.create({
-      userId,
-      type: 'credit',
-      service: 'deposit',
-      amount,
-      status: 'success',
-      reference: ref,
-      metadata: { paymentMethod },
-    });
-    await this.transactionRepository.save(systemTx);
+        const previousBalance = Number(wallet.balance);
+        const newBalance = previousBalance + Number(amount);
 
-    // Handle referral commission payout on first deposit
+        // Atomic increment — cannot produce a stale read while lock is held
+        await em
+          .createQueryBuilder()
+          .update(Wallet)
+          .set({
+            balance: () => `balance + ${Number(amount)}`,
+            ledgerBalance: () => `"ledgerBalance" + ${Number(amount)}`,
+          })
+          .where('id = :id', { id: wallet.id })
+          .execute();
+
+        // Wallet ledger entry
+        await em.getRepository(WalletTransaction).save(
+          em.getRepository(WalletTransaction).create({
+            walletId: wallet.id,
+            type: 'credit',
+            amount,
+            description: `Funded wallet via ${paymentMethod}`,
+            reference: ref,
+            previousBalance,
+            newBalance,
+          }),
+        );
+
+        // System-wide transaction log
+        await em.getRepository(Transaction).save(
+          em.getRepository(Transaction).create({
+            userId,
+            type: 'credit',
+            service: 'deposit',
+            amount,
+            status: 'success',
+            reference: ref,
+            metadata: { paymentMethod },
+          }),
+        );
+
+        wallet.balance = newBalance;
+        wallet.ledgerBalance = newBalance;
+        return wallet;
+      },
+    );
+
+    // ─── Referral commission on first deposit (outside the wallet lock) ───
     try {
       const previousDeposits = await this.transactionRepository.count({
         where: { userId, service: 'deposit', status: 'success' },
       });
 
-      // Since we just saved the current deposit transaction above, previousDeposits count will be 1
+      // Count is 1 only for the very first deposit (we just saved it above)
       if (previousDeposits === 1) {
         const user = await this.walletRepository.manager.findOne(User, {
           where: { id: userId },
         });
 
         if (user && user.referredBy) {
-          const referrerWallet = await this.walletRepository.findOne({
-            where: { userId: user.referredBy },
+          // Use the race-safe credit() to pay the referrer
+          await this.credit(
+            user.referredBy,
+            1,
+            `Referral commission for inviting ${user.fullName}`,
+          );
+
+          // Log for system transaction audits
+          const refRef =
+            'REF' + Math.random().toString(36).substring(2, 12).toUpperCase();
+          const refSystemTx = this.transactionRepository.create({
+            userId: user.referredBy,
+            type: 'credit',
+            service: 'referral',
+            amount: 1,
+            status: 'success',
+            reference: refRef,
+            metadata: { referredUserId: userId },
           });
-
-          if (referrerWallet) {
-            const referrerPrevBalance = referrerWallet.balance;
-            referrerWallet.balance = referrerPrevBalance + 1;
-            referrerWallet.ledgerBalance = referrerPrevBalance + 1;
-            await this.walletRepository.save(referrerWallet);
-
-            const refRef = 'REF' + Math.random().toString(36).substring(2, 12).toUpperCase();
-            
-            // Log for referrer's wallet ledger
-            const refWalletTx = this.walletTransactionRepository.create({
-              walletId: referrerWallet.id,
-              type: 'credit',
-              amount: 1,
-              description: `Referral commission for inviting ${user.fullName}`,
-              reference: refRef,
-              previousBalance: referrerPrevBalance,
-              newBalance: referrerPrevBalance + 1,
-            });
-            await this.walletTransactionRepository.save(refWalletTx);
-
-            // Log for system transaction audits
-            const refSystemTx = this.transactionRepository.create({
-              userId: user.referredBy,
-              type: 'credit',
-              service: 'referral',
-              amount: 1,
-              status: 'success',
-              reference: refRef,
-              metadata: { referredUserId: userId },
-            });
-            await this.transactionRepository.save(refSystemTx);
-          }
+          await this.transactionRepository.save(refSystemTx);
         }
       }
     } catch (referralErr) {
       console.error('Failed to process referral credit:', referralErr);
-      // Fail silently to avoid breaking the deposit transaction itself
+      // Fail silently — do not roll back the deposit itself
     }
 
     return savedWallet;
   }
 
-  async debit(userId: string, amount: number, description: string): Promise<Wallet> {
+  /**
+   * Atomically debit a user's wallet.
+   *
+   * Uses a pessimistic row-level lock (SELECT FOR UPDATE) inside a DB
+   * transaction so that concurrent requests CANNOT both pass the balance
+   * check before either write commits — this eliminates the double-spend
+   * race condition that was previously present.
+   *
+   * Flow:
+   *  1. BEGIN TRANSACTION
+   *  2. SELECT ... FOR UPDATE  → acquires exclusive row lock
+   *  3. Check balance >= amount (safe: no other tx can modify balance while locked)
+   *  4. UPDATE balance atomically
+   *  5. INSERT wallet_transaction log
+   *  6. COMMIT → lock released, next queued request can proceed
+   */
+  async debit(
+    userId: string,
+    amount: number,
+    description: string,
+  ): Promise<Wallet> {
     if (amount <= 0) {
       throw new BadRequestException('Amount must be greater than zero');
     }
 
-    const wallet = await this.findOneByUserId(userId);
-    if (wallet.balance < amount) {
-      throw new BadRequestException('Insufficient wallet balance');
-    }
+    const ref =
+      'DEB' + Math.random().toString(36).substring(2, 12).toUpperCase();
 
-    const previousBalance = wallet.balance;
-    const newBalance = previousBalance - amount;
+    const savedWallet = await this.walletRepository.manager.transaction(
+      async (em) => {
+        // Lock this wallet row — any other concurrent debit/credit must queue here
+        const wallet = await em
+          .getRepository(Wallet)
+          .createQueryBuilder('wallet')
+          .setLock('pessimistic_write')
+          .where('wallet."userId" = :userId', { userId })
+          .getOne();
 
-    // Update wallet balance
-    wallet.balance = newBalance;
-    wallet.ledgerBalance = newBalance;
-    const savedWallet = await this.walletRepository.save(wallet);
+        if (!wallet) throw new NotFoundException('Wallet not found');
 
-    // Create wallet transaction log
-    const ref = 'DEB' + Math.random().toString(36).substring(2, 12).toUpperCase();
-    const walletTx = this.walletTransactionRepository.create({
-      walletId: wallet.id,
-      type: 'debit',
-      amount,
-      description,
-      reference: ref,
-      previousBalance,
-      newBalance,
-    });
-    await this.walletTransactionRepository.save(walletTx);
+        const currentBalance = Number(wallet.balance);
+
+        if (currentBalance < Number(amount)) {
+          throw new BadRequestException('Insufficient wallet balance');
+        }
+
+        const previousBalance = currentBalance;
+        const newBalance = currentBalance - Number(amount);
+
+        // Atomic decrement with a double-guard on balance at the DB level
+        await em
+          .createQueryBuilder()
+          .update(Wallet)
+          .set({
+            balance: () => `balance - ${Number(amount)}`,
+            ledgerBalance: () => `"ledgerBalance" - ${Number(amount)}`,
+          })
+          .where('id = :id AND balance >= :amount', {
+            id: wallet.id,
+            amount: Number(amount),
+          })
+          .execute();
+
+        // Wallet ledger entry
+        await em.getRepository(WalletTransaction).save(
+          em.getRepository(WalletTransaction).create({
+            walletId: wallet.id,
+            type: 'debit',
+            amount,
+            description,
+            reference: ref,
+            previousBalance,
+            newBalance,
+          }),
+        );
+
+        wallet.balance = newBalance;
+        wallet.ledgerBalance = newBalance;
+        return wallet;
+      },
+    );
 
     return savedWallet;
   }
 
-  async credit(userId: string, amount: number, description: string): Promise<Wallet> {
+  /**
+   * Atomically credit a user's wallet (used for refunds, reversals, referrals).
+   *
+   * Uses a pessimistic row-level lock inside a DB transaction to guarantee
+   * that previousBalance snapshots are always accurate in the audit log,
+   * even when multiple refunds fire at the same time.
+   */
+  async credit(
+    userId: string,
+    amount: number,
+    description: string,
+  ): Promise<Wallet> {
     if (amount <= 0) {
       throw new BadRequestException('Amount must be greater than zero');
     }
 
-    const wallet = await this.findOneByUserId(userId);
-    const previousBalance = wallet.balance;
-    const newBalance = Number(previousBalance) + Number(amount);
+    const ref =
+      'REF' + Math.random().toString(36).substring(2, 12).toUpperCase();
 
-    // Update wallet balance
-    wallet.balance = newBalance;
-    wallet.ledgerBalance = newBalance;
-    const savedWallet = await this.walletRepository.save(wallet);
+    const savedWallet = await this.walletRepository.manager.transaction(
+      async (em) => {
+        // Lock the row so concurrent operations cannot produce stale balance snapshots
+        const wallet = await em
+          .getRepository(Wallet)
+          .createQueryBuilder('wallet')
+          .setLock('pessimistic_write')
+          .where('wallet."userId" = :userId', { userId })
+          .getOne();
 
-    // Create wallet transaction log
-    const ref = 'REF' + Math.random().toString(36).substring(2, 12).toUpperCase();
-    const walletTx = this.walletTransactionRepository.create({
-      walletId: wallet.id,
-      type: 'credit',
-      amount,
-      description,
-      reference: ref,
-      previousBalance,
-      newBalance,
-    });
-    await this.walletTransactionRepository.save(walletTx);
+        if (!wallet) throw new NotFoundException('Wallet not found');
+
+        const previousBalance = Number(wallet.balance);
+        const newBalance = previousBalance + Number(amount);
+
+        await em
+          .createQueryBuilder()
+          .update(Wallet)
+          .set({
+            balance: () => `balance + ${Number(amount)}`,
+            ledgerBalance: () => `"ledgerBalance" + ${Number(amount)}`,
+          })
+          .where('id = :id', { id: wallet.id })
+          .execute();
+
+        // Wallet ledger entry
+        await em.getRepository(WalletTransaction).save(
+          em.getRepository(WalletTransaction).create({
+            walletId: wallet.id,
+            type: 'credit',
+            amount,
+            description,
+            reference: ref,
+            previousBalance,
+            newBalance,
+          }),
+        );
+
+        wallet.balance = newBalance;
+        wallet.ledgerBalance = newBalance;
+        return wallet;
+      },
+    );
 
     return savedWallet;
   }
@@ -203,12 +315,12 @@ export class WalletService {
     const totalCount = await this.transactionRepository.count({
       where: { userId },
     });
-    
+
     const successCount = await this.transactionRepository.count({
       where: { userId, status: 'success' },
     });
 
-    // Referral commission can be derived from credits containing 'referral' in descriptions
+    // Referral commission derived from credits with 'referral' in description
     const wallet = await this.findOneByUserId(userId);
     const referralTx = await this.walletTransactionRepository.find({
       where: {
