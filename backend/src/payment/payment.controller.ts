@@ -1,4 +1,4 @@
-import { Controller, Get, Post, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, UseGuards, Req, Body, BadRequestException } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -42,11 +42,21 @@ export class PaymentController {
   }
 
   @Post('gafiapay/generate')
-  async generateGafiapayAccount(@Req() req: any) {
+  async generateGafiapayAccount(@Req() req: any, @Body() body: { nin?: string; bvn?: string }) {
+    const nin = body?.nin ? String(body.nin).trim() : '';
+    const bvn = body?.bvn ? String(body.bvn).trim() : '';
+    const idToUse = nin || bvn;
+
+    if (!idToUse || !/^\d{11}$/.test(idToUse)) {
+      throw new BadRequestException('Please provide a valid 11-digit NIN or BVN for PalmPay virtual account verification.');
+    }
+
     const account = await this.paymentService.generateGafiapayAccount(
       req.user.id,
       req.user.email,
       req.user.fullName,
+      nin,
+      bvn,
     );
     return {
       success: true,

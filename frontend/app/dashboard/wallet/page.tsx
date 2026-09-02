@@ -39,6 +39,9 @@ export default function FundWalletPage() {
   // PalmPay (Gafiapay under-the-hood) states
   const [palmpayAccount, setPalmpayAccount] = useState<VirtualAccount | null>(null)
   const [palmpayLoading, setPalmpayLoading] = useState(true)
+  const [showNinModal, setShowNinModal] = useState(false)
+  const [ninInput, setNinInput] = useState('')
+  const [ninError, setNinError] = useState('')
 
   const fetchHistory = async () => {
     try {
@@ -103,16 +106,27 @@ export default function FundWalletPage() {
   }
 
   // Generate PalmPay (Gafiapay) account
-  const generatePalmpayAccount = async () => {
+  const generatePalmpayAccount = async (ninValue: string) => {
+    const cleanNin = ninValue.trim()
+    if (!cleanNin || !/^\d{11}$/.test(cleanNin)) {
+      setNinError('Please enter a valid 11-digit NIN or BVN.')
+      return
+    }
+
     setLoading(true)
+    setNinError('')
     try {
-      const response = await api.post('/user/gafiapay/generate')
+      const response = await api.post('/user/gafiapay/generate', { nin: cleanNin })
       if (response.data.success && response.data.account) {
         setPalmpayAccount(response.data.account)
+        setShowNinModal(false)
+        setNinInput('')
         toast.success('Permanent PalmPay virtual account generated!')
       }
     } catch (err: any) {
-      toast.error(err.response?.data?.message || 'Failed to generate PalmPay account. Try again.')
+      const msg = err.response?.data?.message || 'Failed to generate PalmPay account. Try again.'
+      setNinError(msg)
+      toast.error(msg)
     } finally {
       setLoading(false)
     }
@@ -213,7 +227,11 @@ export default function FundWalletPage() {
                 </div>
               ) : (
                 <button
-                  onClick={generatePalmpayAccount}
+                  onClick={() => {
+                    setNinInput('')
+                    setNinError('')
+                    setShowNinModal(true)
+                  }}
                   disabled={loading}
                   className="w-full py-3 bg-gradient-blue hover:opacity-95 text-white font-bold rounded-xl shadow-glow-blue transition-all disabled:opacity-50 text-sm flex items-center justify-center space-x-2"
                 >
@@ -346,6 +364,89 @@ export default function FundWalletPage() {
           )}
         </div>
       </section>
+
+      {/* NIN KYC Modal for PalmPay */}
+      {showNinModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-dark-bg border border-silver-muted/20 rounded-2xl p-6 max-w-md w-full space-y-5 shadow-2xl relative">
+            <div className="flex items-center justify-between border-b border-white/10 pb-3">
+              <div className="flex items-center space-x-2">
+                <span className="text-xl">🛡️</span>
+                <h3 className="text-lg font-bold text-white">PalmPay Identity Verification</h3>
+              </div>
+              <button
+                onClick={() => !loading && setShowNinModal(false)}
+                className="text-silver-muted hover:text-white text-lg font-bold"
+                disabled={loading}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <p className="text-xs text-silver-muted leading-relaxed">
+                Central Bank of Nigeria (CBN) regulations require a valid <strong className="text-white">11-digit NIN</strong> (or BVN) to generate and link your dedicated PalmPay permanent virtual account.
+              </p>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-silver-light">
+                  National Identification Number (NIN) / BVN
+                </label>
+                <input
+                  type="text"
+                  maxLength={11}
+                  placeholder="Enter 11-digit NIN"
+                  value={ninInput}
+                  onChange={(e) => {
+                    const val = e.target.value.replace(/\D/g, '').slice(0, 11)
+                    setNinInput(val)
+                    if (ninError) setNinError('')
+                  }}
+                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white font-mono tracking-widest text-center text-lg focus:outline-none focus:border-primary-glow"
+                  disabled={loading}
+                />
+                <div className="flex justify-between items-center text-[11px] text-silver-muted pt-1">
+                  <span>Must be exactly 11 digits</span>
+                  <span>{ninInput.length}/11</span>
+                </div>
+              </div>
+
+              {ninError && (
+                <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs flex items-center space-x-2">
+                  <span>⚠️</span>
+                  <span>{ninError}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center space-x-3 pt-2">
+              <button
+                type="button"
+                onClick={() => setShowNinModal(false)}
+                disabled={loading}
+                className="flex-1 py-2.5 px-4 bg-white/5 hover:bg-white/10 text-silver-light font-semibold rounded-xl text-sm border border-white/10 transition-all disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => generatePalmpayAccount(ninInput)}
+                disabled={loading || ninInput.length !== 11}
+                className="flex-1 py-2.5 px-4 bg-gradient-blue hover:opacity-95 text-white font-bold rounded-xl text-sm shadow-glow-blue transition-all disabled:opacity-50 flex items-center justify-center space-x-2"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                    <span>Verifying...</span>
+                  </>
+                ) : (
+                  <span>Verify & Generate</span>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

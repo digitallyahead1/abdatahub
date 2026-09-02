@@ -62,26 +62,172 @@ class _WalletTabState extends State<WalletTab> {
     }
   }
 
-  void _generateGafiapay() async {
-    final walletProv = Provider.of<WalletProvider>(context, listen: false);
-    final success = await walletProv.generateGafiapayAccount();
-    if (mounted) {
-      if (success) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('PalmPay reserved account generated successfully!'),
-            backgroundColor: AppColors.success,
-          ),
+  void _showGafiapayNinDialog() {
+    final ninController = TextEditingController();
+    String? localError;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColors.darkBg,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (modalContext, setModalState) {
+            final walletProv = Provider.of<WalletProvider>(modalContext);
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 24,
+                bottom: MediaQuery.of(modalContext).viewInsets.bottom + 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Text('🛡️', style: TextStyle(fontSize: 20)),
+                          const SizedBox(width: 8),
+                          Text(
+                            'PalmPay Verification',
+                            style: TextStyle(
+                              color: AppColors.silverLight,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
+                      IconButton(
+                        onPressed: walletProv.isGafiapayLoading ? null : () => Navigator.pop(modalContext),
+                        icon: Icon(Icons.close, color: AppColors.silverMuted, size: 20),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    'Central Bank of Nigeria (CBN) regulations require a valid 11-digit NIN or BVN to link and issue your dedicated PalmPay virtual account.',
+                    style: TextStyle(color: AppColors.silverMuted, fontSize: 13, height: 1.4),
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'National Identification Number (NIN) / BVN',
+                    style: TextStyle(
+                      color: AppColors.silverLight,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: ninController,
+                    keyboardType: TextInputType.number,
+                    maxLength: 11,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    style: const TextStyle(
+                      color: Colors.white,
+                      letterSpacing: 3,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Enter 11-digit NIN',
+                      hintStyle: TextStyle(color: AppColors.silverMuted.withValues(alpha: 0.5), letterSpacing: 1),
+                      filled: true,
+                      fillColor: Colors.white.withValues(alpha: 0.05),
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      counterText: '',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(14),
+                        borderSide: const BorderSide(color: AppColors.accentGlow),
+                      ),
+                    ),
+                    onChanged: (val) {
+                      if (localError != null) {
+                        setModalState(() => localError = null);
+                      }
+                    },
+                  ),
+                  if (localError != null) ...[
+                    const SizedBox(height: 8),
+                    Text(
+                      localError!,
+                      style: const TextStyle(color: AppColors.error, fontSize: 12),
+                    ),
+                  ],
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: walletProv.isGafiapayLoading
+                          ? null
+                          : () async {
+                              final nin = ninController.text.trim();
+                              if (nin.length != 11) {
+                                setModalState(() {
+                                  localError = 'Please enter a valid 11-digit NIN or BVN';
+                                });
+                                return;
+                              }
+
+                              final success = await walletProv.generateGafiapayAccount(nin: nin);
+                              if (!modalContext.mounted) return;
+
+                              if (success) {
+                                Navigator.pop(modalContext);
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text('PalmPay reserved account generated successfully!'),
+                                      backgroundColor: AppColors.success,
+                                    ),
+                                  );
+                                }
+                              } else {
+                                setModalState(() {
+                                  localError = walletProv.errorMessage ?? 'Generation failed. Please check details.';
+                                });
+                              }
+                            },
+                      style: ElevatedButton.styleFrom(
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                      ),
+                      child: walletProv.isGafiapayLoading
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                            )
+                          : const Text(
+                              'Verify & Generate Account',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
         );
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(walletProv.errorMessage ?? 'Generation failed'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    }
+      },
+    );
   }
 
   @override
@@ -409,7 +555,7 @@ class _WalletTabState extends State<WalletTab> {
           width: double.infinity,
           height: 54,
           child: ElevatedButton(
-            onPressed: walletProvider.isLoading ? null : _generateGafiapay,
+            onPressed: walletProvider.isLoading ? null : _showGafiapayNinDialog,
             style: ElevatedButton.styleFrom(
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
             ),

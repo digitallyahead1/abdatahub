@@ -157,6 +157,8 @@ export class PaymentService {
     userId: string,
     email: string,
     fullName: string,
+    nin?: string,
+    bvn?: string,
   ): Promise<GafiapayVirtualAccount> {
     const active = await this.getActiveGafiapayAccount(userId);
     if (active) {
@@ -169,11 +171,15 @@ export class PaymentService {
     const accountName = `ABDATAHUB ${capitalizedFirstName}`.trim();
 
     const timestamp = Date.now().toString();
-    const reqBody = {
+    const reqBody: Record<string, any> = {
       email,
       name: accountName,
-      nin: '31721867311',
     };
+    if (nin) {
+      reqBody.nin = nin.trim();
+    } else if (bvn) {
+      reqBody.bvn = bvn.trim();
+    }
 
     const bodyString = JSON.stringify(reqBody);
     const signString = `${bodyString}${timestamp}`;

@@ -157,12 +157,14 @@ class WalletProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> generateGafiapayAccount() async {
+  Future<bool> generateGafiapayAccount({required String nin}) async {
     _isGafiapayLoading = true;
     _errorMessage = null;
     notifyListeners();
     try {
-      final response = await _apiService.post('/user/gafiapay/generate');
+      final response = await _apiService.post('/user/gafiapay/generate', data: {
+        'nin': nin.trim(),
+      });
       if (response.data != null && response.data['success'] == true) {
         _gafiapayAccount = response.data['account'];
         return true;
