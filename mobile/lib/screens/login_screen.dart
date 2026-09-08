@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../services/biometric_service.dart';
 import '../theme/app_theme.dart';
 import 'register_screen.dart';
 import 'dashboard_screen.dart';
@@ -18,6 +19,54 @@ class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _obscurePassword = true;
+  bool _canUseBiometrics = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometrics();
+  }
+
+  void _checkBiometrics() async {
+    final bio = BiometricService();
+    final isEnabled = await bio.isBiometricEnabled();
+    if (isEnabled) {
+      final savedId = await bio.getSavedIdentifier();
+      if (mounted) {
+        setState(() {
+          _canUseBiometrics = true;
+          if (savedId != null && savedId.isNotEmpty && _emailController.text.isEmpty) {
+            _emailController.text = savedId;
+          }
+        });
+        // Prompt for biometric unlock on screen launch for smooth UX
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          _loginWithBiometrics();
+        });
+      }
+    }
+  }
+
+  void _loginWithBiometrics() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    if (auth.isLoading) return;
+
+    final success = await auth.loginWithBiometrics();
+    if (mounted) {
+      if (success) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const DashboardScreen()),
+        );
+      } else if (auth.errorMessage != null && auth.errorMessage!.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(auth.errorMessage!),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
 
   @override
   void dispose() {
@@ -223,6 +272,39 @@ class _LoginScreenState extends State<LoginScreen> {
                               ),
                       ),
                     ),
+                    if (_canUseBiometrics) ...[
+                      const SizedBox(height: 14),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: OutlinedButton.icon(
+                          onPressed: auth.isLoading ? null : _loginWithBiometrics,
+                          icon: Icon(
+                            Icons.fingerprint,
+                            color: AppColors.accentGlow,
+                            size: 26,
+                          ),
+                          label: Text(
+                            'Sign In with Biometrics',
+                            style: TextStyle(
+                              color: AppColors.silverLight,
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: AppColors.accentGlow.withValues(alpha: 0.35),
+                              width: 1.5,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(14),
+                            ),
+                            backgroundColor: AppColors.accentGlow.withValues(alpha: 0.05),
+                          ),
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 24),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.center,

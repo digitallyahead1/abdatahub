@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../services/push_notification_service.dart';
+import '../services/biometric_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
@@ -61,7 +62,80 @@ class AuthProvider extends ChangeNotifier {
         _isAuthenticated = true;
         _isLoading = false;
         notifyListeners();
+
+        // If biometric login is enabled, keep stored credentials up to date
+        final bio = BiometricService();
+        if (await bio.isBiometricEnabled()) {
+          await bio.saveCredentials(identifier: emailOrPhone, password: password);
+        }
+
         // Sync FCM device token with backend for this newly logged-in user
+        PushNotificationService().syncTokenWithBackend();
+        return true;
+      } else {
+        _errorMessage = 'Invalid response from server';
+      }
+    } catch (e) {
+      _errorMessage = e.toString().replaceAll('Exception: ', '');
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return false;
+  }
+
+  Future<bool> loginWithBiometrics() async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      final bioService = BiometricService();
+      final isEnabled = await bioService.isBiometricEnabled();
+      if (!isEnabled) {
+        _errorMessage = 'Biometric login is not enabled on this device';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      final creds = await bioService.getSavedCredentials();
+      if (creds == null) {
+        _errorMessage = 'No biometric credentials found. Please sign in with your password.';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      final authResult = await bioService.authenticate(
+        reason: 'Scan your fingerprint or face to sign in to AB Data Hub',
+      );
+
+      if (!authResult.success) {
+        if (!authResult.isCanceled) {
+          _errorMessage = authResult.errorMessage ?? 'Biometric authentication failed';
+        }
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      final response = await _apiService.post(
+        '/auth/login',
+        data: {
+          'email': creds['identifier'],
+          'password': creds['password'],
+        },
+      );
+
+      final responseData = response.data;
+      final data = responseData != null ? responseData['data'] : null;
+      if (data != null && data['accessToken'] != null) {
+        await _apiService.saveToken(data['accessToken']);
+        _user = data['user'];
+        _isAuthenticated = true;
+        _isLoading = false;
+        notifyListeners();
         PushNotificationService().syncTokenWithBackend();
         return true;
       } else {

@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import { useRef, useState } from 'react'
 import { Transaction } from '@/types'
 
 interface TransactionReceiptModalProps {
@@ -14,6 +15,9 @@ export default function TransactionReceiptModal({
   onClose,
   transaction,
 }: TransactionReceiptModalProps) {
+  const receiptRef = useRef<HTMLDivElement>(null)
+  const [isSharing, setIsSharing] = useState(false)
+
   if (!isOpen || !transaction) return null
 
   const tx = transaction
@@ -109,6 +113,56 @@ export default function TransactionReceiptModal({
     window.print()
   }
 
+  const handleShareAsImage = async () => {
+    if (!receiptRef.current || isSharing) return
+    setIsSharing(true)
+    try {
+      // Dynamically import html2canvas to keep the bundle lean
+      const html2canvas = (await import('html2canvas')).default
+      const canvas = await html2canvas(receiptRef.current, {
+        useCORS: true,
+        scale: 3,          // High-DPI for crisp output
+        backgroundColor: '#ffffff',
+        logging: false,
+      })
+
+      const fileName = `receipt-${tx.reference}.png`
+
+      // Prefer the Web Share API (works great on mobile browsers)
+      if (typeof navigator !== 'undefined' && navigator.share && navigator.canShare) {
+        canvas.toBlob(async (blob) => {
+          if (!blob) return
+          const file = new File([blob], fileName, { type: 'image/png' })
+          if (navigator.canShare({ files: [file] })) {
+            await navigator.share({
+              files: [file],
+              title: `AB Data Hub Receipt – ${tx.reference}`,
+              text: `Transaction receipt for ₦${tx.amount.toLocaleString()} (${serviceLabel})`,
+            })
+          } else {
+            // canShare returned false for files – fall back to download
+            downloadCanvas(canvas, fileName)
+          }
+          setIsSharing(false)
+        }, 'image/png')
+      } else {
+        // Desktop fallback: trigger a download
+        downloadCanvas(canvas, fileName)
+        setIsSharing(false)
+      }
+    } catch (err) {
+      console.error('Share as image failed:', err)
+      setIsSharing(false)
+    }
+  }
+
+  function downloadCanvas(canvas: HTMLCanvasElement, fileName: string) {
+    const link = document.createElement('a')
+    link.download = fileName
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+  }
+
   // Brand Color configured headers (uses AB Data Hub premium blue theme)
   const statusConfig = isSuccess
     ? { bg: 'bg-gradient-to-br from-[#0066E8] to-[#00A8FF]', iconColor: 'text-[#0066E8]', title: 'Transaction Successful', color: 'text-emerald-500' }
@@ -120,6 +174,7 @@ export default function TransactionReceiptModal({
     <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/75 backdrop-blur-sm px-4 animate-fade-in print:bg-white print:backdrop-blur-none print:static print:px-0">
       <div
         id="transaction-receipt"
+        ref={receiptRef}
         className="relative bg-white rounded-xl max-w-sm w-full shadow-2xl overflow-y-auto max-h-[92vh] print:shadow-none print:max-w-full print:rounded-none print:max-h-none"
       >
         {/* Close button (hidden on print) */}
@@ -208,13 +263,40 @@ export default function TransactionReceiptModal({
         </div>
 
         {/* Action buttons (hidden on print) */}
-        <div className="px-5 pb-5 pt-3 flex gap-3 print:hidden">
+        <div className="px-5 pb-5 pt-3 flex gap-2 print:hidden">
+          {/* Done */}
           <button
             onClick={onClose}
             className="flex-1 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-lg transition-all text-xs"
           >
             Done
           </button>
+
+          {/* Share as Image */}
+          <button
+            onClick={handleShareAsImage}
+            disabled={isSharing}
+            className="flex-1 py-2 bg-gradient-to-r from-[#0066E8] to-[#00A8FF] text-white font-bold rounded-lg transition-all text-xs flex items-center justify-center space-x-1.5 shadow-md hover:opacity-90 active:scale-95 disabled:opacity-60"
+          >
+            {isSharing ? (
+              <>
+                <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                <span>Capturing…</span>
+              </>
+            ) : (
+              <>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>Share Image</span>
+              </>
+            )}
+          </button>
+
+          {/* Save / Print */}
           <button
             onClick={handlePrint}
             className="flex-1 py-2 bg-white border border-[#0066E8] text-[#0066E8] hover:bg-blue-50 font-bold rounded-lg transition-all text-xs flex items-center justify-center space-x-1.5 shadow-sm"
@@ -222,7 +304,7 @@ export default function TransactionReceiptModal({
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
             </svg>
-            <span>Save/Print</span>
+            <span>Print</span>
           </button>
         </div>
       </div>

@@ -223,27 +223,59 @@ class TransactionDetailsSheet extends StatelessWidget {
           ],
 
           const SizedBox(height: 24),
-          // Share PDF Receipt button
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton.icon(
-              onPressed: () => PdfHelper.shareTransactionReceipt(context, tx),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primaryBlue,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+          // Share Receipt Buttons (Image & PDF)
+          Row(
+            children: [
+              Expanded(
+                child: SizedBox(
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: () => PdfHelper.shareTransactionReceiptAsImage(context, tx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF10B981),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 2,
+                    ),
+                    icon: const Icon(Icons.image_outlined, color: Colors.white, size: 18),
+                    label: const Text(
+                      'Share Image',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
                 ),
               ),
-              icon: const Icon(Icons.picture_as_pdf_outlined, color: Colors.white, size: 18),
-              label: const Text(
-                'Share PDF Receipt',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
+              const SizedBox(width: 10),
+              Expanded(
+                child: SizedBox(
+                  height: 50,
+                  child: ElevatedButton.icon(
+                    onPressed: () => PdfHelper.shareTransactionReceipt(context, tx),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primaryBlue,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      elevation: 2,
+                    ),
+                    icon: const Icon(Icons.picture_as_pdf_outlined, color: Colors.white, size: 18),
+                    label: const Text(
+                      'Share PDF',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
                 ),
               ),
-            ),
+            ],
           ),
           const SizedBox(height: 10),
           SizedBox(
