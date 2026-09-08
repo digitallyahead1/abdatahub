@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
+import '../services/push_notification_service.dart';
 
 class AuthProvider extends ChangeNotifier {
   final ApiService _apiService = ApiService();
@@ -60,6 +61,8 @@ class AuthProvider extends ChangeNotifier {
         _isAuthenticated = true;
         _isLoading = false;
         notifyListeners();
+        // Sync FCM device token with backend for this newly logged-in user
+        PushNotificationService().syncTokenWithBackend();
         return true;
       } else {
         _errorMessage = 'Invalid response from server';
@@ -105,6 +108,7 @@ class AuthProvider extends ChangeNotifier {
         await _apiService.saveToken(data['accessToken']);
         _user = data['user'];
         _isAuthenticated = true;
+        PushNotificationService().syncTokenWithBackend();
       }
       
       _isLoading = false;

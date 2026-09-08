@@ -155,21 +155,26 @@ export default function AgentRequestsPage() {
                       }) : 'N/A'}
                     </td>
                     <td className="py-4 px-6 text-center">
-                      {req.agentStatus === 'pending' && (
-                        <span className="px-2.5 py-1 bg-amber-500/10 text-amber-400 text-xs font-semibold rounded-full uppercase tracking-wider">
-                          Pending
+                      <div className="flex flex-col items-center gap-1">
+                        {req.agentStatus === 'pending' && (
+                          <span className="px-2.5 py-1 bg-amber-500/10 text-amber-400 text-xs font-semibold rounded-full uppercase tracking-wider">
+                            Pending
+                          </span>
+                        )}
+                        {req.agentStatus === 'approved' && (
+                          <span className="px-2.5 py-1 bg-green-500/10 text-green-400 text-xs font-semibold rounded-full uppercase tracking-wider">
+                            Approved
+                          </span>
+                        )}
+                        {req.agentStatus === 'rejected' && (
+                          <span className="px-2.5 py-1 bg-red-500/10 text-red-400 text-xs font-semibold rounded-full uppercase tracking-wider">
+                            Rejected
+                          </span>
+                        )}
+                        <span className="px-1.5 py-0.5 bg-primary-blue/15 text-primary-glow text-[10px] font-mono font-semibold rounded">
+                          ₦3,000 Fee Paid
                         </span>
-                      )}
-                      {req.agentStatus === 'approved' && (
-                        <span className="px-2.5 py-1 bg-green-500/10 text-green-400 text-xs font-semibold rounded-full uppercase tracking-wider">
-                          Approved
-                        </span>
-                      )}
-                      {req.agentStatus === 'rejected' && (
-                        <span className="px-2.5 py-1 bg-red-500/10 text-red-400 text-xs font-semibold rounded-full uppercase tracking-wider">
-                          Rejected
-                        </span>
-                      )}
+                      </div>
                     </td>
                     <td className="py-4 px-6 text-right space-x-2 whitespace-nowrap">
                       {req.agentStatus === 'pending' && (

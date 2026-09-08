@@ -4,20 +4,40 @@ import { useContext, useState } from 'react'
 import { AuthContext } from '@/context/AuthContext'
 import api from '@/lib/api'
 import { toast } from 'sonner'
+import Link from 'next/link'
+
+const AGENT_FEE = 3000
 
 export default function BecomeAgentPage() {
   const auth = useContext(AuthContext)
   const [submitting, setSubmitting] = useState(false)
 
+  const walletBalance = Number(auth?.user?.walletBalance || 0)
+  const hasSufficientBalance = walletBalance >= AGENT_FEE
+
   const handleApply = async () => {
+    if (!hasSufficientBalance) {
+      toast.error(`Insufficient wallet balance. You need at least ₦${AGENT_FEE.toLocaleString()} to apply for Agent status. Please fund your wallet.`)
+      return
+    }
+
+    const confirmed = window.confirm(
+      `Confirm Payment:\n\nA fee of ₦${AGENT_FEE.toLocaleString()} will be debited from your wallet balance to submit your Agent application.\n\nDo you want to proceed?`
+    )
+    if (!confirmed) return
+
     setSubmitting(true)
     try {
       const response = await api.post('/users/apply-agent')
       if (response.data.success) {
-        if (auth?.updateUser) {
-          auth.updateUser(response.data.data)
+        if (auth?.updateUser && auth.user) {
+          auth.updateUser({
+            ...auth.user,
+            agentStatus: 'pending',
+            walletBalance: Math.max(0, walletBalance - AGENT_FEE),
+          })
         }
-        toast.success('Application Submitted! Your request is now pending approval.')
+        toast.success(`Application Submitted! ₦${AGENT_FEE.toLocaleString()} has been debited from your wallet. Your request is now pending approval.`)
       }
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Something went wrong. Please try again.')
@@ -108,25 +128,101 @@ export default function BecomeAgentPage() {
           </div>
         </div>
 
+        {/* Application Fee Notice Box (For Not Applied & Rejected States) */}
+        {(agentStatus === 'none' || agentStatus === 'rejected') && (
+          <div className="p-5 bg-primary-glow/5 border border-primary-glow/20 rounded-2xl space-y-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 rounded-xl bg-primary-glow/15 flex items-center justify-center text-primary-glow shrink-0">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-white">Agent Upgrade Fee: ₦{AGENT_FEE.toLocaleString()}</h4>
+                  <p className="text-xs text-silver-muted">One-time payment deducted directly from your wallet</p>
+                </div>
+              </div>
+
+              {/* Wallet Balance Display */}
+              <div className="text-left sm:text-right">
+                <span className="text-[11px] text-silver-muted uppercase tracking-wider block">Your Wallet Balance</span>
+                <span className={`text-sm font-bold font-mono ${hasSufficientBalance ? 'text-emerald-400' : 'text-red-400'}`}>
+                  ₦{walletBalance.toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            {/* Note telling the user about payment */}
+            <div className="p-3 bg-dark-bg/60 border border-white/5 rounded-xl text-xs text-silver-muted space-y-1">
+              <p className="font-semibold text-silver-light flex items-center gap-1.5">
+                <svg className="w-4 h-4 text-amber-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Important Application Note:
+              </p>
+              <p>
+                You must pay a one-time application fee of <strong className="text-white font-bold">₦{AGENT_FEE.toLocaleString()}</strong> from your wallet balance to submit your Agent request. This amount will be debited automatically upon application submission.
+              </p>
+            </div>
+
+            {/* Insufficient balance warning and fund button */}
+            {!hasSufficientBalance && (
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-xs text-red-400">
+                <div className="flex items-center gap-2">
+                  <svg className="w-4 h-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <span>Your wallet balance is below ₦{AGENT_FEE.toLocaleString()}. Please fund your wallet before applying.</span>
+                </div>
+                <Link
+                  href="/dashboard/wallet"
+                  className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg text-xs transition-all text-center shrink-0"
+                >
+                  Fund Wallet
+                </Link>
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Action area */}
         <div className="pt-6 flex flex-col items-center justify-center border-t border-silver-muted/10 text-center space-y-4">
           {agentStatus === 'none' && (
             <>
-              <p className="text-sm text-silver-muted">Click the button below to request an upgrade to an Agent account.</p>
+              <p className="text-xs text-silver-muted">
+                Clicking the button below will deduct ₦{AGENT_FEE.toLocaleString()} from your wallet and send your application for review.
+              </p>
               <button
                 onClick={handleApply}
-                disabled={submitting}
-                className="px-8 py-3 bg-gradient-to-r from-primary-blue to-primary-glow hover:opacity-90 disabled:opacity-50 text-dark-bg font-bold rounded-xl shadow-lg transition-all duration-200"
+                disabled={submitting || !hasSufficientBalance}
+                className="px-8 py-3 bg-gradient-to-r from-primary-blue to-primary-glow hover:opacity-90 disabled:opacity-50 text-dark-bg font-bold rounded-xl shadow-lg transition-all duration-200 flex items-center gap-2 text-sm"
               >
-                {submitting ? 'Submitting Request...' : 'Apply to Become Agent'}
+                {submitting ? (
+                  <>
+                    <svg className="animate-spin h-4 w-4 text-dark-bg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                    </svg>
+                    <span>Processing Payment...</span>
+                  </>
+                ) : (
+                  <>
+                    <span>Pay ₦{AGENT_FEE.toLocaleString()} &amp; Apply for Agent</span>
+                  </>
+                )}
               </button>
             </>
           )}
 
           {agentStatus === 'pending' && (
-            <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl max-w-md">
-              <p className="text-sm text-amber-400 font-medium">
-                Your agent application is currently under review by our administration. Once approved, your account pricing will update automatically.
+            <div className="p-5 bg-amber-500/10 border border-amber-500/20 rounded-xl max-w-md space-y-2">
+              <div className="inline-flex items-center gap-2 text-amber-400 font-bold text-sm">
+                <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                Application Under Review
+              </div>
+              <p className="text-xs text-silver-muted">
+                Your ₦{AGENT_FEE.toLocaleString()} application fee was received. Our administration is currently reviewing your request. Once approved, your account will immediately gain agent reseller discounts.
               </p>
             </div>
           )}
@@ -143,12 +239,15 @@ export default function BecomeAgentPage() {
           {agentStatus === 'rejected' && (
             <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl max-w-md space-y-3">
               <p className="text-sm text-red-400 font-medium">Your agent application was not approved.</p>
+              <p className="text-xs text-silver-muted">
+                You can re-apply by making the ₦{AGENT_FEE.toLocaleString()} application fee payment again.
+              </p>
               <button
                 onClick={handleApply}
-                disabled={submitting}
-                className="px-6 py-2 bg-gradient-to-r from-primary-blue to-primary-glow hover:opacity-90 disabled:opacity-50 text-dark-bg text-xs font-bold rounded-lg shadow-md transition-all duration-200"
+                disabled={submitting || !hasSufficientBalance}
+                className="px-6 py-2.5 bg-gradient-to-r from-primary-blue to-primary-glow hover:opacity-90 disabled:opacity-50 text-dark-bg text-xs font-bold rounded-lg shadow-md transition-all duration-200"
               >
-                Re-apply for Agent Status
+                {submitting ? 'Processing Payment...' : `Re-apply (₦${AGENT_FEE.toLocaleString()})`}
               </button>
             </div>
           )}

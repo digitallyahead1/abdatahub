@@ -2,12 +2,12 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:dio/dio.dart';
+import 'api_service.dart';
 
 // Top-level background message handler (must be top-level function)
 @pragma('vm:entry-point')
 Future<void> firebaseBackgroundMessageHandler(RemoteMessage message) async {
-  debugPrint('[FCM] Background message: ${message.notification?.title}');
+  debugPrint('[FCM] Background message: ${message.notification?.title ?? message.data['title']}');
 }
 
 class PushNotificationService {
@@ -17,21 +17,23 @@ class PushNotificationService {
 
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  bool _isInitialized = false;
 
   static const AndroidNotificationChannel _channel = AndroidNotificationChannel(
     'ab_data_hub_alerts',
     'AB Data Hub Alerts',
     description: 'Push notifications from AB Data Hub admin and transaction alerts',
-    importance: Importance.high,
+    importance: Importance.max,
     playSound: true,
     enableVibration: true,
   );
 
   /// Call once from main.dart after Firebase.initializeApp()
   Future<void> initialize({
-    required String baseUrl,
-    required Future<String?> Function() getToken,
+    String? baseUrl,
+    Future<String?> Function()? getToken,
   }) async {
+    if (_isInitialized) return;
     if (kIsWeb) {
       // FCM foreground/background channels are specific to native mobile apps
       return;
@@ -49,88 +51,96 @@ class PushNotificationService {
       );
 
       if (settings.authorizationStatus == AuthorizationStatus.denied) {
-        debugPrint('[FCM] Notification permission denied');
-        return;
+        debugPrint('[FCM] Notification permission denied by user');
       }
 
-    // Create Android notification channel
-    await _localNotifications
-        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
-        ?.createNotificationChannel(_channel);
+      // Create Android notification channel
+      await _localNotifications
+          .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+          ?.createNotificationChannel(_channel);
 
-    // Init local notifications (for foreground display)
-    const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const initSettings = InitializationSettings(android: androidSettings);
-    await _localNotifications.initialize(
-      initSettings,
-      onDidReceiveNotificationResponse: (details) {
-        debugPrint('[FCM] Local notification tapped: ${details.payload}');
-      },
-    );
-
-    // Register background handler
-    FirebaseMessaging.onBackgroundMessage(firebaseBackgroundMessageHandler);
-
-    // Foreground messages → show local notification banner
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-      debugPrint('[FCM] Foreground message: ${message.notification?.title}');
-      _showLocalNotification(message);
-    });
-
-    // App opened from notification (background → foreground)
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      debugPrint('[FCM] App opened from notification: ${message.notification?.title}');
-    });
-
-    // App launched from terminated state via notification
-    final initialMessage = await _fcm.getInitialMessage();
-    if (initialMessage != null) {
-      debugPrint('[FCM] App launched from terminated via notification');
-    }
-
-    // Refresh token if it rotates
-    _fcm.onTokenRefresh.listen((newToken) {
-      _registerTokenWithBackend(
-        baseUrl: baseUrl,
-        token: newToken,
-        getToken: getToken,
+      // Init local notifications (for foreground display)
+      const androidSettings = AndroidInitializationSettings('@mipmap/ic_launcher');
+      const initSettings = InitializationSettings(android: androidSettings);
+      await _localNotifications.initialize(
+        initSettings,
+        onDidReceiveNotificationResponse: (details) {
+          debugPrint('[FCM] Local notification tapped: ${details.payload}');
+        },
       );
-    });
 
-    // Register current token
-    final token = await _fcm.getToken();
-    if (token != null) {
-      await _registerTokenWithBackend(
-        baseUrl: baseUrl,
-        token: token,
-        getToken: getToken,
-      );
+      // Register background handler
+      FirebaseMessaging.onBackgroundMessage(firebaseBackgroundMessageHandler);
+
+      // Foreground messages → show local notification banner
+      FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+        debugPrint('[FCM] Foreground message: ${message.notification?.title ?? message.data['title']}');
+        _showLocalNotification(message);
+      });
+
+      // App opened from notification (background → foreground)
+      FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+        debugPrint('[FCM] App opened from notification: ${message.notification?.title ?? message.data['title']}');
+      });
+
+      // App launched from terminated state via notification
+      final initialMessage = await _fcm.getInitialMessage();
+      if (initialMessage != null) {
+        debugPrint('[FCM] App launched from terminated via notification: ${initialMessage.notification?.title ?? initialMessage.data['title']}');
+      }
+
+      // Refresh token if it rotates
+      _fcm.onTokenRefresh.listen((newToken) {
+        debugPrint('[FCM] Token refresh: $newToken');
+        _registerTokenWithBackend(newToken);
+      });
+
+      // Register current token
+      final token = await _fcm.getToken();
+      if (token != null) {
+        debugPrint('[FCM] Device FCM token obtained: $token');
+        await _registerTokenWithBackend(token);
+      }
+
+      _isInitialized = true;
+    } catch (e) {
+      debugPrint('[FCM] PushNotificationService init error: $e');
     }
-  } catch (e) {
-    debugPrint('[FCM] PushNotificationService init error: $e');
   }
-}
+
+  /// Manually trigger token synchronization (e.g. after login/register or on dashboard load)
+  Future<void> syncTokenWithBackend() async {
+    if (kIsWeb) return;
+    try {
+      final token = await _fcm.getToken();
+      if (token != null) {
+        await _registerTokenWithBackend(token);
+      }
+    } catch (e) {
+      debugPrint('[FCM] Error syncing token with backend: $e');
+    }
+  }
 
   void _showLocalNotification(RemoteMessage message) {
-    final notification = message.notification;
-    final android = message.notification?.android;
-    if (notification == null) return;
+    final title = message.notification?.title ?? message.data['title'] ?? 'AB Data Hub';
+    final body = message.notification?.body ?? message.data['body'] ?? '';
+    final imageUrl = message.notification?.android?.imageUrl ?? message.data['imageUrl'];
+
+    if (title.isEmpty && body.isEmpty) return;
 
     _localNotifications.show(
-      notification.hashCode,
-      notification.title,
-      notification.body,
+      message.hashCode,
+      title,
+      body,
       NotificationDetails(
         android: AndroidNotificationDetails(
           _channel.id,
           _channel.name,
           channelDescription: _channel.description,
-          importance: Importance.high,
+          importance: Importance.max,
           priority: Priority.high,
-          icon: android?.smallIcon ?? '@mipmap/ic_launcher',
-          largeIcon: android?.imageUrl != null
-              ? FilePathAndroidBitmap(android!.imageUrl!)
-              : null,
+          icon: '@mipmap/ic_launcher',
+          largeIcon: imageUrl != null ? FilePathAndroidBitmap(imageUrl) : null,
           playSound: true,
           enableVibration: true,
         ),
@@ -139,25 +149,17 @@ class PushNotificationService {
     );
   }
 
-  Future<void> _registerTokenWithBackend({
-    required String baseUrl,
-    required String token,
-    required Future<String?> Function() getToken,
-  }) async {
+  Future<void> _registerTokenWithBackend([String? explicitToken]) async {
     try {
-      final authToken = await getToken();
-      if (authToken == null) {
-        debugPrint('[FCM] No auth token — skipping device-token registration');
-        return;
-      }
-      final dio = Dio(BaseOptions(baseUrl: baseUrl));
-      await dio.post(
+      final token = explicitToken ?? await _fcm.getToken();
+      if (token == null) return;
+
+      await ApiService().post(
         '/notifications/device-token',
         data: {
           'token': token,
           'platform': defaultTargetPlatform.name.toLowerCase(),
         },
-        options: Options(headers: {'Authorization': 'Bearer $authToken'}),
       );
       debugPrint('[FCM] Device token registered with backend');
     } catch (e) {

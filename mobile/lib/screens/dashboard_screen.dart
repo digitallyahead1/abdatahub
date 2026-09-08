@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/wallet_provider.dart';
+import '../services/push_notification_service.dart';
 import '../theme/app_theme.dart';
 import 'home_tab.dart';
 import 'services_tab.dart';
@@ -34,6 +35,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<WalletProvider>(context, listen: false).fetchWalletData();
       Provider.of<AuthProvider>(context, listen: false).fetchProfile();
+      PushNotificationService().syncTokenWithBackend();
     });
   }
 

@@ -305,10 +305,31 @@ export class WalletService {
       where: { walletId: wallet.id },
       order: { createdAt: 'DESC' },
     });
-    return txs.map((tx) => ({
-      ...tx,
-      status: 'success',
-    }));
+    return txs.map((tx) => {
+      const desc = tx.description || '';
+      const phoneMatch = desc.match(/(?:\+?234|0)[789][01]\d{8}/);
+      const networkMatch = desc.match(/\b(MTN|AIRTEL|GLO|9MOBILE|ETISALAT)\b/i);
+
+      let detectedService = 'general';
+      const descLower = desc.toLowerCase();
+      if (descLower.includes('data')) detectedService = 'data';
+      else if (descLower.includes('airtime')) detectedService = 'airtime';
+      else if (descLower.includes('electricity') || descLower.includes('meter')) detectedService = 'electricity';
+      else if (descLower.includes('cable') || descLower.includes('dstv') || descLower.includes('gotv') || descLower.includes('startimes')) detectedService = 'cable';
+      else if (descLower.includes('exam') || descLower.includes('pin')) detectedService = 'exam-pin';
+      else if (descLower.includes('fund') || descLower.includes('deposit')) detectedService = 'deposit';
+      else if (descLower.includes('reversal') || descLower.includes('refund')) detectedService = 'reversal';
+
+      return {
+        ...tx,
+        status: 'success',
+        service: detectedService,
+        metadata: {
+          phoneNumber: phoneMatch ? phoneMatch[0] : undefined,
+          network: networkMatch ? networkMatch[1].toUpperCase() : undefined,
+        },
+      };
+    });
   }
 
   async getStats(userId: string) {

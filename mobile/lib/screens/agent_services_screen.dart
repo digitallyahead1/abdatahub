@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/wallet_provider.dart';
 import '../services/api_service.dart';
 import '../theme/app_theme.dart';
 
@@ -15,21 +16,76 @@ class AgentServicesScreen extends StatefulWidget {
 class _AgentServicesScreenState extends State<AgentServicesScreen> {
   bool _submitting = false;
   final ApiService _api = ApiService();
+  static const double _agentFee = 3000.0;
 
-  Future<void> _handleApply() async {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Provider.of<WalletProvider>(context, listen: false).fetchWalletData();
+    });
+  }
+
+  Future<void> _handleApply(bool hasSufficientBalance) async {
+    if (!hasSufficientBalance) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Insufficient wallet balance. You need at least ₦3,000 to apply.'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.darkBgSecondary,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Text(
+          'Confirm Application Fee',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'A fee of ₦3,000 will be deducted from your wallet balance to submit your Agent upgrade application.\n\nDo you want to proceed?',
+          style: TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel', style: TextStyle(color: AppColors.silverMuted)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primaryBlue,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Pay ₦3,000 & Apply', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirm != true) return;
+
     setState(() => _submitting = true);
     try {
       final response = await _api.post('/users/apply-agent');
       final data = response.data;
       if (data != null && data['success'] == true) {
-        // Refresh profile so agentStatus updates everywhere
+        // Refresh profile and wallet so agentStatus and balance update everywhere
         if (mounted) {
           await Provider.of<AuthProvider>(context, listen: false).fetchProfile();
+          if (!mounted) return;
+          await Provider.of<WalletProvider>(context, listen: false).fetchWalletData();
         }
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Application Submitted! Your request is now pending approval.'),
+              content: Text('Application Submitted! ₦3,000 debited from wallet. Your request is now pending approval.'),
               backgroundColor: AppColors.success,
               behavior: SnackBarBehavior.floating,
             ),
@@ -55,7 +111,10 @@ class _AgentServicesScreenState extends State<AgentServicesScreen> {
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthProvider>(context);
+    final wallet = Provider.of<WalletProvider>(context);
     final agentStatus = auth.user?['agentStatus'] as String? ?? 'none';
+    final balance = wallet.balance;
+    final hasSufficientBalance = balance >= _agentFee;
 
     return Scaffold(
       appBar: AppBar(
@@ -153,30 +212,35 @@ class _AgentServicesScreenState extends State<AgentServicesScreen> {
                           const SizedBox(height: 20),
 
                           // Benefits Grid
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _buildBenefitCard(
-                                  icon: Icons.trending_up,
-                                  color: AppColors.primaryBlue,
-                                  title: 'Reseller Data Pricing',
-                                  description: 'Save significantly on every GB of data across all networks.',
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _buildBenefitCard(
-                                  icon: Icons.monetization_on_outlined,
-                                  color: const Color(0xFF8B5CF6),
-                                  title: 'Discounted Airtime',
-                                  description: 'Cheaper rates for top-ups on all networks instantly.',
-                                ),
-                              ),
-                            ],
+                          Text(
+                            'AGENT BENEFITS',
+                            style: TextStyle(
+                              color: AppColors.silverMuted.withValues(alpha: 0.7),
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.2,
+                            ),
                           ),
                           const SizedBox(height: 12),
+
                           _buildBenefitCard(
-                            icon: Icons.description_outlined,
+                            icon: Icons.wifi,
+                            color: AppColors.primaryBlue,
+                            title: 'Reseller Data Pricing',
+                            description: 'Save significantly on every gigabyte of MTN, Airtel, Glo, and 9mobile plans.',
+                          ),
+                          const SizedBox(height: 10),
+
+                          _buildBenefitCard(
+                            icon: Icons.phone_android,
+                            color: const Color(0xFFA855F7),
+                            title: 'Discounted Airtime',
+                            description: 'Enjoy cheaper rates for top-ups on all networks with instant automated delivery.',
+                          ),
+                          const SizedBox(height: 10),
+
+                          _buildBenefitCard(
+                            icon: Icons.school,
                             color: AppColors.success,
                             title: 'Bulk Exam Checkers',
                             description: 'Purchase WAEC result checker PINs and NECO tokens at low wholesale rates.',
@@ -188,7 +252,7 @@ class _AgentServicesScreenState extends State<AgentServicesScreen> {
                           const SizedBox(height: 20),
 
                           // Action Area
-                          _buildActionArea(agentStatus),
+                          _buildActionArea(agentStatus, balance, hasSufficientBalance),
                         ],
                       ),
                     ),
@@ -206,11 +270,10 @@ class _AgentServicesScreenState extends State<AgentServicesScreen> {
               ),
               const SizedBox(height: 12),
               _buildInfoCard(
-                icon: Icons.flash_on_outlined,
-                title: 'Instant Price Updates',
-                body: 'Once approved, your account pricing updates automatically with no action needed from you.',
+                icon: Icons.support_agent_outlined,
+                title: 'Dedicated Support',
+                body: 'Approved agents receive priority support from our customer care team.',
               ),
-              const SizedBox(height: 24),
             ],
           ),
         ),
@@ -218,40 +281,60 @@ class _AgentServicesScreenState extends State<AgentServicesScreen> {
     );
   }
 
-  Widget _buildStatusBadge(String status) {
+  Widget _buildStatusBadge(String agentStatus) {
     Color bg;
     Color fg;
     String label;
-    switch (status) {
-      case 'pending':
-        bg = const Color(0xFFF59E0B).withValues(alpha: 0.15);
-        fg = const Color(0xFFF59E0B);
-        label = 'Pending';
-        break;
+    IconData icon;
+
+    switch (agentStatus) {
       case 'approved':
-        bg = AppColors.success.withValues(alpha: 0.15);
+        bg = AppColors.success.withValues(alpha: 0.12);
         fg = AppColors.success;
-        label = 'Approved';
+        label = 'Approved Agent';
+        icon = Icons.check_circle;
+        break;
+      case 'pending':
+        bg = const Color(0xFFF59E0B).withValues(alpha: 0.12);
+        fg = const Color(0xFFF59E0B);
+        label = 'Pending Review';
+        icon = Icons.hourglass_top_rounded;
         break;
       case 'rejected':
-        bg = AppColors.error.withValues(alpha: 0.15);
+        bg = AppColors.error.withValues(alpha: 0.12);
         fg = AppColors.error;
         label = 'Rejected';
+        icon = Icons.cancel_outlined;
         break;
       default:
-        bg = AppColors.silverMuted.withValues(alpha: 0.12);
+        bg = AppColors.silverMuted.withValues(alpha: 0.1);
         fg = AppColors.silverMuted;
         label = 'Not Applied';
+        icon = Icons.circle_outlined;
     }
+
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: fg.withValues(alpha: 0.3)),
       ),
-      child: Text(
-        label.toUpperCase(),
-        style: TextStyle(color: fg, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.8),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: fg),
+          const SizedBox(width: 5),
+          Text(
+            label,
+            style: TextStyle(
+              color: fg,
+              fontSize: 10,
+              fontWeight: FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -270,72 +353,168 @@ class _AgentServicesScreenState extends State<AgentServicesScreen> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.silverMuted.withValues(alpha: 0.06)),
       ),
-      child: wide
-          ? Row(
-              children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Icon(icon, color: color, size: 18),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title, style: TextStyle(color: AppColors.silverLight, fontSize: 13, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 2),
-                      Text(description, style: TextStyle(color: AppColors.silverMuted, fontSize: 11, height: 1.4)),
-                    ],
-                  ),
-                ),
-              ],
-            )
-          : Column(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: color.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: color, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(10),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: AppColors.silverLight,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
                   ),
-                  child: Icon(icon, color: color, size: 18),
                 ),
-                const SizedBox(height: 10),
-                Text(title, style: TextStyle(color: AppColors.silverLight, fontSize: 12, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 4),
-                Text(description, style: TextStyle(color: AppColors.silverMuted, fontSize: 11, height: 1.4)),
+                const SizedBox(height: 3),
+                Text(
+                  description,
+                  style: TextStyle(
+                    color: AppColors.silverMuted,
+                    fontSize: 11,
+                    height: 1.4,
+                  ),
+                ),
               ],
             ),
+          ),
+        ],
+      ),
     );
     return wide ? SizedBox(width: double.infinity, child: card) : card;
   }
 
-  Widget _buildActionArea(String agentStatus) {
+  Widget _buildFeeNoticeCard(double balance, bool hasSufficientBalance) {
+    return Container(
+      width: double.infinity,
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.primaryBlue.withValues(alpha: 0.08),
+        border: Border.all(color: AppColors.primaryBlue.withValues(alpha: 0.25)),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryBlue.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: const Icon(Icons.payments_rounded, color: AppColors.accentGlow, size: 20),
+                  ),
+                  const SizedBox(width: 10),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Upgrade Fee: ₦3,000',
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                      Text(
+                        'One-time wallet payment',
+                        style: TextStyle(color: AppColors.silverMuted.withValues(alpha: 0.7), fontSize: 10),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Text(
+                    'WALLET BALANCE',
+                    style: TextStyle(color: AppColors.silverMuted.withValues(alpha: 0.7), fontSize: 9, fontWeight: FontWeight.bold),
+                  ),
+                  Text(
+                    '₦${balance.toStringAsFixed(2)}',
+                    style: TextStyle(
+                      color: hasSufficientBalance ? AppColors.success : AppColors.error,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 13,
+                      fontFamily: 'Poppins',
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppColors.darkBg.withValues(alpha: 0.6),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.info_outline_rounded, color: AppColors.warning, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    'A one-time application fee of ₦3,000 will be deducted from your wallet balance upon submitting this request. Please ensure you have funded your wallet before applying.',
+                    style: TextStyle(color: AppColors.silverMuted.withValues(alpha: 0.9), fontSize: 11, height: 1.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (!hasSufficientBalance) ...[
+            const SizedBox(height: 10),
+            const Row(
+              children: [
+                Icon(Icons.error_outline_rounded, color: AppColors.error, size: 14),
+                SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Insufficient balance. Please fund your wallet with at least ₦3,000.',
+                    style: TextStyle(color: AppColors.error, fontSize: 11, fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActionArea(String agentStatus, double balance, bool hasSufficientBalance) {
     if (agentStatus == 'none') {
       return Column(
         children: [
-          Text(
-            'Click the button below to request an upgrade to an Agent account.',
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AppColors.silverMuted, fontSize: 13),
-          ),
-          const SizedBox(height: 16),
+          _buildFeeNoticeCard(balance, hasSufficientBalance),
           SizedBox(
             width: double.infinity,
             height: 52,
             child: ElevatedButton.icon(
-              onPressed: _submitting ? null : _handleApply,
+              onPressed: (_submitting || !hasSufficientBalance)
+                  ? null
+                  : () => _handleApply(hasSufficientBalance),
               icon: _submitting
                   ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                   : const Icon(Icons.verified_user),
-              label: Text(_submitting ? 'Submitting Request...' : 'Apply to Become Agent'),
+              label: Text(_submitting ? 'Processing Payment...' : 'Pay ₦3,000 & Apply'),
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.primaryBlue,
                 foregroundColor: Colors.white,
@@ -363,7 +542,7 @@ class _AgentServicesScreenState extends State<AgentServicesScreen> {
             SizedBox(width: 12),
             Expanded(
               child: Text(
-                'Your agent application is under review by our administration. Once approved, your account pricing will update automatically.',
+                'Your agent application is under review by our administration. Your ₦3,000 fee was received. Once approved, your account pricing will update automatically.',
                 style: TextStyle(color: Color(0xFFF59E0B), fontSize: 12, height: 1.5),
               ),
             ),
@@ -426,11 +605,14 @@ class _AgentServicesScreenState extends State<AgentServicesScreen> {
               ],
             ),
             const SizedBox(height: 12),
+            _buildFeeNoticeCard(balance, hasSufficientBalance),
             SizedBox(
               width: double.infinity,
               height: 44,
               child: ElevatedButton(
-                onPressed: _submitting ? null : _handleApply,
+                onPressed: (_submitting || !hasSufficientBalance)
+                    ? null
+                    : () => _handleApply(hasSufficientBalance),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.primaryBlue,
                   foregroundColor: Colors.white,
@@ -439,7 +621,7 @@ class _AgentServicesScreenState extends State<AgentServicesScreen> {
                 ),
                 child: _submitting
                     ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                    : const Text('Re-apply for Agent Status'),
+                    : const Text('Re-apply & Pay ₦3,000'),
               ),
             ),
           ],
@@ -461,22 +643,29 @@ class _AgentServicesScreenState extends State<AgentServicesScreen> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: AppColors.primaryBlue.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: AppColors.primaryBlue, size: 18),
-          ),
-          const SizedBox(width: 14),
+          Icon(icon, color: AppColors.silverLight, size: 20),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(title, style: TextStyle(color: AppColors.silverLight, fontSize: 13, fontWeight: FontWeight.bold)),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: AppColors.silverLight,
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
                 const SizedBox(height: 4),
-                Text(body, style: TextStyle(color: AppColors.silverMuted, fontSize: 12, height: 1.5)),
+                Text(
+                  body,
+                  style: TextStyle(
+                    color: AppColors.silverMuted,
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
+                ),
               ],
             ),
           ),

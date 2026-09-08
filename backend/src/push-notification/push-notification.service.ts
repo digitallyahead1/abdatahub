@@ -100,8 +100,10 @@ export class PushNotificationService implements OnModuleInit {
   ): Promise<void> {
     const existing = await this.deviceTokenRepo.findOne({ where: { token } });
     if (existing) {
-      // Update ownership / metadata
-      existing.userId = userId;
+      // Update ownership / metadata - only overwrite userId if a new valid userId is provided
+      if (userId) {
+        existing.userId = userId;
+      }
       existing.platform = platform;
       existing.isActive = true;
       existing.lastSeenAt = new Date();
@@ -111,7 +113,7 @@ export class PushNotificationService implements OnModuleInit {
     } else {
       await this.deviceTokenRepo.save(
         this.deviceTokenRepo.create({
-          userId,
+          userId: userId ?? null,
           token,
           platform,
           deviceModel: deviceModel ?? null,
@@ -234,6 +236,19 @@ export class PushNotificationService implements OnModuleInit {
       let totalFailure = 0;
       const invalidTokens: string[] = [];
 
+      // Ensure all values in data are strings because FCM strictly requires Record<string, string>
+      const stringifiedData: Record<string, string> = {};
+      if (data && typeof data === 'object') {
+        for (const [k, v] of Object.entries(data)) {
+          if (v !== undefined && v !== null) {
+            stringifiedData[String(k)] = typeof v === 'string' ? v : JSON.stringify(v);
+          }
+        }
+      }
+      stringifiedData['title'] = String(title || '');
+      stringifiedData['body'] = String(body || '');
+      stringifiedData['click_action'] = 'FLUTTER_NOTIFICATION_CLICK';
+
       for (let i = 0; i < tokens.length; i += CHUNK) {
         const chunk = tokens.slice(i, i + CHUNK);
         const message: admin.messaging.MulticastMessage = {
@@ -259,12 +274,7 @@ export class PushNotificationService implements OnModuleInit {
               },
             },
           },
-          data: {
-            ...data,
-            title,
-            body,
-            click_action: 'FLUTTER_NOTIFICATION_CLICK',
-          },
+          data: stringifiedData,
         };
 
         const response = await admin.messaging().sendEachForMulticast(message);

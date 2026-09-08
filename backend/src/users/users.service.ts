@@ -4,6 +4,8 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { Wallet } from '../entities/wallet.entity';
+import { Transaction } from '../entities/transaction.entity';
+import { WalletService } from '../wallet/wallet.service';
 
 @Injectable()
 export class UsersService {
@@ -12,6 +14,9 @@ export class UsersService {
     private userRepository: Repository<User>,
     @InjectRepository(Wallet)
     private walletRepository: Repository<Wallet>,
+    @InjectRepository(Transaction)
+    private transactionRepository: Repository<Transaction>,
+    private walletService: WalletService,
   ) {}
 
   async findOneByEmail(email: string): Promise<User | null> {
@@ -115,9 +120,45 @@ export class UsersService {
     if (!user) {
       throw new NotFoundException('User not found');
     }
-    if (user.agentStatus === 'approved') {
+    if (user.agentStatus === 'approved' || user.role === 'agent') {
       throw new BadRequestException('You are already an approved agent.');
     }
+    if (user.agentStatus === 'pending') {
+      throw new BadRequestException('You already have a pending agent application under review.');
+    }
+
+    const AGENT_FEE = 3000;
+    const wallet = await this.walletService.findOneByUserId(userId);
+    if (Number(wallet.balance) < AGENT_FEE) {
+      throw new BadRequestException(
+        `Insufficient wallet balance. An application fee of ₦${AGENT_FEE.toLocaleString()} is required to apply for Agent status. Your current balance is ₦${Number(wallet.balance).toLocaleString()}. Please fund your wallet and try again.`,
+      );
+    }
+
+    // Debit the ₦3,000 fee atomically from wallet
+    const ref = 'AGT' + Math.random().toString(36).substring(2, 12).toUpperCase();
+    await this.walletService.debit(
+      userId,
+      AGENT_FEE,
+      `Agent status upgrade application fee (₦${AGENT_FEE.toLocaleString()})`,
+    );
+
+    // Record system transaction log
+    const systemTx = this.transactionRepository.create({
+      userId,
+      type: 'debit',
+      service: 'agent-upgrade',
+      amount: AGENT_FEE,
+      status: 'success',
+      reference: ref,
+      metadata: {
+        fee: AGENT_FEE,
+        service: 'agent-upgrade',
+        description: 'Agent status upgrade application fee',
+      },
+    });
+    await this.transactionRepository.save(systemTx);
+
     user.agentStatus = 'pending';
     user.agentAppliedAt = new Date();
     return this.userRepository.save(user);

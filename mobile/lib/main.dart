@@ -8,7 +8,6 @@ import 'providers/auth_provider.dart';
 import 'providers/wallet_provider.dart';
 import 'screens/welcome_screen.dart';
 import 'screens/dashboard_screen.dart';
-import 'services/api_service.dart';
 import 'services/push_notification_service.dart';
 
 void main() async {
@@ -22,8 +21,9 @@ void main() async {
   // Initialise Firebase (required before using FCM)
   try {
     await Firebase.initializeApp();
+    await PushNotificationService().initialize();
   } catch (e) {
-    debugPrint("Firebase.initializeApp notice: $e");
+    debugPrint("Firebase/FCM initialize notice: $e");
   }
 
   runApp(const MyApp());
@@ -91,18 +91,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
     if (!mounted) return;
 
-    // Initialize push notifications now that we know the auth state
+    // Synchronize device token with backend now that user auth is established
     if (isAuthenticated) {
-      String baseUrl = 'https://api.abdatahub.com/api';
-      try {
-        if (dotenv.isInitialized) {
-          baseUrl = dotenv.maybeGet('API_BASE_URL') ?? baseUrl;
-        }
-      } catch (_) {}
-      PushNotificationService().initialize(
-        baseUrl: baseUrl,
-        getToken: () => ApiService().getAuthToken(),
-      );
+      PushNotificationService().syncTokenWithBackend();
     }
 
     Navigator.of(context).pushReplacement(
