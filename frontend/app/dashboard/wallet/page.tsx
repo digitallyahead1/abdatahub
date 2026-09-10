@@ -40,6 +40,7 @@ export default function FundWalletPage() {
   const [palmpayAccount, setPalmpayAccount] = useState<VirtualAccount | null>(null)
   const [palmpayLoading, setPalmpayLoading] = useState(true)
   const [showNinModal, setShowNinModal] = useState(false)
+  const [idType, setIdType] = useState<'nin' | 'bvn'>('nin')
   const [ninInput, setNinInput] = useState('')
   const [ninError, setNinError] = useState('')
 
@@ -106,17 +107,21 @@ export default function FundWalletPage() {
   }
 
   // Generate PalmPay (Gafiapay) account
-  const generatePalmpayAccount = async (ninValue: string) => {
-    const cleanNin = ninValue.trim()
-    if (!cleanNin || !/^\d{11}$/.test(cleanNin)) {
-      setNinError('Please enter a valid 11-digit NIN or BVN.')
+  const generatePalmpayAccount = async (idValue: string, selectedType: 'nin' | 'bvn') => {
+    const cleanId = idValue.trim()
+    if (!cleanId || !/^\d{11}$/.test(cleanId)) {
+      setNinError(`Please enter a valid 11-digit ${selectedType.toUpperCase()}.`)
       return
     }
 
     setLoading(true)
     setNinError('')
     try {
-      const response = await api.post('/user/gafiapay/generate', { nin: cleanNin })
+      const response = await api.post('/user/gafiapay/generate', { 
+        [selectedType]: cleanId,
+        idType: selectedType,
+        idNumber: cleanId,
+      })
       if (response.data.success && response.data.account) {
         setPalmpayAccount(response.data.account)
         setShowNinModal(false)
@@ -385,17 +390,52 @@ export default function FundWalletPage() {
 
             <div className="space-y-3">
               <p className="text-xs text-silver-muted leading-relaxed">
-                Central Bank of Nigeria (CBN) regulations require a valid <strong className="text-white">11-digit NIN</strong> (or BVN) to generate and link your dedicated PalmPay permanent virtual account.
+                Central Bank of Nigeria (CBN) regulations require a valid <strong className="text-white">11-digit NIN or BVN</strong> to generate and link your dedicated PalmPay permanent virtual account.
               </p>
 
+              {/* ID Type Selector */}
+              <div className="flex bg-dark-bg-secondary/60 border border-silver-muted/15 p-1 rounded-xl">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIdType('nin')
+                    if (ninError) setNinError('')
+                  }}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                    idType === 'nin'
+                      ? 'bg-gradient-blue text-white shadow-glow-blue'
+                      : 'text-silver-muted hover:text-white'
+                  }`}
+                >
+                  NIN (National ID)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIdType('bvn')
+                    if (ninError) setNinError('')
+                  }}
+                  className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
+                    idType === 'bvn'
+                      ? 'bg-gradient-blue text-white shadow-glow-blue'
+                      : 'text-silver-muted hover:text-white'
+                  }`}
+                >
+                  BVN (Bank Verification)
+                </button>
+              </div>
+
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-silver-light">
-                  National Identification Number (NIN) / BVN
+                <label className="text-xs font-semibold text-silver-light flex justify-between">
+                  <span>{idType === 'bvn' ? 'Bank Verification Number (BVN)' : 'National Identification Number (NIN)'}</span>
+                  <span className="text-[11px] text-primary-glow font-normal">
+                    {idType === 'bvn' ? '11-digit BVN' : '11-digit NIN'}
+                  </span>
                 </label>
                 <input
                   type="text"
                   maxLength={11}
-                  placeholder="Enter 11-digit NIN"
+                  placeholder={`Enter 11-digit ${idType.toUpperCase()}`}
                   value={ninInput}
                   onChange={(e) => {
                     const val = e.target.value.replace(/\D/g, '').slice(0, 11)
@@ -430,7 +470,7 @@ export default function FundWalletPage() {
               </button>
               <button
                 type="button"
-                onClick={() => generatePalmpayAccount(ninInput)}
+                onClick={() => generatePalmpayAccount(ninInput, idType)}
                 disabled={loading || ninInput.length !== 11}
                 className="flex-1 py-2.5 px-4 bg-gradient-blue hover:opacity-95 text-white font-bold rounded-xl text-sm shadow-glow-blue transition-all disabled:opacity-50 flex items-center justify-center space-x-2"
               >

@@ -42,10 +42,19 @@ export class PaymentController {
   }
 
   @Post('gafiapay/generate')
-  async generateGafiapayAccount(@Req() req: any, @Body() body: { nin?: string; bvn?: string }) {
+  async generateGafiapayAccount(
+    @Req() req: any,
+    @Body() body: { nin?: string; bvn?: string; idNumber?: string; idType?: 'nin' | 'bvn' | 'auto' },
+  ) {
     const nin = body?.nin ? String(body.nin).trim() : '';
     const bvn = body?.bvn ? String(body.bvn).trim() : '';
-    const idToUse = nin || bvn;
+    const rawId = body?.idNumber ? String(body.idNumber).trim() : '';
+
+    const idType: 'nin' | 'bvn' | 'auto' = body?.idType 
+      ? body.idType 
+      : (bvn && !nin ? 'bvn' : nin && !bvn ? 'nin' : 'auto');
+
+    const idToUse = rawId || (idType === 'bvn' ? (bvn || nin) : (nin || bvn));
 
     if (!idToUse || !/^\d{11}$/.test(idToUse)) {
       throw new BadRequestException('Please provide a valid 11-digit NIN or BVN for PalmPay virtual account verification.');
@@ -55,12 +64,12 @@ export class PaymentController {
       req.user.id,
       req.user.email,
       req.user.fullName,
-      nin,
-      bvn,
+      idToUse,
+      idType,
     );
     return {
       success: true,
-      message: 'Gafiapay permanent virtual account generated successfully',
+      message: 'PalmPay permanent virtual account generated successfully',
       account,
     };
   }

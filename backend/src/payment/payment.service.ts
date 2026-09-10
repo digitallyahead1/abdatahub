@@ -157,8 +157,8 @@ export class PaymentService {
     userId: string,
     email: string,
     fullName: string,
-    nin?: string,
-    bvn?: string,
+    idOrNin?: string,
+    bvnOrIdType?: string,
   ): Promise<GafiapayVirtualAccount> {
     const active = await this.getActiveGafiapayAccount(userId);
     if (active) {
@@ -170,26 +170,28 @@ export class PaymentService {
     const capitalizedFirstName = cleanedFirstName.charAt(0).toUpperCase() + cleanedFirstName.slice(1);
     const accountName = `ABDATAHUB ${capitalizedFirstName}`.trim();
 
-    const timestamp = Date.now().toString();
-    const reqBody: Record<string, any> = {
-      email,
-      name: accountName,
-    };
-    if (nin) {
-      reqBody.nin = nin.trim();
-    } else if (bvn) {
-      reqBody.bvn = bvn.trim();
-    }
+    const isExplicitIdType = bvnOrIdType === 'nin' || bvnOrIdType === 'bvn' || bvnOrIdType === 'auto';
+    const cleanId = (idOrNin || '').trim() || (isExplicitIdType ? '' : (bvnOrIdType || '').trim());
+    const preferredType: 'nin' | 'bvn' | 'auto' = isExplicitIdType
+      ? (bvnOrIdType as 'nin' | 'bvn' | 'auto')
+      : (bvnOrIdType ? 'bvn' : 'auto');
 
-    const bodyString = JSON.stringify(reqBody);
-    const signString = `${bodyString}${timestamp}`;
-    const signature = crypto
-      .createHmac('sha256', this.gafiapaySecretKey || 'secret')
-      .update(signString)
-      .digest('hex');
+    const callGafia = async (type: 'bvn' | 'nin') => {
+      const timestamp = Date.now().toString();
+      const reqBody: Record<string, any> = {
+        email,
+        name: accountName,
+        [type]: cleanId,
+      };
 
-    try {
-      const response = await axios.post(
+      const bodyString = JSON.stringify(reqBody);
+      const signString = `${bodyString}${timestamp}`;
+      const signature = crypto
+        .createHmac('sha256', this.gafiapaySecretKey || 'secret')
+        .update(signString)
+        .digest('hex');
+
+      return await axios.post(
         `${this.gafiapayBaseUrl}/account/generate`,
         reqBody,
         {
@@ -201,29 +203,69 @@ export class PaymentService {
           },
         },
       );
+    };
 
-      const data = response.data;
-      if (data.status !== 'success' || !data.data) {
-        throw new Error('Gafiapay account generation response status is not success');
+    // Determine primary and fallback types
+    const primaryType: 'bvn' | 'nin' = preferredType === 'bvn' ? 'bvn' : 'nin';
+    const fallbackType: 'bvn' | 'nin' = primaryType === 'nin' ? 'bvn' : 'nin';
+
+    let lastError: any = null;
+    let responseData: any = null;
+
+    try {
+      const res = await callGafia(primaryType);
+      responseData = res.data;
+    } catch (primaryErr: any) {
+      lastError = primaryErr;
+      const errMsg = primaryErr.response?.data?.message || primaryErr.message || '';
+      console.warn(
+        `Gafiapay account generation with ${primaryType.toUpperCase()} failed (${errMsg}). Attempting automatic fallback with ${fallbackType.toUpperCase()}...`,
+      );
+
+      // Attempt fallback with the alternate identity type (e.g. BVN if user entered BVN in NIN field, or vice versa)
+      try {
+        const fallbackRes = await callGafia(fallbackType);
+        responseData = fallbackRes.data;
+        console.log(`Gafiapay fallback generation with ${fallbackType.toUpperCase()} succeeded!`);
+      } catch (fallbackErr: any) {
+        lastError = fallbackErr;
+        console.error(
+          `Gafiapay fallback with ${fallbackType.toUpperCase()} also failed:`,
+          fallbackErr.response?.data || fallbackErr.message,
+        );
       }
+    }
 
-      const info = data.data;
-
-      const permanentAccount = this.gafiapayRepo.create({
-        userId,
-        accountNumber: info.accountNumber,
-        accountName: info.accountName,
-        bankName: info.bankName,
-        isActive: true,
-      });
-
-      return await this.gafiapayRepo.save(permanentAccount);
-    } catch (error: any) {
-      console.error('Gafiapay account generation failed:', error.response?.data || error.message);
+    if (!responseData || responseData.status !== 'success' || !responseData.data) {
+      const rawMsg = String(lastError?.response?.data?.message || lastError?.message || '');
+      if (
+        rawMsg.toLowerCase().includes('licensenumber verification failed') ||
+        rawMsg.toLowerCase().includes('verification failed')
+      ) {
+        throw new BadRequestException(
+          'Identity verification failed. Please check that your 11-digit NIN or BVN is correct and matches your account details.',
+        );
+      } else if (rawMsg.toLowerCase().includes('duplicate')) {
+        throw new BadRequestException(
+          'This NIN or BVN is already linked to an existing virtual account.',
+        );
+      }
       throw new BadRequestException(
-        error.response?.data?.message || 'Failed to generate Gafiapay permanent account',
+        rawMsg || 'Failed to generate PalmPay permanent virtual account. Please verify your identity details.',
       );
     }
+
+    const info = responseData.data;
+
+    const permanentAccount = this.gafiapayRepo.create({
+      userId,
+      accountNumber: info.accountNumber,
+      accountName: info.accountName,
+      bankName: info.bankName,
+      isActive: true,
+    });
+
+    return await this.gafiapayRepo.save(permanentAccount);
   }
 
   // ================= WEBHOOK PROCESSORS =================

@@ -65,6 +65,7 @@ class _WalletTabState extends State<WalletTab> {
   void _showGafiapayNinDialog() {
     final ninController = TextEditingController();
     String? localError;
+    String selectedIdType = 'nin';
 
     showModalBottomSheet(
       context: context,
@@ -117,9 +118,77 @@ class _WalletTabState extends State<WalletTab> {
                     'Central Bank of Nigeria (CBN) regulations require a valid 11-digit NIN or BVN to link and issue your dedicated PalmPay virtual account.',
                     style: TextStyle(color: AppColors.silverMuted, fontSize: 13, height: 1.4),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
+                  // Toggle between NIN and BVN
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                    ),
+                    padding: const EdgeInsets.all(4),
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setModalState(() {
+                                selectedIdType = 'nin';
+                                localError = null;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: selectedIdType == 'nin' ? AppColors.accentGlow.withValues(alpha: 0.25) : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                                border: selectedIdType == 'nin' ? Border.all(color: AppColors.accentGlow.withValues(alpha: 0.5)) : null,
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                'NIN (National ID)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: selectedIdType == 'nin' ? Colors.white : AppColors.silverMuted,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        Expanded(
+                          child: GestureDetector(
+                            onTap: () {
+                              setModalState(() {
+                                selectedIdType = 'bvn';
+                                localError = null;
+                              });
+                            },
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 8),
+                              decoration: BoxDecoration(
+                                color: selectedIdType == 'bvn' ? AppColors.accentGlow.withValues(alpha: 0.25) : Colors.transparent,
+                                borderRadius: BorderRadius.circular(8),
+                                border: selectedIdType == 'bvn' ? Border.all(color: AppColors.accentGlow.withValues(alpha: 0.5)) : null,
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                'BVN (Bank Verification)',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: selectedIdType == 'bvn' ? Colors.white : AppColors.silverMuted,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
                   Text(
-                    'National Identification Number (NIN) / BVN',
+                    selectedIdType == 'bvn' ? 'Bank Verification Number (BVN)' : 'National Identification Number (NIN)',
                     style: TextStyle(
                       color: AppColors.silverLight,
                       fontSize: 12,
@@ -139,7 +208,7 @@ class _WalletTabState extends State<WalletTab> {
                       fontSize: 16,
                     ),
                     decoration: InputDecoration(
-                      hintText: 'Enter 11-digit NIN',
+                      hintText: 'Enter 11-digit ${selectedIdType.toUpperCase()}',
                       hintStyle: TextStyle(color: AppColors.silverMuted.withValues(alpha: 0.5), letterSpacing: 1),
                       filled: true,
                       fillColor: Colors.white.withValues(alpha: 0.05),
@@ -179,15 +248,19 @@ class _WalletTabState extends State<WalletTab> {
                       onPressed: walletProv.isGafiapayLoading
                           ? null
                           : () async {
-                              final nin = ninController.text.trim();
-                              if (nin.length != 11) {
+                              final idVal = ninController.text.trim();
+                              if (idVal.length != 11) {
                                 setModalState(() {
-                                  localError = 'Please enter a valid 11-digit NIN or BVN';
+                                  localError = 'Please enter a valid 11-digit ${selectedIdType.toUpperCase()}';
                                 });
                                 return;
                               }
 
-                              final success = await walletProv.generateGafiapayAccount(nin: nin);
+                              final success = await walletProv.generateGafiapayAccount(
+                                nin: selectedIdType == 'nin' ? idVal : null,
+                                bvn: selectedIdType == 'bvn' ? idVal : null,
+                                idType: selectedIdType,
+                              );
                               if (!modalContext.mounted) return;
 
                               if (success) {
