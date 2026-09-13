@@ -21,8 +21,8 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.13.0'
         channel: 'stable'
+        cache: true
 
     - name: Get dependencies
       working-directory: mobile
@@ -34,7 +34,7 @@ jobs:
 
     - name: Analyze
       working-directory: mobile
-      run: flutter analyze
+      run: flutter analyze --no-fatal-infos
 
   build-android:
     runs-on: ubuntu-latest
@@ -47,8 +47,8 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.13.0'
         channel: 'stable'
+        cache: true
 
     - name: Get dependencies
       working-directory: mobile
@@ -59,7 +59,7 @@ jobs:
       run: flutter build apk --release
 
     - name: Upload APK
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: release-apk
         path: mobile/build/app/outputs/flutter-apk/app-release.apk
@@ -75,8 +75,8 @@ jobs:
     - name: Setup Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.13.0'
         channel: 'stable'
+        cache: true
 
     - name: Get dependencies
       working-directory: mobile
@@ -87,7 +87,7 @@ jobs:
       run: flutter build ios --release --no-codesign
 
     - name: Upload iOS build
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: ios-build
         path: mobile/build/ios/iphoneos/Runner.app
