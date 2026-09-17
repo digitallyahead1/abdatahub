@@ -8,24 +8,129 @@ class TransactionDetailsSheet extends StatelessWidget {
 
   const TransactionDetailsSheet({super.key, required this.tx});
 
+  /// Shows the receipt as a centered popup dialog over a darkened backdrop
   static void show(BuildContext context, Map<String, dynamic> tx) {
-    showModalBottomSheet(
+    showDialog(
       context: context,
-      backgroundColor: AppColors.darkBgSecondary,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      barrierDismissible: true,
+      barrierColor: Colors.black.withValues(alpha: 0.8),
+      builder: (_) => Dialog(
+        backgroundColor: Colors.transparent,
+        insetPadding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+        child: TransactionDetailsSheet(tx: tx),
       ),
-      isScrollControlled: true,
-      builder: (_) => TransactionDetailsSheet(tx: tx),
     );
   }
 
   void _copyToClipboard(BuildContext context, String text, String label) {
     Clipboard.setData(ClipboardData(text: text));
+    HapticFeedback.lightImpact();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('$label copied to clipboard!'),
-        backgroundColor: AppColors.success,
+        content: Row(
+          children: [
+            const Icon(Icons.check_circle_rounded, color: Colors.white, size: 16),
+            const SizedBox(width: 8),
+            Text('$label copied to clipboard!'),
+          ],
+        ),
+        backgroundColor: const Color(0xFF10B981),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: const Duration(milliseconds: 1600),
+      ),
+    );
+  }
+
+  /// Shows share options bottom sheet
+  void _showShareOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF101422),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (bCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2C354E),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+              const Text(
+                'Share Receipt',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 14),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF10B981).withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.image_rounded, color: Color(0xFF10B981), size: 22),
+                ),
+                title: const Text(
+                  'Share as Image',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+                ),
+                subtitle: const Text(
+                  'Ideal for WhatsApp, status & socials',
+                  style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11.5),
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFF64748B)),
+                onTap: () {
+                  Navigator.pop(bCtx);
+                  PdfHelper.shareTransactionReceiptAsImage(context, tx);
+                },
+              ),
+              const Divider(color: Color(0xFF1E2638), height: 16),
+              ListTile(
+                contentPadding: EdgeInsets.zero,
+                leading: Container(
+                  width: 42,
+                  height: 42,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF2563EB).withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.picture_as_pdf_rounded, color: Color(0xFF38BDF8), size: 22),
+                ),
+                title: const Text(
+                  'Share as PDF Document',
+                  style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 14),
+                ),
+                subtitle: const Text(
+                  'Download official transaction PDF',
+                  style: TextStyle(color: Color(0xFF94A3B8), fontSize: 11.5),
+                ),
+                trailing: const Icon(Icons.chevron_right_rounded, color: Color(0xFF64748B)),
+                onTap: () {
+                  Navigator.pop(bCtx);
+                  PdfHelper.shareTransactionReceipt(context, tx);
+                },
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -52,16 +157,16 @@ class TransactionDetailsSheet extends StatelessWidget {
     final desc = tx['description'] ?? 'Transaction';
     final ref = tx['reference'] ?? 'REF';
     final isCredit = tx['type'] == 'credit';
-    final amount = (tx['amount'] as num).toDouble();
+    final amount = (tx['amount'] as num?)?.toDouble() ?? 0.0;
     final dateStr = tx['createdAt'] != null
-        ? tx['createdAt'].toString().replaceAll('T', ' ').substring(0, 19)
+        ? tx['createdAt'].toString().replaceAll('T', ', ').substring(0, 20)
         : '';
     final previousBalance = tx['previousBalance'] != null
         ? (tx['previousBalance'] as num).toDouble()
-        : 0.0;
+        : null;
     final newBalance = tx['newBalance'] != null
         ? (tx['newBalance'] as num).toDouble()
-        : 0.0;
+        : null;
 
     // Extract service-specific details
     String? token;
@@ -83,10 +188,10 @@ class TransactionDetailsSheet extends StatelessWidget {
       token = metadata['tokenKey'] ?? metadata['token'] ?? metadata['token_key'];
       customerName = metadata['customerName'] ?? metadata['customer_name'];
       units = metadata['unitsPurchased'] ?? metadata['units'] ?? metadata['units_purchased'];
-      address = metadata['customerAddress'] ?? metadata['address'] ?? metadata['customerAddress'];
+      address = metadata['customerAddress'] ?? metadata['address'];
     } else if (isDataOrAirtime) {
-      phone = metadata['phoneNumber'] ?? metadata['phone'] ?? metadata['recipient'];
-      network = metadata['network'] ?? metadata['provider'] ?? metadata['operator'];
+      phone = metadata['phoneNumber'] ?? metadata['phone'] ?? metadata['recipient'] ?? tx['phoneNumber'];
+      network = metadata['network'] ?? metadata['provider'] ?? metadata['operator'] ?? tx['network'];
     } else if (isCable) {
       smartCard = metadata['smartCardNumber'] ?? metadata['cardNumber'] ?? metadata['smartcard_number'];
       bouquet = metadata['bouquet'] ?? metadata['packageName'] ?? metadata['package'];
@@ -95,259 +200,648 @@ class TransactionDetailsSheet extends StatelessWidget {
       examPin = metadata['pin'] ?? metadata['serial'] ?? metadata['pinCode'];
     }
 
-    Color statusColor;
-    IconData statusIcon;
-    final displayStatus = status == 'success' ? 'SUCCESSFUL' : status.toUpperCase();
-
-    if (status == 'success') {
-      statusColor = AppColors.success;
-      statusIcon = Icons.check_circle_rounded;
-    } else if (status == 'failed') {
-      statusColor = AppColors.error;
-      statusIcon = Icons.cancel_rounded;
-    } else {
-      statusColor = AppColors.warning;
-      statusIcon = Icons.timelapse_rounded;
+    // Extract data plan for data purchases
+    String? dataPlan;
+    if (service == 'data' || desc.toLowerCase().contains('data')) {
+      dataPlan = metadata['planName']?.toString() ??
+          metadata['bundleName']?.toString() ??
+          metadata['plan']?.toString() ??
+          tx['planName']?.toString();
+      // Fallback: extract size from description e.g. "MTN 1.0GB SME Data for ..."
+      if (dataPlan == null || dataPlan.isEmpty) {
+        final sizeMatch = RegExp(r'(\d+(?:\.\d+)?\s*(?:GB|MB|TB)[^,]+)', caseSensitive: false)
+            .firstMatch(desc.toString());
+        if (sizeMatch != null) {
+          dataPlan = sizeMatch.group(1)?.trim();
+        }
+      }
     }
 
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20.0,
-        right: 20.0,
-        top: 14.0,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 24.0,
+    // Determine Clean Service Type Name
+    String serviceTypeName = 'Service';
+    if (service == 'airtime' || desc.toLowerCase().contains('airtime')) {
+      serviceTypeName = 'Airtime';
+    } else if (service == 'data' || desc.toLowerCase().contains('data')) {
+      serviceTypeName = 'Data Bundle';
+    } else if (service == 'electricity' || isElectricity) {
+      serviceTypeName = 'Electricity';
+    } else if (service == 'cable' || isCable) {
+      serviceTypeName = 'Cable TV';
+    } else if (service == 'exam' || isExam) {
+      serviceTypeName = 'Exam PIN';
+    } else if (isCredit) {
+      serviceTypeName = 'Wallet Deposit';
+    } else {
+      serviceTypeName = 'Wallet Debit';
+    }
+
+    // Determine Provider Name
+    String? providerName = network;
+    if (providerName == null || providerName.isEmpty) {
+      if (desc.toLowerCase().contains('mtn')) providerName = 'MTN';
+      else if (desc.toLowerCase().contains('airtel')) providerName = 'Airtel';
+      else if (desc.toLowerCase().contains('glo')) providerName = 'Glo';
+      else if (desc.toLowerCase().contains('9mobile')) providerName = '9mobile';
+    }
+
+    // Header gradient and icon per status
+    List<Color> headerGradient;
+    IconData statusIcon;
+    String statusTitle;
+
+    if (status == 'success') {
+      headerGradient = const [Color(0xFF5345E6), Color(0xFF3B82F6)];
+      statusIcon = Icons.check_rounded;
+      statusTitle = 'Transaction Successful';
+    } else if (status == 'failed') {
+      headerGradient = const [Color(0xFFDC2626), Color(0xFFEF4444)];
+      statusIcon = Icons.close_rounded;
+      statusTitle = 'Transaction Failed';
+    } else {
+      headerGradient = const [Color(0xFFD97706), Color(0xFFF59E0B)];
+      statusIcon = Icons.timelapse_rounded;
+      statusTitle = 'Transaction Pending';
+    }
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxWidth: 400,
+        maxHeight: MediaQuery.of(context).size.height * 0.90,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Drag handle indicator
-          Container(
-            width: 40,
-            height: 5,
-            decoration: BoxDecoration(
-              color: AppColors.silverMuted.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(10),
-            ),
+      child: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xFF101422),
+          borderRadius: BorderRadius.circular(28),
+          border: Border.all(
+            color: const Color(0xFF22293E),
+            width: 1.2,
           ),
-          const SizedBox(height: 24),
-
-          // Circle Status Icon
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.12),
-              shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.6),
+              blurRadius: 30,
+              spreadRadius: 4,
+              offset: const Offset(0, 10),
             ),
-            child: Icon(statusIcon, color: statusColor, size: 38),
-          ),
-          const SizedBox(height: 16),
-
-          // Amount display
-          Text(
-            '${isCredit ? "+" : "-"}₦${amount.toStringAsFixed(2)}',
-            style: TextStyle(
-              color: isCredit ? AppColors.success : AppColors.error,
-              fontSize: 28,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Poppins',
-            ),
-          ),
-          const SizedBox(height: 6),
-
-          // Description label
-          Text(
-            desc,
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              color: AppColors.silverLight,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 24),
-          const Divider(height: 1, color: Color(0xFF1F2937)),
-          const SizedBox(height: 16),
-
-          // Details List
-          _buildRowDetail('Reference', ref, context, isCopyable: true),
-          _buildRowDetail('Date & Time', dateStr, context),
-          _buildRowDetail(
-            'Status',
-            displayStatus,
-            context,
-            customValWidget: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-              decoration: BoxDecoration(
-                color: statusColor.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(6),
-                border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-              ),
-              child: Text(
-                displayStatus,
-                style: TextStyle(color: statusColor, fontSize: 10, fontWeight: FontWeight.bold),
-              ),
-            ),
-          ),
-          _buildRowDetail('Type', isCredit ? 'CREDIT' : 'DEBIT', context),
-          _buildRowDetail('Previous Balance', '₦${previousBalance.toStringAsFixed(2)}', context),
-          _buildRowDetail('New Balance', '₦${newBalance.toStringAsFixed(2)}', context),
-
-          // Service-Specific metadata rows
-          if (isElectricity) ...[
-            if (token != null && token.isNotEmpty)
-              _buildRowDetail('Prepaid Token', token, context, isCopyable: true, isHighlighted: true),
-            if (customerName != null && customerName.isNotEmpty)
-              _buildRowDetail('Customer Name', customerName, context),
-            if (units != null && units.toString().isNotEmpty)
-              _buildRowDetail('Units Purchased', '$units units', context),
-            if (address != null && address.isNotEmpty)
-              _buildRowDetail('Meter Address', address, context),
           ],
-          if (isDataOrAirtime) ...[
-            if (phone != null && phone.isNotEmpty)
-              _buildRowDetail('Recipient Number', phone, context),
-            if (network != null && network.isNotEmpty)
-              _buildRowDetail('Network Operator', network, context),
-          ],
-          if (isCable) ...[
-            if (smartCard != null && smartCard.isNotEmpty)
-              _buildRowDetail('Decoder Number', smartCard, context),
-            if (bouquet != null && bouquet.isNotEmpty)
-              _buildRowDetail('Bouquet/Package', bouquet, context),
-            if (customerName != null && customerName.isNotEmpty)
-              _buildRowDetail('Customer Name', customerName, context),
-          ],
-          if (isExam) ...[
-            if (examPin != null && examPin.isNotEmpty)
-              _buildRowDetail('Exam Token PIN', examPin, context, isCopyable: true, isHighlighted: true),
-          ],
-
-          const SizedBox(height: 24),
-          // Share Receipt Buttons (Image & PDF)
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 50,
-                  child: ElevatedButton.icon(
-                    onPressed: () => PdfHelper.shareTransactionReceiptAsImage(context, tx),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF10B981),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      elevation: 2,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // ================= TOP CURVED BANNER (Premium Redesign) =================
+            Stack(
+              children: [
+                // Mesh gradient background
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      stops: const [0.0, 0.45, 1.0],
+                      colors: status == 'success'
+                          ? const [Color(0xFF1E40AF), Color(0xFF2563EB), Color(0xFF3B82F6)]
+                          : (status == 'failed'
+                              ? const [Color(0xFF7F1D1D), Color(0xFFDC2626), Color(0xFFEF4444)]
+                              : const [Color(0xFF78350F), Color(0xFFD97706), Color(0xFFF59E0B)]),
                     ),
-                    icon: const Icon(Icons.image_outlined, color: Colors.white, size: 18),
-                    label: const Text(
-                      'Share Image',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                  ),
+                ),
+                // Large ambient halo (outermost)
+                Positioned(
+                  top: -40,
+                  left: -40,
+                  child: Container(
+                    width: 180,
+                    height: 180,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.05),
+                    ),
+                  ),
+                ),
+                // Medium ambient halo
+                Positioned(
+                  bottom: -30,
+                  right: -30,
+                  child: Container(
+                    width: 140,
+                    height: 140,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.white.withValues(alpha: 0.06),
+                    ),
+                  ),
+                ),
+                // Content
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 28),
+                  child: Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      // Frosted glass close button
+                      Positioned(
+                        top: 0,
+                        right: 0,
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () => Navigator.pop(context),
+                            borderRadius: BorderRadius.circular(20),
+                            child: Container(
+                              width: 34,
+                              height: 34,
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.15),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.25),
+                                  width: 1,
+                                ),
+                              ),
+                              child: const Icon(
+                                Icons.close_rounded,
+                                color: Colors.white,
+                                size: 17,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ),
+
+                      // Centered content
+                      SizedBox(
+                        width: double.infinity,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const SizedBox(height: 4),
+                            // Three-ring halo badge
+                            Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                // Outermost soft ring
+                                Container(
+                                  width: 84,
+                                  height: 84,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white.withValues(alpha: 0.09),
+                                  ),
+                                ),
+                                // Middle ring
+                                Container(
+                                  width: 68,
+                                  height: 68,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white.withValues(alpha: 0.13),
+                                  ),
+                                ),
+                                // Inner white badge
+                                Container(
+                                  width: 52,
+                                  height: 52,
+                                  decoration: BoxDecoration(
+                                    shape: BoxShape.circle,
+                                    color: Colors.white,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withValues(alpha: 0.25),
+                                        blurRadius: 16,
+                                        offset: const Offset(0, 6),
+                                      ),
+                                    ],
+                                  ),
+                                  child: Icon(
+                                    statusIcon,
+                                    color: status == 'success'
+                                        ? const Color(0xFF2563EB)
+                                        : (status == 'failed' ? const Color(0xFFDC2626) : const Color(0xFFD97706)),
+                                    size: 28,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+                            // Verified pill badge
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white.withValues(alpha: 0.18),
+                                borderRadius: BorderRadius.circular(20),
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.30),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Container(
+                                    width: 6,
+                                    height: 6,
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Color(0xFF4ADE80),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 5),
+                                  Text(
+                                    status == 'success' ? 'VERIFIED PAYMENT' : (status == 'failed' ? 'PAYMENT FAILED' : 'PENDING'),
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w800,
+                                      letterSpacing: 1.4,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            // Status title
+                            Text(
+                              statusTitle,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.w900,
+                                letterSpacing: -0.3,
+                              ),
+                            ),
+                            const SizedBox(height: 5),
+                            // Subtitle
+                            Text(
+                              'RECEIPT FOR TRANSACTION',
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                color: Colors.white.withValues(alpha: 0.70),
+                                fontSize: 9.5,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 2.0,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Illuminated bottom divider line
+                Positioned(
+                  bottom: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    height: 1,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          Colors.transparent,
+                          Colors.white.withValues(alpha: 0.30),
+                          Colors.transparent,
+                        ],
                       ),
                     ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: SizedBox(
-                  height: 50,
-                  child: ElevatedButton.icon(
-                    onPressed: () => PdfHelper.shareTransactionReceipt(context, tx),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primaryBlue,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+              ],
+            ),
+
+            // ================= SCROLLABLE RECEIPT BODY =================
+            Flexible(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+                child: Column(
+                  children: [
+                    // Brand / Verification Pill (matches sample image "CMANverify" -> "ABDATAverify")
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF14192A),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: const Color(0xFF232D44),
+                          width: 1,
+                        ),
                       ),
-                      elevation: 2,
-                    ),
-                    icon: const Icon(Icons.picture_as_pdf_outlined, color: Colors.white, size: 18),
-                    label: const Text(
-                      'Share PDF',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 13,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(3.5),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF2563EB),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Icon(
+                              Icons.shield_rounded,
+                              color: Colors.white,
+                              size: 13,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          RichText(
+                            text: const TextSpan(
+                              text: 'ABDATA',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.w900,
+                                fontSize: 13,
+                                letterSpacing: 0.5,
+                              ),
+                              children: [
+                                TextSpan(
+                                  text: 'verify',
+                                  style: TextStyle(
+                                    color: Color(0xFF38BDF8),
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          SizedBox(
-            width: double.infinity,
-            height: 52,
-            child: ElevatedButton(
-              onPressed: () => Navigator.pop(context),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.darkBg,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  side: BorderSide(color: AppColors.silverMuted.withValues(alpha: 0.1)),
-                ),
-              ),
-              child: Text(
-                'Close Receipt',
-                style: TextStyle(
-                  color: AppColors.silverLight,
-                  fontWeight: FontWeight.bold,
+                    const SizedBox(height: 16),
+
+                    // Amount Paid Box (Large bold green typography matching screenshot)
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF131725),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(
+                          color: const Color(0xFF1E2638),
+                          width: 1,
+                        ),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            isCredit ? 'AMOUNT RECEIVED' : 'AMOUNT PAID',
+                            style: const TextStyle(
+                              color: Color(0xFF8E98AB),
+                              fontSize: 10,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: 1.2,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            '${isCredit ? "+" : ""}₦${amount.toStringAsFixed(2)}',
+                            style: const TextStyle(
+                              color: Color(0xFF00E676),
+                              fontSize: 32,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Receipt Rows List
+                    _buildReceiptRow('SERVICE TYPE', serviceTypeName),
+                    if (providerName != null && providerName.isNotEmpty)
+                      _buildReceiptRow('NETWORK PROVIDER', providerName.toUpperCase()),
+                    if (dataPlan != null && dataPlan.isNotEmpty)
+                      _buildReceiptRow('DATA PLAN', dataPlan, isHighlighted: true),
+                    if (phone != null && phone.isNotEmpty)
+                      _buildReceiptRow(
+                        'RECIPIENT PHONE',
+                        phone,
+                        isCopyable: true,
+                        context: context,
+                      ),
+                    if (token != null && token.isNotEmpty)
+                      _buildReceiptRow(
+                        'PREPAID TOKEN',
+                        token,
+                        isCopyable: true,
+                        isHighlighted: true,
+                        context: context,
+                      ),
+                    if (customerName != null && customerName.isNotEmpty)
+                      _buildReceiptRow('CUSTOMER NAME', customerName),
+                    if (smartCard != null && smartCard.isNotEmpty)
+                      _buildReceiptRow(
+                        'DECODER NUMBER',
+                        smartCard,
+                        isCopyable: true,
+                        context: context,
+                      ),
+                    if (bouquet != null && bouquet.isNotEmpty)
+                      _buildReceiptRow('BOUQUET / PLAN', bouquet),
+                    if (examPin != null && examPin.isNotEmpty)
+                      _buildReceiptRow(
+                        'EXAM PIN',
+                        examPin,
+                        isCopyable: true,
+                        isHighlighted: true,
+                        context: context,
+                      ),
+                    _buildReceiptRow(
+                      'REFERENCE',
+                      ref,
+                      isCopyable: true,
+                      context: context,
+                    ),
+                    _buildReceiptRow(
+                      'STATUS',
+                      status == 'success' ? 'SUCCESSFUL' : status.toUpperCase(),
+                      statusBadge: true,
+                      statusColor: status == 'success'
+                          ? const Color(0xFF10B981)
+                          : (status == 'failed' ? const Color(0xFFEF4444) : const Color(0xFFF59E0B)),
+                    ),
+                    if (dateStr.isNotEmpty)
+                      _buildReceiptRow('DATE & TIME', dateStr),
+                    if (previousBalance != null && newBalance != null) ...[
+                      _buildReceiptRow('PREVIOUS BALANCE', '₦${previousBalance.toStringAsFixed(2)}'),
+                      _buildReceiptRow('NEW BALANCE', '₦${newBalance.toStringAsFixed(2)}'),
+                    ],
+                  ],
                 ),
               ),
             ),
-          ),
-        ],
+
+            // ================= BOTTOM ACTION BUTTONS =================
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
+              decoration: const BoxDecoration(
+                color: Color(0xFF0D101C),
+                border: Border(
+                  top: BorderSide(color: Color(0xFF1A2234), width: 1),
+                ),
+              ),
+              child: Row(
+                children: [
+                  // 'Done' Button
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: ElevatedButton(
+                        onPressed: () => Navigator.pop(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF181D2E),
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: const BorderSide(color: Color(0xFF263048), width: 1),
+                          ),
+                        ),
+                        child: const Text(
+                          'Done',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+
+                  // 'Share' Button
+                  Expanded(
+                    child: SizedBox(
+                      height: 48,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showShareOptions(context),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF2563EB),
+                          foregroundColor: Colors.white,
+                          elevation: 2,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        icon: const Icon(Icons.share_rounded, size: 17),
+                        label: const Text(
+                          'Share',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 
-  Widget _buildRowDetail(String label, String value, BuildContext context,
-      {bool isCopyable = false, bool isHighlighted = false, Widget? customValWidget}) {
+  /// Builds a single receipt row matching the sample screenshot
+  Widget _buildReceiptRow(
+    String label,
+    String value, {
+    bool isCopyable = false,
+    bool isHighlighted = false,
+    bool statusBadge = false,
+    Color? statusColor,
+    BuildContext? context,
+  }) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: const EdgeInsets.symmetric(vertical: 9.0),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
+          // Left: Label in muted uppercase
           Text(
             label,
-            style: TextStyle(color: AppColors.silverMuted.withValues(alpha: 0.7), fontSize: 13),
+            style: const TextStyle(
+              color: Color(0xFF8E98AB),
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.6,
+            ),
           ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Align(
-              alignment: Alignment.centerRight,
-              child: customValWidget ??
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Flexible(
-                        child: Text(
-                          value,
-                          textAlign: TextAlign.right,
-                          style: TextStyle(
-                            color: isHighlighted ? AppColors.accentGlow : AppColors.silverLight,
-                            fontWeight: isHighlighted || isCopyable ? FontWeight.bold : FontWeight.w600,
-                            fontSize: 13,
-                          ),
+          const SizedBox(width: 14),
+
+          // Right: Value
+          Flexible(
+            child: statusBadge
+                ? Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3.5),
+                    decoration: BoxDecoration(
+                      color: (statusColor ?? const Color(0xFF10B981)).withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: (statusColor ?? const Color(0xFF10B981)).withValues(alpha: 0.35),
+                        width: 0.8,
+                      ),
+                    ),
+                    child: Text(
+                      value,
+                      style: TextStyle(
+                        color: statusColor ?? const Color(0xFF10B981),
+                        fontSize: 10,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: 0.5,
+                      ),
+                    ),
+                  )
+                : Material(
+                    color: Colors.transparent,
+                    child: InkWell(
+                      onTap: (isCopyable && context != null)
+                          ? () => _copyToClipboard(context, value, label)
+                          : null,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Flexible(
+                              child: Text(
+                                value,
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  color: isHighlighted
+                                      ? const Color(0xFF38BDF8)
+                                      : Colors.white,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: -0.1,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            if (isCopyable) ...[
+                              const SizedBox(width: 6),
+                              const Icon(
+                                Icons.copy_rounded,
+                                color: Color(0xFF8E98AB),
+                                size: 14,
+                              ),
+                            ],
+                          ],
                         ),
                       ),
-                      if (isCopyable) ...[
-                        const SizedBox(width: 6),
-                        GestureDetector(
-                          onTap: () => _copyToClipboard(context, value, label),
-                          child: const Icon(Icons.copy_rounded, color: AppColors.accentGlow, size: 14),
-                        ),
-                      ],
-                    ],
+                    ),
                   ),
-            ),
           ),
         ],
       ),
     );
   }
 }
+

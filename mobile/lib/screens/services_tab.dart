@@ -6,6 +6,7 @@ import 'electricity_screen.dart';
 import 'cable_screen.dart';
 import 'exam_pins_screen.dart';
 import 'agent_services_screen.dart';
+import '../widgets/select_network_sheet.dart';
 
 class ServicesTab extends StatelessWidget {
   const ServicesTab({super.key});
@@ -44,6 +45,7 @@ class ServicesTab extends StatelessWidget {
               Icons.signal_cellular_alt,
               Colors.orange,
               const BuyDataScreen(),
+              onTapCustom: () => SelectNetworkSheet.show(context),
             ),
             const SizedBox(height: 12),
             _buildServiceRow(
@@ -120,10 +122,11 @@ class ServicesTab extends StatelessWidget {
     String description,
     IconData icon,
     Color color,
-    Widget targetScreen,
-  ) {
+    Widget targetScreen, {
+    VoidCallback? onTapCustom,
+  }) {
     return GestureDetector(
-      onTap: () => _navigateToScreen(context, targetScreen),
+      onTap: onTapCustom ?? () => _navigateToScreen(context, targetScreen),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(

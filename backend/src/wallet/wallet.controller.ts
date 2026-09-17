@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, UseGuards, Req } from '@nestjs/common';
 import { WalletService } from './wallet.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
@@ -12,17 +12,6 @@ export class WalletController {
     const data = await this.walletService.findOneByUserId(req.user.id);
     return {
       success: true,
-      data,
-    };
-  }
-
-  @Post('deposit')
-  async deposit(@Req() req: any, @Body() body: any) {
-    const { amount, paymentMethod } = body;
-    const data = await this.walletService.deposit(req.user.id, amount, paymentMethod);
-    return {
-      success: true,
-      message: 'Deposit transaction processed successfully!',
       data,
     };
   }

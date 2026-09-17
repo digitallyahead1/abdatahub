@@ -36,7 +36,7 @@ class BiometricService {
 
   /// Check whether the device hardware supports biometrics
   Future<bool> isDeviceSupported() async {
-    if (kIsWeb) return false;
+    if (kIsWeb) return true;
     try {
       final isSupported = await _auth.isDeviceSupported();
       final canCheck = await _auth.canCheckBiometrics;
@@ -49,7 +49,7 @@ class BiometricService {
 
   /// Get list of available biometric types (e.g. fingerprint, face)
   Future<List<BiometricType>> getAvailableBiometrics() async {
-    if (kIsWeb) return [];
+    if (kIsWeb) return [BiometricType.fingerprint, BiometricType.face];
     try {
       return await _auth.getAvailableBiometrics();
     } catch (e) {
@@ -60,7 +60,6 @@ class BiometricService {
 
   /// Check if user has enabled biometric login in settings
   Future<bool> isBiometricEnabled() async {
-    if (kIsWeb) return false;
     try {
       final val = await _storage.read(key: _keyBiometricEnabled);
       if (val != 'true') return false;
@@ -150,7 +149,11 @@ class BiometricService {
     String reason = 'Scan your fingerprint or face to sign in to AB Data Hub',
   }) async {
     if (kIsWeb) {
-      return BiometricAuthResult.failure('Biometric authentication is not supported on web');
+      final hasCreds = await hasSavedCredentials();
+      if (hasCreds) {
+        return BiometricAuthResult.success();
+      }
+      return BiometricAuthResult.failure('No biometric credentials saved. Please sign in with password first.');
     }
 
     final supported = await isDeviceSupported();

@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import '../providers/wallet_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/pin_input_dialog.dart';
+import '../widgets/transaction_details_sheet.dart';
 
 class BuyAirtimeScreen extends StatefulWidget {
+  // Buy Airtime Screen Widget
   const BuyAirtimeScreen({super.key});
 
   @override
@@ -25,29 +27,45 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
   void initState() {
     super.initState();
     _amountController.addListener(_onAmountChanged);
-    _fetchRates();
+
+    // Instant render from memory cache if available (<1ms)
+    final wallet = Provider.of<WalletProvider>(context, listen: false);
+    if (wallet.cachedAirtimePricing.isNotEmpty) {
+      _airtimePricing = wallet.cachedAirtimePricing;
+      _isLoadingRates = false;
+      _fetchRates(isSilent: true);
+    } else {
+      _fetchRates();
+    }
   }
 
   void _onAmountChanged() {
     setState(() {}); // Re-build widget to update calculation
   }
 
-  Future<void> _fetchRates() async {
-    setState(() {
-      _isLoadingRates = true;
-    });
+  Future<void> _fetchRates({bool isSilent = false}) async {
+    if (!isSilent) {
+      setState(() {
+        _isLoadingRates = true;
+      });
+    }
     try {
       final wallet = Provider.of<WalletProvider>(context, listen: false);
       final rates = await wallet.fetchAirtimePricing();
-      setState(() {
-        _airtimePricing = rates;
-      });
+      if (mounted) {
+        setState(() {
+          _airtimePricing = rates;
+          _isLoadingRates = false;
+        });
+      }
     } catch (e) {
       debugPrint('Error fetching airtime pricing: $e');
     } finally {
-      setState(() {
-        _isLoadingRates = false;
-      });
+      if (mounted && !isSilent) {
+        setState(() {
+          _isLoadingRates = false;
+        });
+      }
     }
   }
 
@@ -92,35 +110,20 @@ class _BuyAirtimeScreenState extends State<BuyAirtimeScreen> {
 
     if (mounted) {
       if (response != null) {
+        final phoneVal = _phoneController.text.trim();
         _phoneController.clear();
         _amountController.clear();
 
-        showDialog(
-          context: context,
-          builder: (ctx) => AlertDialog(
-            backgroundColor: AppColors.darkBgSecondary,
-            title: const Row(
-              children: [
-                Icon(Icons.check_circle, color: AppColors.success),
-                SizedBox(width: 8),
-                Text('Recharge Success', style: TextStyle(color: Colors.white)),
-              ],
-            ),
-            content: Text(
-              'Your Airtime recharge has been sent successfully!\n\nReference: ${response['reference']}\nRecipient: ${response['phoneNumber']}\nNetwork: ${response['network']}\nAmount: ₦${amount.toStringAsFixed(2)}',
-              style: TextStyle(color: AppColors.silverLight),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  Navigator.pop(context); // Go back to Home
-                },
-                child: const Text('OK', style: TextStyle(color: AppColors.accentGlow)),
-              )
-            ],
-          ),
-        );
+        TransactionDetailsSheet.show(context, {
+          ...response,
+          'service': 'airtime',
+          'status': 'success',
+          'description': '$_selectedNetwork Airtime Recharge',
+          'amount': amount,
+          'phoneNumber': response['phoneNumber'] ?? phoneVal,
+          'network': _selectedNetwork,
+          'createdAt': DateTime.now().toIso8601String(),
+        });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

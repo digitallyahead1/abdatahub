@@ -70,7 +70,11 @@ class AuthProvider extends ChangeNotifier {
         }
 
         // Sync FCM device token with backend for this newly logged-in user
-        PushNotificationService().syncTokenWithBackend();
+        try {
+          PushNotificationService().syncTokenWithBackend();
+        } catch (e) {
+          debugPrint('Notice: push notification token sync skipped: $e');
+        }
         return true;
       } else {
         _errorMessage = 'Invalid response from server';
@@ -136,7 +140,11 @@ class AuthProvider extends ChangeNotifier {
         _isAuthenticated = true;
         _isLoading = false;
         notifyListeners();
-        PushNotificationService().syncTokenWithBackend();
+        try {
+          PushNotificationService().syncTokenWithBackend();
+        } catch (e) {
+          debugPrint('Notice: push notification token sync skipped: $e');
+        }
         return true;
       } else {
         _errorMessage = 'Invalid response from server';
@@ -182,7 +190,11 @@ class AuthProvider extends ChangeNotifier {
         await _apiService.saveToken(data['accessToken']);
         _user = data['user'];
         _isAuthenticated = true;
-        PushNotificationService().syncTokenWithBackend();
+        try {
+          PushNotificationService().syncTokenWithBackend();
+        } catch (e) {
+          debugPrint('Notice: push notification token sync skipped: $e');
+        }
       }
       
       _isLoading = false;

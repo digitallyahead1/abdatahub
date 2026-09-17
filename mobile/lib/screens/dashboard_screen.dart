@@ -31,10 +31,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    // Load wallet data and stats when entering dashboard
+    // High-speed parallel initialization & background prefetching
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<WalletProvider>(context, listen: false).fetchWalletData();
-      Provider.of<AuthProvider>(context, listen: false).fetchProfile();
+      final wallet = Provider.of<WalletProvider>(context, listen: false);
+      final auth = Provider.of<AuthProvider>(context, listen: false);
+
+      Future.wait([
+        wallet.fetchWalletData(),
+        auth.fetchProfile(),
+        wallet.fetchDataPlans(), // Prefetched in background so Buy Data loads instantly!
+        wallet.fetchAirtimePricing(), // Prefetched in background so Airtime loads instantly!
+      ]);
       PushNotificationService().syncTokenWithBackend();
     });
   }
@@ -46,12 +53,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
         index: _currentIndex,
         children: _tabs,
       ),
-      bottomNavigationBar: Theme(
-        data: Theme.of(context).copyWith(
-          canvasColor: AppColors.darkBgSecondary,
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF0F131E),
+          border: Border(
+            top: BorderSide(
+              color: Color(0xFF1E2536),
+              width: 1.0,
+            ),
+          ),
         ),
         child: BottomNavigationBar(
           currentIndex: _currentIndex,
+          elevation: 0,
           onTap: (index) {
             setState(() {
               _currentIndex = index;
@@ -64,13 +78,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
             }
           },
           type: BottomNavigationBarType.fixed,
-          backgroundColor: AppColors.darkBgSecondary,
-          selectedItemColor: AppColors.accentGlow,
-          unselectedItemColor: AppColors.silverMuted.withValues(alpha: 0.6),
+          backgroundColor: Colors.transparent,
+          selectedItemColor: const Color(0xFF3B82F6),
+          unselectedItemColor: const Color(0xFF64748B),
           selectedLabelStyle: const TextStyle(
             fontFamily: 'Inter',
-            fontWeight: FontWeight.w600,
-            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            fontSize: 11.5,
           ),
           unselectedLabelStyle: const TextStyle(
             fontFamily: 'Inter',
@@ -79,27 +93,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
           items: const [
             BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
+              activeIcon: Icon(Icons.home_rounded),
               label: 'Home',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.grid_view_outlined),
-              activeIcon: Icon(Icons.grid_view),
+              activeIcon: Icon(Icons.grid_view_rounded),
               label: 'Services',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.receipt_long_outlined),
-              activeIcon: Icon(Icons.receipt_long),
+              activeIcon: Icon(Icons.receipt_long_rounded),
               label: 'Transactions',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.badge_outlined),
-              activeIcon: Icon(Icons.badge),
+              activeIcon: Icon(Icons.badge_rounded),
               label: 'Agent',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
+              icon: Icon(Icons.person_outline_rounded),
+              activeIcon: Icon(Icons.person_rounded),
               label: 'Profile',
             ),
           ],

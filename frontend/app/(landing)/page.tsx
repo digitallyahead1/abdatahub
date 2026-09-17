@@ -59,6 +59,32 @@ export default function HomePage() {
       ),
       gradient: 'from-rose-500/20 to-red-500/20',
     },
+    {
+      title: 'Airtime to Cash',
+      desc: 'Convert excess airtime balance or recharge pins into instant cash credited to your bank account.',
+      icon: (
+        <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+        </svg>
+      ),
+      gradient: 'from-orange-500/20 to-amber-500/20',
+      actionText: 'Swap on WhatsApp',
+      actionHref: 'https://chat.whatsapp.com/G40DE7gJE5i3AEFTOYUmec?s=cl&p=a&mlu=4&ilr=4',
+      isExternal: true,
+    },
+    {
+      title: 'Join Community',
+      desc: 'Connect with thousands of VTU vendors and smart users in our WhatsApp group for updates and support.',
+      icon: (
+        <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+      ),
+      gradient: 'from-emerald-500/20 to-teal-500/20',
+      actionText: 'Join WhatsApp Group',
+      actionHref: 'https://chat.whatsapp.com/G40DE7gJE5i3AEFTOYUmec?s=cl&p=a&mlu=4&ilr=4',
+      isExternal: true,
+    },
   ]
 
   const features = [
@@ -247,7 +273,7 @@ export default function HomePage() {
               {/* WhatsApp Action button */}
               <div className="z-10 pt-2">
                 <a
-                  href="https://wa.me/2347045357195?text=Hello%20AB%20Data%20Hub%20Admin,%20I%20want%20to%20swap%20airtime%20to%20cash."
+                  href="https://chat.whatsapp.com/G40DE7gJE5i3AEFTOYUmec?s=cl&p=a&mlu=4&ilr=4"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-full py-3 bg-gradient-to-r from-orange-500 to-amber-600 hover:from-orange-600 hover:to-amber-700 text-white font-bold rounded-xl shadow-lg shadow-orange-500/10 transition-all text-xs sm:text-sm flex items-center justify-center space-x-2"
@@ -376,10 +402,12 @@ export default function HomePage() {
                 <h3 className="text-lg font-bold text-white mb-2">{svc.title}</h3>
                 <p className="text-sm text-silver-muted leading-relaxed mb-5">{svc.desc}</p>
                 <a
-                  href="/login"
+                  href={svc.actionHref || '/login'}
+                  target={svc.isExternal ? '_blank' : undefined}
+                  rel={svc.isExternal ? 'noopener noreferrer' : undefined}
                   className="inline-flex items-center space-x-2 text-sm text-primary-glow hover:text-white font-semibold group-hover:translate-x-1 transition-all duration-300"
                 >
-                  <span>Purchase Now</span>
+                  <span>{svc.actionText || 'Purchase Now'}</span>
                   <span>→</span>
                 </a>
               </div>

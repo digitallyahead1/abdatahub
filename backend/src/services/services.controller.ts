@@ -71,7 +71,7 @@ export class ServicesController {
   @UseGuards(JwtAuthGuard)
   @Get('data/plans')
   async getDataPlans(@Req() req: any) {
-    const data = await this.servicesService.getDataPlans(req.user.id);
+    const data = await this.servicesService.getDataPlans(req.user.id, req.user?.role);
     return {
       success: true,
       data,
@@ -81,7 +81,7 @@ export class ServicesController {
   @UseGuards(JwtAuthGuard)
   @Get('airtime/pricing')
   async getAirtimePricing(@Req() req: any) {
-    const data = await this.servicesService.getAirtimePricing(req.user.id);
+    const data = await this.servicesService.getAirtimePricing(req.user.id, req.user?.role);
     return {
       success: true,
       data,

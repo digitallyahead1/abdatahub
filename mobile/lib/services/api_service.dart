@@ -52,6 +52,7 @@ class ApiService {
         headers: {
           'Content-Type': 'application/json',
           'Accept': 'application/json',
+          'Accept-Encoding': 'gzip, deflate, br',
         },
       ),
     );

@@ -254,7 +254,13 @@ class _ProfileTabState extends State<ProfileTab> {
   }
 
   void _showEditProfileDialog(BuildContext context, Map<String, dynamic> user) {
-    final nameController = TextEditingController(text: user['fullName'] ?? '');
+    final currentFullName = (user['fullName'] ?? '').toString().trim();
+    final nameParts = currentFullName.split(RegExp(r'\s+'));
+    final initialFirst = nameParts.isNotEmpty ? nameParts.first : '';
+    final initialSurname = nameParts.length > 1 ? nameParts.sublist(1).join(' ') : '';
+
+    final firstNameController = TextEditingController(text: initialFirst);
+    final surnameController = TextEditingController(text: initialSurname);
     final phoneController = TextEditingController(text: user['phoneNumber'] ?? '');
     final formKey = GlobalKey<FormState>();
 
@@ -274,14 +280,25 @@ class _ProfileTabState extends State<ProfileTab> {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     TextFormField(
-                      controller: nameController,
+                      controller: firstNameController,
                       style: TextStyle(color: AppColors.silverLight),
                       decoration: InputDecoration(
-                        labelText: 'Full Name',
+                        labelText: 'First Name',
                         labelStyle: TextStyle(color: AppColors.silverMuted),
                         enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.silverMuted)),
                       ),
-                      validator: (val) => val == null || val.trim().isEmpty ? 'Name is required' : null,
+                      validator: (val) => val == null || val.trim().isEmpty ? 'First name is required' : null,
+                    ),
+                    const SizedBox(height: 12),
+                    TextFormField(
+                      controller: surnameController,
+                      style: TextStyle(color: AppColors.silverLight),
+                      decoration: InputDecoration(
+                        labelText: 'Surname',
+                        labelStyle: TextStyle(color: AppColors.silverMuted),
+                        enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.silverMuted)),
+                      ),
+                      validator: (val) => val == null || val.trim().isEmpty ? 'Surname is required' : null,
                     ),
                     const SizedBox(height: 16),
                     TextFormField(
@@ -316,8 +333,9 @@ class _ProfileTabState extends State<ProfileTab> {
                       ? null
                       : () async {
                           if (formKey.currentState?.validate() ?? false) {
+                            final combined = '${firstNameController.text.trim()} ${surnameController.text.trim()}'.trim();
                             final success = await auth.updateProfile(
-                              fullName: nameController.text.trim(),
+                              fullName: combined,
                               phoneNumber: phoneController.text.trim(),
                             );
                             if (success && ctx.mounted) {
@@ -692,40 +710,9 @@ class _ProfileTabState extends State<ProfileTab> {
                     ),
                     Divider(height: 1, color: AppColors.silverMuted.withValues(alpha: 0.15)),
                     _buildProfileTile(
-                      icon: Icons.verified_user_outlined,
-                      title: 'Agent Services',
-                      value: (() {
-                        final s = auth.user?['agentStatus'] as String? ?? 'none';
-                        final r = auth.user?['role']?.toString().toLowerCase() ?? '';
-                        if (s == 'approved' || r == 'agent') return 'Active Agent';
-                        if (s == 'pending') return 'Pending Approval';
-                        if (s == 'rejected') return 'Rejected — Re-apply';
-                        return 'Apply to Become Agent';
-                      })(),
-                      iconColor: AppColors.accentGlow,
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const AgentServicesScreen()),
-                      ),
-                    ),
-                    Divider(height: 1, color: AppColors.silverMuted.withValues(alpha: 0.15)),
-                    _buildProfileTile(
                       icon: Icons.phone_android,
                       title: 'Phone Number',
                       value: phone,
-                    ),
-                    Divider(height: 1, color: AppColors.silverMuted.withValues(alpha: 0.15)),
-                    _buildProfileTile(
-                      icon: Icons.chat_outlined,
-                      title: 'Chat on WhatsApp',
-                      value: '07045357195',
-                      onTap: () => _launchURL(context, 'https://wa.me/2347045357195?text=Hello%20AB%20Data%20Hub%20Support,%20I%20have%20an%20inquiry.'),
-                    ),
-                    Divider(height: 1, color: AppColors.silverMuted.withValues(alpha: 0.15)),
-                    _buildProfileTile(
-                      icon: Icons.support_agent,
-                      title: 'Phone Call Support',
-                      value: '08133887526',
-                      onTap: () => _launchURL(context, 'tel:08133887526'),
                     ),
                     Divider(height: 1, color: AppColors.silverMuted.withValues(alpha: 0.15)),
                     _buildProfileTile(

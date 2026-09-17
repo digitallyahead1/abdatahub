@@ -3,10 +3,19 @@ import 'package:provider/provider.dart';
 import '../providers/wallet_provider.dart';
 import '../theme/app_theme.dart';
 import '../widgets/pin_input_dialog.dart';
+import '../widgets/transaction_details_sheet.dart';
+import '../widgets/select_network_sheet.dart';
 import '../utils/pdf_helper.dart';
 
 class BuyDataScreen extends StatefulWidget {
-  const BuyDataScreen({super.key});
+  final String? initialNetwork;
+  final bool lockNetwork;
+
+  const BuyDataScreen({
+    super.key,
+    this.initialNetwork,
+    this.lockNetwork = false,
+  });
 
   @override
   State<BuyDataScreen> createState() => _BuyDataScreenState();
@@ -27,25 +36,43 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchPlans();
+    if (widget.initialNetwork != null && widget.initialNetwork!.isNotEmpty) {
+      _selectedNetwork = widget.initialNetwork!;
+    }
+    // Instant render from memory cache if available (<1ms)
+    final wallet = Provider.of<WalletProvider>(context, listen: false);
+    if (wallet.cachedDataPlans.isNotEmpty) {
+      _dataPlans = wallet.cachedDataPlans;
+      _isLoadingPlans = false;
+      _fetchPlans(isSilent: true);
+    } else {
+      _fetchPlans();
+    }
   }
 
-  Future<void> _fetchPlans() async {
-    setState(() {
-      _isLoadingPlans = true;
-    });
+  Future<void> _fetchPlans({bool isSilent = false}) async {
+    if (!isSilent) {
+      setState(() {
+        _isLoadingPlans = true;
+      });
+    }
     try {
       final wallet = Provider.of<WalletProvider>(context, listen: false);
       final plans = await wallet.fetchDataPlans();
-      setState(() {
-        _dataPlans = plans;
-      });
+      if (mounted) {
+        setState(() {
+          _dataPlans = plans;
+          _isLoadingPlans = false;
+        });
+      }
     } catch (e) {
       debugPrint('Error fetching data plans: $e');
     } finally {
-      setState(() {
-        _isLoadingPlans = false;
-      });
+      if (mounted && !isSilent) {
+        setState(() {
+          _isLoadingPlans = false;
+        });
+      }
     }
   }
 
@@ -130,6 +157,21 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
     }
   }
 
+  Color _getNetworkColor(String net) {
+    switch (net.toUpperCase()) {
+      case 'MTN':
+        return const Color(0xFFFBBF24);
+      case 'AIRTEL':
+        return const Color(0xFFEF4444);
+      case 'GLO':
+        return const Color(0xFF10B981);
+      case '9MOBILE':
+        return const Color(0xFF84CC16);
+      default:
+        return const Color(0xFF3B82F6);
+    }
+  }
+
   void _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (_selectedPlan == null) {
@@ -162,12 +204,16 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
 
     if (mounted) {
       if (response != null) {
+        final purchasedPlanName = _selectedPlan?['bundleName'] ?? _selectedPlan?['name'] ?? response['planName'];
         _phoneController.clear();
         setState(() {
           _selectedPlan = null;
         });
 
-        _showReceiptDialog(response);
+        _showReceiptDialog({
+          ...response,
+          'planName': purchasedPlanName,
+        });
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -180,113 +226,14 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
   }
 
   void _showReceiptDialog(Map<String, dynamic> data) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => Dialog(
-        backgroundColor: Colors.transparent,
-        insetPadding: const EdgeInsets.symmetric(horizontal: 20),
-        child: Container(
-          decoration: BoxDecoration(
-            color: AppColors.darkBgSecondary,
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: AppColors.silverMuted.withValues(alpha: 0.2)),
-          ),
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Success icon
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.green.withValues(alpha: 0.3)),
-                ),
-                child: const Icon(Icons.check_rounded, color: Colors.green, size: 32),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                'Purchase Successful!',
-                style: TextStyle(color: AppColors.silverLight, fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              Text(
-                'Your data has been sent',
-                style: TextStyle(color: AppColors.silverMuted, fontSize: 13),
-              ),
-              const SizedBox(height: 20),
-
-              // Receipt rows
-              Container(
-                decoration: BoxDecoration(
-                  color: AppColors.primaryBlue.withValues(alpha: 0.04),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.silverMuted.withValues(alpha: 0.15)),
-                ),
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                child: Column(
-                  children: [
-                    _receiptRow('Phone Number', data['phoneNumber']?.toString() ?? ''),
-                    _receiptRow('Network', (data['network'] ?? '').toString().toUpperCase()),
-                    _receiptRow('Plan', data['planName']?.toString() ?? ''),
-                    _receiptRow('Amount Paid', '₦${_formatAmount(data['amount'])}'),
-                    _receiptRow('Reference', data['reference']?.toString() ?? '', mono: true),
-                    _receiptRow('Status', '✅ Successful'),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-
-              // Buttons
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        await PdfHelper.shareTransactionReceipt(context, data);
-                      },
-                      icon: const Icon(Icons.picture_as_pdf_outlined, size: 16, color: AppColors.primaryBlue),
-                      label: const Text(
-                        'Share PDF',
-                        style: TextStyle(
-                          color: AppColors.primaryBlue,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 13,
-                        ),
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        backgroundColor: AppColors.primaryBlue.withValues(alpha: 0.12),
-                        side: const BorderSide(color: AppColors.primaryBlue, width: 1.5),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: () {
-                        Navigator.pop(ctx);
-                        Navigator.pop(context);
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppColors.primaryBlue,
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: const Text('Done', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    TransactionDetailsSheet.show(context, {
+      ...data,
+      'service': 'data',
+      'status': 'success',
+      'planName': data['planName'],
+      'description': '${data['network'] ?? _selectedNetwork} ${data['planName'] ?? 'Data Bundle'}',
+      'createdAt': DateTime.now().toIso8601String(),
+    });
   }
 
 
@@ -345,7 +292,10 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Buy Data Bundle'),
+        title: Text(
+          widget.lockNetwork ? '$_selectedNetwork Data Plans' : 'Buy Data Bundle',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         elevation: 0,
       ),
       body: SafeArea(
@@ -388,50 +338,210 @@ class _BuyDataScreenState extends State<BuyDataScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Network select row
-                    Text(
-                      'Select Mobile Network',
-                      style: TextStyle(
-                        color: AppColors.silverLight,
-                        fontSize: 14,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: _networks.map((net) {
-                        final isSel = _selectedNetwork == net;
-                        return GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _selectedNetwork = net;
-                              _selectedPlan = null; // Reset plan
-                              _selectedType = 'All'; // Reset type filter
-                            });
-                          },
-                          child: Container(
-                            width: MediaQuery.of(context).size.width * 0.2,
-                            padding: const EdgeInsets.symmetric(vertical: 10),
-                            decoration: BoxDecoration(
-                              color: isSel ? AppColors.primaryBlue : AppColors.darkBgSecondary,
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(
-                                color: isSel ? AppColors.primaryBlue : AppColors.silverMuted.withValues(alpha: 0.1),
-                              ),
+                    if (widget.lockNetwork) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Mobile Network',
+                            style: TextStyle(
+                              color: AppColors.silverLight,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
                             ),
-                            child: Text(
-                              net,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                color: isSel ? Colors.white : AppColors.silverMuted,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
+                          ),
+                          InkWell(
+                            onTap: () {
+                              Navigator.pop(context);
+                              SelectNetworkSheet.show(context);
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1E2638),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFF2C3852)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.swap_horiz_rounded, size: 14, color: Color(0xFF38BDF8)),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Switch Network',
+                                    style: TextStyle(
+                                      color: Color(0xFF38BDF8),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
                           ),
-                        );
-                      }).toList(),
-                    ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF141826),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: _getNetworkColor(_selectedNetwork).withValues(alpha: 0.4),
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: _getNetworkColor(_selectedNetwork).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: _getNetworkColor(_selectedNetwork).withValues(alpha: 0.35),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.language_rounded,
+                                color: _getNetworkColor(_selectedNetwork),
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  '$_selectedNetwork Network',
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w800,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                const Text(
+                                  'Displaying dedicated plans only',
+                                  style: TextStyle(
+                                    color: Color(0xFF94A3B8),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    ] else ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'Mobile Network',
+                            style: TextStyle(
+                              color: AppColors.silverLight,
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          InkWell(
+                            onTap: () {
+                              SelectNetworkSheet.show(context);
+                            },
+                            borderRadius: BorderRadius.circular(8),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF1E2638),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFF2C3852)),
+                              ),
+                              child: const Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(Icons.swap_horiz_rounded, size: 14, color: Color(0xFF38BDF8)),
+                                  SizedBox(width: 4),
+                                  Text(
+                                    'Change Network',
+                                    style: TextStyle(
+                                      color: Color(0xFF38BDF8),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF141826),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(
+                            color: _getNetworkColor(_selectedNetwork).withValues(alpha: 0.4),
+                            width: 1.2,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 38,
+                              height: 38,
+                              decoration: BoxDecoration(
+                                color: _getNetworkColor(_selectedNetwork).withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: _getNetworkColor(_selectedNetwork).withValues(alpha: 0.35),
+                                  width: 0.8,
+                                ),
+                              ),
+                              child: Icon(
+                                Icons.language_rounded,
+                                color: _getNetworkColor(_selectedNetwork),
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    '$_selectedNetwork Network',
+                                    style: const TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 15,
+                                      fontWeight: FontWeight.w800,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  const Text(
+                                    'Tap "Change Network" to switch',
+                                    style: TextStyle(
+                                      color: Color(0xFF94A3B8),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     const SizedBox(height: 24),
 
                     // Phone input

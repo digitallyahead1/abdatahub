@@ -13,7 +13,8 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _nameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _surnameController = TextEditingController();
   final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -28,7 +29,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _firstNameController.dispose();
+    _surnameController.dispose();
     _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
@@ -73,8 +75,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
     }
 
     final auth = Provider.of<AuthProvider>(context, listen: false);
+    final combinedFullName = '${_firstNameController.text.trim()} ${_surnameController.text.trim()}'.trim();
     final success = await auth.register(
-      fullName: _nameController.text.trim(),
+      fullName: combinedFullName,
       email: _emailController.text.trim(),
       phoneNumber: _phoneController.text.trim(),
       password: _passwordController.text,
@@ -201,15 +204,35 @@ class _RegisterScreenState extends State<RegisterScreen> {
                 key: _formKey,
                 child: Column(
                   children: [
+                    // First Name Field
                     TextFormField(
-                      controller: _nameController,
+                      controller: _firstNameController,
+                      textCapitalization: TextCapitalization.words,
                       decoration: InputDecoration(
-                        labelText: 'Full Name',
+                        labelText: 'First Name',
+                        hintText: 'e.g. John',
                         prefixIcon: Icon(Icons.person_outline, color: AppColors.silverMuted),
                       ),
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
-                          return 'Please enter your full name';
+                          return 'Please enter your first name';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: 16),
+                    // Surname Field
+                    TextFormField(
+                      controller: _surnameController,
+                      textCapitalization: TextCapitalization.words,
+                      decoration: InputDecoration(
+                        labelText: 'Surname',
+                        hintText: 'e.g. Doe',
+                        prefixIcon: Icon(Icons.badge_outlined, color: AppColors.silverMuted),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter your surname';
                         }
                         return null;
                       },
