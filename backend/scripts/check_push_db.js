@@ -1,9 +1,13 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const { Client } = require('pg');
 
 async function main() {
-  const client = new Client({
-    connectionString: 'postgresql://postgres.myisfwzxbktxblixnpan:Seeman%401999__@aws-0-eu-west-1.pooler.supabase.com:5432/postgres'
-  });
+  const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
+  if (!connectionString) {
+    throw new Error('DIRECT_URL or DATABASE_URL must be defined in environment.');
+  }
+  const client = new Client({ connectionString });
   await client.connect();
 
   // Check device_token table schema

@@ -22,22 +22,35 @@ import { ApiKey } from '../entities/api-key.entity';
 import { ApiRequestLog } from '../entities/api-request-log.entity';
 import { IdempotencyKey } from '../entities/idempotency-key.entity';
 
-// Parse DATABASE_URL if provided (e.g. Supabase pooler URL)
-const databaseUrl = process.env.DATABASE_URL;
+// Parse DATABASE_URL or DIRECT_URL if provided (e.g. Supabase, Railway Postgres, etc.)
+const databaseUrl = process.env.DATABASE_URL || process.env.DIRECT_URL;
 let connectionConfig: Partial<TypeOrmModuleOptions & { type: 'postgres' }>;
 
-if (databaseUrl && databaseUrl.includes('supabase.com')) {
-  // Supabase connection via URL
-  const url = new URL(databaseUrl);
-  connectionConfig = {
-    type: 'postgres',
-    host: url.hostname,
-    port: parseInt(url.port || '6543', 10),
-    username: decodeURIComponent(url.username),
-    password: decodeURIComponent(url.password),
-    database: url.pathname.replace('/', ''),
-    ssl: { rejectUnauthorized: false },
-  };
+if (databaseUrl) {
+  try {
+    const url = new URL(databaseUrl);
+    const isLocalhost = url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+    const isSupabase = url.hostname.includes('supabase.com');
+    const sslRequired =
+      process.env.DATABASE_SSL === 'true' ||
+      (!isLocalhost && (isSupabase || process.env.NODE_ENV === 'production' || databaseUrl.includes('sslmode=require')));
+
+    connectionConfig = {
+      type: 'postgres',
+      host: url.hostname,
+      port: parseInt(url.port || (isSupabase ? '6543' : '5432'), 10),
+      username: decodeURIComponent(url.username || ''),
+      password: decodeURIComponent(url.password || ''),
+      database: url.pathname.replace(/^\//, '') || 'postgres',
+      ssl: sslRequired ? { rejectUnauthorized: false } : undefined,
+    };
+  } catch (err) {
+    connectionConfig = {
+      type: 'postgres',
+      url: databaseUrl,
+      ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
+    };
+  }
 } else {
   // Local / direct connection via individual env vars
   connectionConfig = {
@@ -45,7 +58,7 @@ if (databaseUrl && databaseUrl.includes('supabase.com')) {
     host: process.env.DATABASE_HOST || 'localhost',
     port: parseInt(process.env.DATABASE_PORT || '5432', 10),
     username: process.env.DATABASE_USER || 'abdatahub_user',
-    password: process.env.DATABASE_PASSWORD || 'Abdatahub@',
+    password: process.env.DATABASE_PASSWORD || '',
     database: process.env.DATABASE_NAME || 'ab_data_hub',
   };
 }

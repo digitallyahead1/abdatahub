@@ -717,6 +717,32 @@ export class AdminService implements OnModuleInit {
       throw new BadRequestException('The primary Super Admin cannot be deleted.');
     }
 
+    // Safety guard: Check if user has ANY transactions or wallet history
+    const txCount = await this.transactionRepository.count({ where: { userId } });
+    if (txCount > 0) {
+      // Soft-delete to preserve audit logs, NIN/BVN records, and financial transaction history
+      const originalEmail = user.email;
+      const originalPhone = user.phoneNumber;
+      user.status = 'deleted';
+      user.email = `archived_${Date.now()}_${originalEmail}`;
+      user.phoneNumber = `archived_${Date.now()}_${originalPhone}`;
+      await this.userRepository.save(user);
+
+      await this.auditLogService.log(adminUser.id, adminUser.email, 'user_soft_delete', {
+        targetUserId: userId,
+        originalEmail,
+        originalPhone,
+        txCount,
+        reason: 'Account archived; financial transaction history preserved for audit compliance.',
+      });
+
+      return {
+        success: true,
+        message: `User has ${txCount} historical transactions. Account has been safely deactivated and archived without deleting financial records.`,
+      };
+    }
+
+    // Only completely remove if no financial records exist at all
     await this.userRepository.remove(user);
 
     await this.auditLogService.log(adminUser.id, adminUser.email, 'user_delete', {
@@ -724,7 +750,7 @@ export class AdminService implements OnModuleInit {
       targetEmail: user.email,
       targetFullName: user.fullName,
     });
-    return { success: true };
+    return { success: true, message: 'User deleted successfully' };
   }
 
   async makeTransactionSuccessful(transactionId: string, adminUser: any) {

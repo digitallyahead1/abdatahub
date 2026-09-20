@@ -14,9 +14,13 @@ if (!admin.apps.length) {
   admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 }
 
-const DB_URL = 'postgresql://postgres.myisfwzxbktxblixnpan:Seeman%401999__@aws-0-eu-west-1.pooler.supabase.com:5432/postgres';
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+const DB_URL = process.env.DIRECT_URL || process.env.DATABASE_URL;
 
 async function main() {
+  if (!DB_URL) {
+    throw new Error('DIRECT_URL or DATABASE_URL must be defined in environment.');
+  }
   const client = new Client({ connectionString: DB_URL });
   await client.connect();
 

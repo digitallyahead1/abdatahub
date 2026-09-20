@@ -1,15 +1,33 @@
-import { Injectable, BadRequestException, NotFoundException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, InternalServerErrorException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, MoreThan } from 'typeorm';
 import { UserVirtualAccount } from '../entities/user-virtual-account.entity';
 import { GafiapayVirtualAccount } from '../entities/gafiapay-virtual-account.entity';
 import { WalletService } from '../wallet/wallet.service';
 import { Transaction } from '../entities/transaction.entity';
+import { AuditLogService } from '../audit-log/audit-log.service';
 import axios from 'axios';
 import * as crypto from 'crypto';
 
+// ─── Security Constants ────────────────────────────────────────────────────────
+/** Maximum amount that can be credited in a single webhook deposit (₦200,000) */
+const MAX_SINGLE_DEPOSIT = 200_000;
+/** Maximum total amount that can be credited to one user within any 24-hour window (₦500,000) */
+const MAX_DAILY_DEPOSIT = 500_000;
+/** Monnify IPs — update when Monnify publishes new egress IPs */
+const MONNIFY_ALLOWED_IPS = [
+  '18.133.110.46', '3.9.94.169', '3.9.185.112',  // Monnify EU egress
+  '127.0.0.1', '::1', '::ffff:127.0.0.1',         // localhost (dev/test)
+];
+/** Gafiapay IPs — add real IPs from Gafiapay docs/support */
+const GAFIAPAY_ALLOWED_IPS = [
+  '127.0.0.1', '::1', '::ffff:127.0.0.1',
+];
+
 @Injectable()
 export class PaymentService {
+  private readonly logger = new Logger(PaymentService.name);
+
   private readonly monnifyApiKey = process.env.MONNIFY_API_KEY || 'DEMOKEY000000';
   private readonly monnifySecretKey = process.env.MONNIFY_SECRET_KEY || 'DEMOKEY000000';
   private readonly monnifyContractCode = process.env.MONNIFY_CONTRACT_CODE || '5867418298';
@@ -27,7 +45,72 @@ export class PaymentService {
     @InjectRepository(Transaction)
     private readonly transactionRepo: Repository<Transaction>,
     private readonly walletService: WalletService,
+    private readonly auditLogService: AuditLogService,
   ) {}
+
+  // ─── IP Allowlist Check ──────────────────────────────────────────────────────
+  /**
+   * Returns true if the request IP is in the provider's allowed list.
+   * If DISABLE_WEBHOOK_IP_CHECK=true the check is skipped (use only in dev).
+   */
+  isAllowedWebhookIp(ip: string, allowed: string[]): boolean {
+    if (process.env.DISABLE_WEBHOOK_IP_CHECK === 'true') return true;
+    // Handle x-forwarded-for chains: take the first (client) IP
+    const clientIp = (ip || '').split(',')[0].trim();
+    return allowed.includes(clientIp);
+  }
+
+  // ─── Deposit Velocity Guard ──────────────────────────────────────────────────
+  /**
+   * Throws if the proposed `amount` would breach single-transaction or 24-hour
+   * rolling deposit limits for the given user.
+   */
+  private async assertDepositLimits(userId: string, amount: number): Promise<void> {
+    // 1. Single-transaction cap
+    if (amount > MAX_SINGLE_DEPOSIT) {
+      this.logger.error(
+        `SECURITY: Deposit of ₦${amount} for user ${userId} exceeds ` +
+        `single-transaction cap of ₦${MAX_SINGLE_DEPOSIT}. BLOCKED.`,
+      );
+      await this.auditLogService.log(
+        userId, 'system@security', 'DEPOSIT_CAP_EXCEEDED',
+        { amount, limit: MAX_SINGLE_DEPOSIT, type: 'single_tx' },
+        'system',
+      ).catch(() => {});
+      throw new BadRequestException(
+        `Deposit amount ₦${amount.toLocaleString()} exceeds the maximum allowed ` +
+        `per transaction of ₦${MAX_SINGLE_DEPOSIT.toLocaleString()}. ` +
+        `Contact support if you need to deposit a larger amount.`,
+      );
+    }
+
+    // 2. 24-hour rolling window cap
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const rows = await this.transactionRepo.find({
+      where: { userId, service: 'deposit', status: 'success' },
+      select: ['amount', 'createdAt'],
+    });
+    const rollingTotal = rows
+      .filter((r) => r.createdAt >= since)
+      .reduce((sum, r) => sum + Number(r.amount), 0);
+
+    if (rollingTotal + amount > MAX_DAILY_DEPOSIT) {
+      this.logger.error(
+        `SECURITY: Deposit of ₦${amount} for user ${userId} would bring 24h total to ` +
+        `₦${rollingTotal + amount}, exceeding daily cap of ₦${MAX_DAILY_DEPOSIT}. BLOCKED.`,
+      );
+      await this.auditLogService.log(
+        userId, 'system@security', 'DEPOSIT_DAILY_LIMIT_EXCEEDED',
+        { amount, rollingTotal, limit: MAX_DAILY_DEPOSIT },
+        'system',
+      ).catch(() => {});
+      throw new BadRequestException(
+        `This deposit would exceed your 24-hour funding limit of ` +
+        `₦${MAX_DAILY_DEPOSIT.toLocaleString()}. You have already funded ` +
+        `₦${rollingTotal.toLocaleString()} today. Contact support to raise your limit.`,
+      );
+    }
+  }
 
   // ================= MONNIFY SERVICES =================
 
@@ -270,28 +353,54 @@ export class PaymentService {
 
   // ================= WEBHOOK PROCESSORS =================
 
-  async processMonnifyWebhook(body: any, requestSignature: string, rawBodyString?: string): Promise<boolean> {
-    const secretKey = this.monnifySecretKey || process.env.MONNIFY_SECRET_KEY || 'DEMOKEY000000';
+  async processMonnifyWebhook(
+    body: any,
+    requestSignature: string,
+    rawBodyString?: string,
+    requestIp?: string,
+  ): Promise<boolean> {
+    // ─── 1. IP Allowlist ────────────────────────────────────────────────────────
+    if (requestIp && !this.isAllowedWebhookIp(requestIp, MONNIFY_ALLOWED_IPS)) {
+      this.logger.error(`SECURITY: Monnify webhook rejected — IP ${requestIp} not in allowlist`);
+      await this.auditLogService.log(null, 'webhook@monnify.com', 'WEBHOOK_IP_BLOCKED',
+        { ip: requestIp, provider: 'monnify' }, requestIp).catch(() => {});
+      return false;
+    }
 
-    if (requestSignature && secretKey && secretKey !== 'DEMOKEY000000') {
+    // ─── 2. HMAC Signature Verification ─────────────────────────────────────────
+    const secretKey = this.monnifySecretKey || process.env.MONNIFY_SECRET_KEY || 'DEMOKEY000000';
+    if (secretKey && secretKey !== 'DEMOKEY000000') {
+      if (!requestSignature) {
+        this.logger.error('SECURITY: Monnify webhook rejected — no signature header present');
+        await this.auditLogService.log(null, 'webhook@monnify.com', 'WEBHOOK_NO_SIGNATURE',
+          { provider: 'monnify', ip: requestIp }, requestIp).catch(() => {});
+        return false;
+      }
+
       const bodyForSigning = rawBodyString || (typeof body === 'string' ? body : JSON.stringify(body));
-      const computedSignature = crypto
+      const computedHmac = crypto
         .createHmac('sha512', secretKey)
         .update(bodyForSigning)
         .digest('hex');
+      const computedHash = crypto
+        .createHash('sha512')
+        .update(secretKey + bodyForSigning)
+        .digest('hex');
 
-      if (computedSignature !== requestSignature) {
-        console.warn('Monnify Webhook: HMAC signature mismatch, checking hash fallback');
-        const hashFallback = crypto
-          .createHash('sha512')
-          .update(secretKey + bodyForSigning)
-          .digest('hex');
-        if (hashFallback !== requestSignature) {
-          console.warn('Monnify Webhook rejected: signature mismatch');
-          // In production, reject if signature does not match
-          // return false;
-        }
+      // Monnify uses either HMAC-SHA512 or SHA512(secret+body) depending on version
+      const sigValid =
+        crypto.timingSafeEqual(Buffer.from(computedHmac, 'hex'), Buffer.from(requestSignature.padEnd(computedHmac.length, '0').substring(0, computedHmac.length), 'hex')) ||
+        crypto.timingSafeEqual(Buffer.from(computedHash, 'hex'), Buffer.from(requestSignature.padEnd(computedHash.length, '0').substring(0, computedHash.length), 'hex'));
+
+      if (!sigValid) {
+        this.logger.error(`SECURITY: Monnify webhook REJECTED — HMAC signature mismatch from IP ${requestIp}`);
+        await this.auditLogService.log(null, 'webhook@monnify.com', 'WEBHOOK_SIG_MISMATCH',
+          { provider: 'monnify', receivedSig: requestSignature?.substring(0, 16) + '...', ip: requestIp },
+          requestIp).catch(() => {});
+        return false;
       }
+    } else {
+      this.logger.warn('Monnify webhook: MONNIFY_SECRET_KEY not configured — skipping HMAC check (dev mode only)');
     }
 
     const { eventType, eventData } = body;
@@ -359,38 +468,71 @@ export class PaymentService {
     try {
       const creditAmount = parseFloat(amount.toString());
       if (isNaN(creditAmount) || creditAmount <= 0) {
-        console.warn(`Monnify Webhook: Invalid amount "${amount}" - skipping`);
+        this.logger.warn(`Monnify Webhook: Invalid amount "${amount}" - skipping`);
         return false;
       }
+
+      // ─── 3. Deposit Velocity / Amount Limits ─────────────────────────────────
+      await this.assertDepositLimits(userId, creditAmount);
+
       await this.walletService.deposit(userId, creditAmount, 'Monnify Bank Transfer', paymentReference);
-      console.log(`Monnify Webhook: Successfully credited user ${userId} with ₦${creditAmount} (ref: ${paymentReference})`);
+      this.logger.log(`Monnify Webhook: Credited user ${userId} ₦${creditAmount} (ref: ${paymentReference})`);
       return true;
     } catch (err: any) {
-      console.error(`Monnify Webhook deposit failed for user ${userId}:`, err.message);
+      this.logger.error(`Monnify Webhook deposit failed for user ${userId}: ${err.message}`);
       return false;
     }
   }
 
-  async processGafiapayWebhook(body: any, requestSignature: string, rawBodyString?: string): Promise<boolean> {
-    // Use the raw body string if available for accurate signature verification,
-    // otherwise fall back to re-serializing (which may differ from the original)
+  async processGafiapayWebhook(
+    body: any,
+    requestSignature: string,
+    rawBodyString?: string,
+    requestIp?: string,
+  ): Promise<boolean> {
+    // ─── 1. IP Allowlist ────────────────────────────────────────────────────────
+    if (requestIp && !this.isAllowedWebhookIp(requestIp, GAFIAPAY_ALLOWED_IPS)) {
+      this.logger.error(`SECURITY: Gafiapay webhook rejected — IP ${requestIp} not in allowlist`);
+      await this.auditLogService.log(null, 'webhook@gafiapay.com', 'WEBHOOK_IP_BLOCKED',
+        { ip: requestIp, provider: 'gafiapay' }, requestIp).catch(() => {});
+      return false;
+    }
+
+    // ─── 2. HMAC Signature Verification ─────────────────────────────────────────
     const bodyForSigning = rawBodyString || (typeof body === 'string' ? body : JSON.stringify(body));
-    const computedSignature = crypto
-      .createHmac('sha256', this.gafiapaySecretKey || '')
-      .update(bodyForSigning)
-      .digest('hex');
+    const secretKey = this.gafiapaySecretKey || '';
 
-    console.log('Gafiapay Webhook: Signature check -', {
-      receivedSignature: requestSignature || '(none)',
-      computedSignature,
-      match: requestSignature ? computedSignature === requestSignature : 'skipped (no signature header)',
-    });
+    if (secretKey) {
+      if (!requestSignature) {
+        this.logger.error('SECURITY: Gafiapay webhook rejected — no signature header present');
+        await this.auditLogService.log(null, 'webhook@gafiapay.com', 'WEBHOOK_NO_SIGNATURE',
+          { provider: 'gafiapay', ip: requestIp }, requestIp).catch(() => {});
+        return false;
+      }
 
-    if (requestSignature && computedSignature !== requestSignature) {
-      console.warn('Gafiapay Webhook rejected: signature mismatch');
-      // Log but do NOT reject - process the webhook anyway since Gafiapay
-      // may use a different signing method than what we expect
-      // return false;
+      const computedSignature = crypto
+        .createHmac('sha256', secretKey)
+        .update(bodyForSigning)
+        .digest('hex');
+
+      this.logger.debug(`Gafiapay Webhook: Signature check — received=${requestSignature?.substring(0, 8)}... computed=${computedSignature.substring(0, 8)}...`);
+
+      // Use timing-safe comparison to prevent timing attacks
+      const sigBuffer = Buffer.from(requestSignature || '', 'hex');
+      const computedBuffer = Buffer.from(computedSignature, 'hex');
+      const sigValid =
+        sigBuffer.length === computedBuffer.length &&
+        crypto.timingSafeEqual(sigBuffer, computedBuffer);
+
+      if (!sigValid) {
+        this.logger.error(`SECURITY: Gafiapay webhook REJECTED — HMAC-SHA256 signature mismatch from IP ${requestIp}`);
+        await this.auditLogService.log(null, 'webhook@gafiapay.com', 'WEBHOOK_SIG_MISMATCH',
+          { provider: 'gafiapay', receivedSig: requestSignature?.substring(0, 16) + '...', ip: requestIp },
+          requestIp).catch(() => {});
+        return false;
+      }
+    } else {
+      this.logger.warn('Gafiapay webhook: GAFIAPAY_SECRET_KEY not configured — skipping HMAC check (dev mode only)');
     }
 
     // Extract payment data - try multiple common payload structures
@@ -446,14 +588,18 @@ export class PaymentService {
     try {
       const creditAmount = parseFloat(amount);
       if (isNaN(creditAmount) || creditAmount <= 0) {
-        console.warn(`Gafiapay Webhook: Invalid amount "${amount}" - skipping`);
+        this.logger.warn(`Gafiapay Webhook: Invalid amount "${amount}" - skipping`);
         return false;
       }
-      await this.walletService.deposit(account.userId, creditAmount, 'Gafiapay Bank Transfer');
-      console.log(`Gafiapay Webhook: Successfully credited user ${account.userId} with ₦${creditAmount}`);
+
+      // ─── 3. Deposit Velocity / Amount Limits ─────────────────────────────────
+      await this.assertDepositLimits(account.userId, creditAmount);
+
+      await this.walletService.deposit(account.userId, creditAmount, 'Gafiapay Bank Transfer', reference);
+      this.logger.log(`Gafiapay Webhook: Credited user ${account.userId} ₦${creditAmount} (ref: ${reference})`);
       return true;
     } catch (err: any) {
-      console.error(`Gafiapay Webhook deposit failed for user ${account.userId}:`, err.message);
+      this.logger.error(`Gafiapay Webhook deposit failed for user ${account.userId}: ${err.message}`);
       return false;
     }
   }

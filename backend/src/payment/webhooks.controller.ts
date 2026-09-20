@@ -40,7 +40,8 @@ export class WebhooksController {
 
     const signature = req.headers['monnify-signature'] as string;
     const rawBody = req.rawBody ? req.rawBody.toString('utf-8') : undefined;
-    const success = await this.paymentService.processMonnifyWebhook(body, signature, rawBody);
+    const clientIp = (req.headers['x-forwarded-for'] as string || req.ip || '').toString();
+    const success = await this.paymentService.processMonnifyWebhook(body, signature, rawBody, clientIp);
     
     console.log('=== MONNIFY WEBHOOK RESULT:', success, '===');
     // We always acknowledge receipt with 200 OK as recommended by Monnify
@@ -86,8 +87,9 @@ export class WebhooksController {
 
     // Pass raw body string for accurate signature verification
     const rawBody = req.rawBody ? req.rawBody.toString('utf-8') : undefined;
+    const clientIp = (req.headers['x-forwarded-for'] as string || req.ip || '').toString();
                      
-    const success = await this.paymentService.processGafiapayWebhook(body, signature, rawBody);
+    const success = await this.paymentService.processGafiapayWebhook(body, signature, rawBody, clientIp);
     
     console.log('=== GAFIAPAY WEBHOOK RESULT:', success, '===');
     // We always acknowledge receipt with 200 OK as recommended by Gafiapay
