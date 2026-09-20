@@ -1,6 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { AuthContext } from '@/context/AuthContext'
 import api from '@/lib/api'
 import { toast } from 'sonner'
 
@@ -29,8 +31,11 @@ const ALL_PERMISSIONS = [
 ]
 
 export default function AdminUsersPage() {
+  const auth = useContext(AuthContext)
+  const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [users, setUsers] = useState<AdminUserRecord[]>([])
+  const [impersonatingId, setImpersonatingId] = useState<string | null>(null)
 
   // Modal / Editing states
   const [editingUser, setEditingUser] = useState<AdminUserRecord | null>(null)
@@ -96,6 +101,21 @@ export default function AdminUsersPage() {
       fetchUsers()
     } catch (err: any) {
       toast.error(err.response?.data?.message || 'Failed to delete user.')
+    }
+  }
+
+  const handleImpersonate = async (userId: string, fullName: string) => {
+    if (!window.confirm(`You are about to impersonate ${fullName}. You will be logged in as this user. Continue?`)) return
+    try {
+      setImpersonatingId(userId)
+      if (auth?.impersonate) {
+        await auth.impersonate(userId)
+        router.push('/dashboard')
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Could not impersonate user.')
+    } finally {
+      setImpersonatingId(null)
     }
   }
 
@@ -281,6 +301,15 @@ export default function AdminUsersPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 flex flex-col sm:flex-row items-end sm:items-center justify-end space-y-2 sm:space-y-0 sm:space-x-2">
+                      {user.role !== 'super_admin' && (
+                        <button
+                          onClick={() => handleImpersonate(user.id, user.fullName)}
+                          disabled={impersonatingId === user.id}
+                          className="text-xs font-bold px-3 py-1.5 rounded-xl border border-primary-blue/30 text-primary-glow hover:bg-primary-blue/10 transition-all disabled:opacity-50"
+                        >
+                          {impersonatingId === user.id ? 'Loading...' : '👁 Impersonate'}
+                        </button>
+                      )}
                       <button
                         onClick={() => openEditModal(user)}
                         className="text-xs font-bold px-3 py-1.5 rounded-xl border border-amber-500/20 text-amber-400 hover:bg-amber-500/10 transition-all"
