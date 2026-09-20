@@ -33,8 +33,8 @@ export default function DashboardPage() {
       setBalance(balanceRes.data.data)
 
       // Fetch transaction history (recent 10)
-      const txRes = await api.get('/transactions')
-      setTransactions(txRes.data.data.slice(0, 10))
+      const txRes = await api.get('/transactions?limit=10')
+      setTransactions(txRes.data.data ? txRes.data.data.slice(0, 10) : [])
 
       // Fetch stats
       const statsRes = await api.get('/wallet/stats')

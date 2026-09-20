@@ -299,11 +299,12 @@ export class WalletService {
     return savedWallet;
   }
 
-  async getHistory(userId: string): Promise<any[]> {
+  async getHistory(userId: string, limit = 100): Promise<any[]> {
     const wallet = await this.findOneByUserId(userId);
     const txs = await this.walletTransactionRepository.find({
       where: { walletId: wallet.id },
       order: { createdAt: 'DESC' },
+      take: limit,
     });
     return txs.map((tx) => {
       const desc = tx.description || '';
@@ -341,18 +342,17 @@ export class WalletService {
       where: { userId, status: 'success' },
     });
 
-    // Referral commission derived from credits with 'referral' in description
+    // Referral commission derived directly from SQL aggregate
     const wallet = await this.findOneByUserId(userId);
-    const referralTx = await this.walletTransactionRepository.find({
-      where: {
-        walletId: wallet.id,
-        type: 'credit',
-      },
-    });
+    const referralRow = await this.walletTransactionRepository
+      .createQueryBuilder('wt')
+      .select('COALESCE(SUM(wt.amount), 0)', 'total')
+      .where('wt.walletId = :walletId', { walletId: wallet.id })
+      .andWhere('wt.type = :type', { type: 'credit' })
+      .andWhere('LOWER(wt.description) LIKE :term', { term: '%referral%' })
+      .getRawOne();
 
-    const referralEarnings = referralTx
-      .filter((t) => t.description?.toLowerCase().includes('referral'))
-      .reduce((sum, t) => sum + t.amount, 0);
+    const referralEarnings = Number(referralRow?.total || 0);
 
     return {
       totalCount,

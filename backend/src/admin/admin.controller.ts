@@ -111,11 +111,17 @@ export class AdminController {
 
   @Get('transactions')
   @Permissions('manage:transactions')
-  async getTransactions() {
-    const data = await this.adminService.getTransactions();
+  async getTransactions(
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    const data = await this.adminService.getTransactions(
+      page ? parseInt(page, 10) : 1,
+      limit ? Math.min(parseInt(limit, 10), 500) : 200,
+    );
     return {
       success: true,
-      data,
+      ...data,
     };
   }
 

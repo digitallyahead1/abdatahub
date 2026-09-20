@@ -10,10 +10,11 @@ export class TransactionsService {
     private transactionRepository: Repository<Transaction>,
   ) {}
 
-  async getUserHistory(userId: string): Promise<Transaction[]> {
+  async getUserHistory(userId: string, limit = 100): Promise<Transaction[]> {
     return this.transactionRepository.find({
       where: { userId },
       order: { createdAt: 'DESC' },
+      take: limit,
     });
   }
 }

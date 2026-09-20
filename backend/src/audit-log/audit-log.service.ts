@@ -31,9 +31,10 @@ export class AuditLogService {
     }
   }
 
-  async findAll() {
+  async findAll(limit = 500) {
     return this.auditLogRepository.find({
       order: { createdAt: 'DESC' },
+      take: limit,
     });
   }
 }

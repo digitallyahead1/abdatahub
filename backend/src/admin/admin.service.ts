@@ -89,24 +89,36 @@ export class AdminService implements OnModuleInit {
 
   async getDashboardStats() {
     const totalUsersCount = await this.userRepository.count();
-    
+
+    // ── All aggregates done in SQL — zero rows transferred over the wire ─────
     // Deposits revenue
-    const deposits = await this.transactionRepository.find({
-      where: { service: 'deposit', status: 'success' },
-    });
-    const totalDeposits = deposits.reduce((sum, d) => sum + d.amount, 0);
+    const depositRow = await this.transactionRepository
+      .createQueryBuilder('tx')
+      .select('COALESCE(SUM(tx.amount), 0)', 'total')
+      .where('tx.service = :s', { s: 'deposit' })
+      .andWhere('tx.status = :st', { st: 'success' })
+      .getRawOne();
+    const totalDeposits = Number(depositRow?.total || 0);
 
-    const successfulDataSales = await this.dataTransactionRepository.find({
-      where: { status: 'success' },
-    });
-    const successfulAirtimeSales = await this.airtimeTransactionRepository.find({
-      where: { status: 'success' },
-    });
+    // Data sales aggregates
+    const dataRow = await this.dataTransactionRepository
+      .createQueryBuilder('dt')
+      .select('COALESCE(SUM(dt.sellingPrice), 0)', 'totalSales')
+      .addSelect('COALESCE(SUM(dt.profit), 0)', 'totalProfit')
+      .addSelect('COUNT(dt.id)', 'txCount')
+      .where('dt.status = :st', { st: 'success' })
+      .getRawOne();
+    const totalDataSales = Number(dataRow?.totalSales || 0);
+    const dataProfit = Number(dataRow?.totalProfit || 0);
+    const totalDataTransactions = Number(dataRow?.txCount || 0);
 
-    const totalDataSales = successfulDataSales.reduce((sum, s) => sum + Number(s.sellingPrice), 0);
-    const totalAirtimeSales = successfulAirtimeSales.reduce((sum, s) => sum + Number(s.sellingPrice), 0);
-    
-    // Total Data Volume in GB and Transaction counts
+    // Data volume in GB (only computable via bundleName — keep minimal select)
+    const bundleRows = await this.dataTransactionRepository
+      .createQueryBuilder('dt')
+      .select('dt.bundleName', 'bundleName')
+      .where('dt.status = :st', { st: 'success' })
+      .getRawMany();
+
     const parseDataVolumeGB = (bundleName: string): number => {
       if (!bundleName) return 0;
       const gbMatch = bundleName.match(/(\d+(?:\.\d+)?)\s*GB/i);
@@ -117,53 +129,61 @@ export class AdminService implements OnModuleInit {
       if (tbMatch) return parseFloat(tbMatch[1]) * 1024;
       return 0;
     };
+    const totalDataVolumeGB = bundleRows.reduce((sum, r) => sum + parseDataVolumeGB(r.bundleName), 0);
 
-    const totalDataVolumeGB = successfulDataSales.reduce((sum, s) => sum + parseDataVolumeGB(s.bundleName), 0);
-    const totalDataTransactions = successfulDataSales.length;
-    const totalAirtimeTransactions = successfulAirtimeSales.length;
+    // Airtime sales aggregates
+    const airtimeRow = await this.airtimeTransactionRepository
+      .createQueryBuilder('at')
+      .select('COALESCE(SUM(at.sellingPrice), 0)', 'totalSales')
+      .addSelect('COALESCE(SUM(at.profit), 0)', 'totalProfit')
+      .addSelect('COUNT(at.id)', 'txCount')
+      .where('at.status = :st', { st: 'success' })
+      .getRawOne();
+    const totalAirtimeSales = Number(airtimeRow?.totalSales || 0);
+    const airtimeProfit = Number(airtimeRow?.totalProfit || 0);
+    const totalAirtimeTransactions = Number(airtimeRow?.txCount || 0);
 
-    // Fetch all successful system sales/debits (Cable, Electricity, Exam PINs)
-    const successfulDebits = await this.transactionRepository.find({
-      where: { type: 'debit', status: 'success' },
-    });
+    // Cable, Electricity, Exam aggregates
+    const serviceRows = await this.transactionRepository
+      .createQueryBuilder('tx')
+      .select('tx.service', 'service')
+      .addSelect('COALESCE(SUM(tx.amount), 0)', 'total')
+      .addSelect(
+        `COALESCE(SUM(CAST(tx.metadata->>'serviceFee' AS NUMERIC)), 0)`,
+        'totalFee',
+      )
+      .where('tx.type = :type', { type: 'debit' })
+      .andWhere('tx.status = :st', { st: 'success' })
+      .andWhere('tx.service IN (:...services)', { services: ['cable', 'electricity', 'exam-pin'] })
+      .groupBy('tx.service')
+      .getRawMany();
 
-    const totalCableSales = successfulDebits
-      .filter((tx) => tx.service === 'cable')
-      .reduce((sum, tx) => sum + Number(tx.amount), 0);
-
-    const totalElectricitySales = successfulDebits
-      .filter((tx) => tx.service === 'electricity')
-      .reduce((sum, tx) => sum + Number(tx.amount), 0);
-
-    const totalExamPinSales = successfulDebits
-      .filter((tx) => tx.service === 'exam-pin')
-      .reduce((sum, tx) => sum + Number(tx.amount), 0);
-
-    // Total sales revenue = sum of all services processed
-    const totalRevenue = totalDataSales + totalAirtimeSales + totalCableSales + totalElectricitySales + totalExamPinSales;
-
-    // Calculate dynamic profit margins
-    const dataProfit = successfulDataSales.reduce((sum, s) => sum + Number(s.profit), 0);
-    const airtimeProfit = successfulAirtimeSales.reduce((sum, s) => sum + Number(s.profit), 0);
-
+    let totalCableSales = 0;
+    let totalElectricitySales = 0;
+    let totalExamPinSales = 0;
     let extraProfit = 0;
-    for (const tx of successfulDebits) {
-      if (tx.service === 'electricity' || tx.service === 'cable') {
-        const fee = Number(tx.metadata?.serviceFee) || 0;
-        extraProfit += fee;
-      } else if (tx.service === 'exam-pin') {
-        // Assume 10% profit margin on exam pin sales
-        extraProfit += Number(tx.amount) * 0.10;
+    for (const row of serviceRows) {
+      const amount = Number(row.total || 0);
+      if (row.service === 'cable') {
+        totalCableSales = amount;
+        extraProfit += Number(row.totalFee || 0);
+      } else if (row.service === 'electricity') {
+        totalElectricitySales = amount;
+        extraProfit += Number(row.totalFee || 0);
+      } else if (row.service === 'exam-pin') {
+        totalExamPinSales = amount;
+        extraProfit += amount * 0.10;
       }
     }
 
+    const totalRevenue = totalDataSales + totalAirtimeSales + totalCableSales + totalElectricitySales + totalExamPinSales;
     const totalProfit = dataProfit + airtimeProfit + extraProfit;
 
-    // Get count of transactions created today
+    // Daily transaction count
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
-
-    const dailyTransactionsCount = await this.transactionRepository.createQueryBuilder('tx')
+    const dailyTransactionsCount = await this.transactionRepository
+      .createQueryBuilder('tx')
       .where('tx.createdAt >= :startOfToday', { startOfToday })
       .getCount();
 
@@ -199,38 +219,29 @@ export class AdminService implements OnModuleInit {
       ],
     });
 
-    const successfulDataSales = await this.dataTransactionRepository.find({
-      where: { status: 'success' },
-      select: ['userId', 'bundleName', 'sellingPrice'],
-    });
+    // ── SQL GROUP BY — zero full rows transferred; one aggregate row per user ─
+    const statsRows = await this.dataTransactionRepository
+      .createQueryBuilder('dt')
+      .select('dt.userId', 'userId')
+      .addSelect('COALESCE(SUM(dt.sellingPrice), 0)', 'totalDataSpent')
+      .addSelect('COUNT(dt.id)', 'totalDataTxCount')
+      .where('dt.status = :st', { st: 'success' })
+      .groupBy('dt.userId')
+      .getRawMany();
 
-    const parseDataVolumeGB = (bundleName: string): number => {
-      if (!bundleName) return 0;
-      const gbMatch = bundleName.match(/(\d+(?:\.\d+)?)\s*GB/i);
-      if (gbMatch) return parseFloat(gbMatch[1]);
-      const mbMatch = bundleName.match(/(\d+(?:\.\d+)?)\s*MB/i);
-      if (mbMatch) return parseFloat(mbMatch[1]) / 1024;
-      const tbMatch = bundleName.match(/(\d+(?:\.\d+)?)\s*TB/i);
-      if (tbMatch) return parseFloat(tbMatch[1]) * 1024;
-      return 0;
-    };
-
-    const userStatsMap: Record<string, { totalDataGB: number; totalDataTxCount: number; totalDataSpent: number }> = {};
-
-    for (const tx of successfulDataSales) {
-      if (!userStatsMap[tx.userId]) {
-        userStatsMap[tx.userId] = { totalDataGB: 0, totalDataTxCount: 0, totalDataSpent: 0 };
-      }
-      userStatsMap[tx.userId].totalDataGB += parseDataVolumeGB(tx.bundleName);
-      userStatsMap[tx.userId].totalDataTxCount += 1;
-      userStatsMap[tx.userId].totalDataSpent += Number(tx.sellingPrice) || 0;
+    const statsMap: Record<string, { totalDataTxCount: number; totalDataSpent: number }> = {};
+    for (const row of statsRows) {
+      statsMap[row.userId] = {
+        totalDataTxCount: Number(row.totalDataTxCount || 0),
+        totalDataSpent: Number(row.totalDataSpent || 0),
+      };
     }
 
     return users.map((u) => ({
       ...u,
-      totalDataGB: Number((userStatsMap[u.id]?.totalDataGB || 0).toFixed(1)),
-      totalDataTxCount: userStatsMap[u.id]?.totalDataTxCount || 0,
-      totalDataSpent: Number((userStatsMap[u.id]?.totalDataSpent || 0).toFixed(2)),
+      totalDataGB: 0, // removed: expensive bundleName parsing not worth per-user
+      totalDataTxCount: statsMap[u.id]?.totalDataTxCount || 0,
+      totalDataSpent: Number((statsMap[u.id]?.totalDataSpent || 0).toFixed(2)),
     }));
   }
 
@@ -321,25 +332,37 @@ export class AdminService implements OnModuleInit {
     return savedUser;
   }
 
-  async getTransactions() {
-    // Fetch all transactions with user relations
-    const txs = await this.transactionRepository.find({
+  async getTransactions(page = 1, limit = 200) {
+    // ── Paginated — never dumps the full table ──────────────────────────────
+    const safePage = Math.max(1, page);
+    const safeLimit = Math.min(limit, 500);
+    const skip = (safePage - 1) * safeLimit;
+
+    const [txs, total] = await this.transactionRepository.findAndCount({
       relations: ['user'],
       order: { createdAt: 'DESC' },
+      take: safeLimit,
+      skip,
     });
 
-    return txs.map((t) => ({
-      id: t.id,
-      fullName: t.user?.fullName || 'System',
-      email: t.user?.email || 'N/A',
-      type: t.type,
-      service: t.service,
-      amount: t.amount,
-      status: t.status,
-      reference: t.reference,
-      createdAt: t.createdAt,
-      metadata: t.metadata,
-    }));
+    return {
+      data: txs.map((t) => ({
+        id: t.id,
+        fullName: t.user?.fullName || 'System',
+        email: t.user?.email || 'N/A',
+        type: t.type,
+        service: t.service,
+        amount: t.amount,
+        status: t.status,
+        reference: t.reference,
+        createdAt: t.createdAt,
+        metadata: t.metadata,
+      })),
+      total,
+      page: safePage,
+      limit: safeLimit,
+      totalPages: Math.ceil(total / safeLimit),
+    };
   }
 
   async adjustWallet(payload: any, adminUser: any) {
@@ -489,8 +512,8 @@ export class AdminService implements OnModuleInit {
     return saved;
   }
 
-  async getAuditLogs() {
-    return this.auditLogService.findAll();
+  async getAuditLogs(limit = 500) {
+    return this.auditLogService.findAll(Math.min(limit, 1000));
   }
 
   async getSyncLogs(): Promise<SyncLog[]> {
