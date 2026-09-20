@@ -60,39 +60,91 @@ export class WalletService {
         if (!wallet) throw new NotFoundException('Wallet not found');
 
         const previousBalance = Number(wallet.balance);
-        const newBalance = previousBalance + Number(amount);
+        const currentLedger = Number(wallet.ledgerBalance);
+        const depositAmount = Number(amount);
 
-        // Atomic increment — cannot produce a stale read while lock is held
+        // ─── DEBT RECOVERY: auto-deduct hidden debt if ledgerBalance is negative ───
+        // ledgerBalance < 0 means user has an outstanding debt from a previous incident.
+        // We silently deduct it from this deposit and show it in their history.
+        let netDepositAfterDebt = depositAmount;
+        let debtDeducted = 0;
+        let finalLedgerBalance = currentLedger + depositAmount;
+
+        if (currentLedger < 0) {
+          const outstandingDebt = Math.abs(currentLedger); // positive amount owed
+          debtDeducted = Math.min(depositAmount, outstandingDebt); // can't deduct more than deposit
+          netDepositAfterDebt = depositAmount - debtDeducted; // what actually goes to their balance
+          const remainingDebt = outstandingDebt - debtDeducted;
+          finalLedgerBalance = remainingDebt > 0 ? -remainingDebt : (previousBalance + netDepositAfterDebt);
+        }
+
+        const newBalance = previousBalance + netDepositAfterDebt;
+
+        // Update wallet balances
         await em
           .createQueryBuilder()
           .update(Wallet)
           .set({
-            balance: () => `balance + ${Number(amount)}`,
-            ledgerBalance: () => `"ledgerBalance" + ${Number(amount)}`,
+            balance: newBalance,
+            ledgerBalance: finalLedgerBalance,
           })
           .where('id = :id', { id: wallet.id })
           .execute();
 
-        // Wallet ledger entry
+        // Credit entry (full deposit amount shown to user)
         await em.getRepository(WalletTransaction).save(
           em.getRepository(WalletTransaction).create({
             walletId: wallet.id,
             type: 'credit',
-            amount,
+            amount: depositAmount,
             description: `Funded wallet via ${paymentMethod}`,
             reference: ref,
             previousBalance,
-            newBalance,
+            newBalance: previousBalance + depositAmount,
           }),
         );
 
-        // System-wide transaction log
+        // If debt was deducted, record a visible debit in history
+        if (debtDeducted > 0) {
+          const debtRef = 'DEBT-' + Math.random().toString(36).substring(2, 10).toUpperCase();
+          const remainingDebt = Math.abs(currentLedger) - debtDeducted;
+          const debtDescription = remainingDebt > 0
+            ? `Debt recovery deduction (₦${remainingDebt.toLocaleString('en-NG')} still outstanding)`
+            : `Debt recovery deduction (debt fully cleared)`;
+
+          await em.getRepository(WalletTransaction).save(
+            em.getRepository(WalletTransaction).create({
+              walletId: wallet.id,
+              type: 'debit',
+              amount: debtDeducted,
+              description: debtDescription,
+              reference: debtRef,
+              previousBalance: previousBalance + depositAmount,
+              newBalance,
+            }),
+          );
+
+          // Also log the debt deduction in the system transaction log
+          await em.getRepository(Transaction).save(
+            em.getRepository(Transaction).create({
+              userId,
+              type: 'debit',
+              service: 'debt_recovery',
+              amount: debtDeducted,
+              status: 'success',
+              reference: debtRef,
+              metadata: { remainingDebt, totalDebt: Math.abs(currentLedger) },
+            }),
+          );
+        }
+
+        // System-wide transaction log for the deposit
         await em.getRepository(Transaction).save(
           em.getRepository(Transaction).create({
             userId,
             type: 'credit',
             service: 'deposit',
-            amount,
+            amount: depositAmount,
             status: 'success',
             reference: ref,
             metadata: { paymentMethod },
@@ -100,7 +152,7 @@ export class WalletService {
         );
 
         wallet.balance = newBalance;
-        wallet.ledgerBalance = newBalance;
+        wallet.ledgerBalance = finalLedgerBalance;
         return wallet;
       },
     );
