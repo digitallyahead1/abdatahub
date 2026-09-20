@@ -19,8 +19,12 @@ const MONNIFY_ALLOWED_IPS = [
   '18.133.110.46', '3.9.94.169', '3.9.185.112',  // Monnify EU egress
   '127.0.0.1', '::1', '::ffff:127.0.0.1',         // localhost (dev/test)
 ];
-/** Gafiapay IPs — add real IPs from Gafiapay docs/support */
+/** Gafiapay IPs — default egress list + process.env.GAFIAPAY_ALLOWED_IPS */
 const GAFIAPAY_ALLOWED_IPS = [
+  '38.242.149.154',
+  '89.222.123.193',
+  '89.222.123.194',
+  '79.127.178.82',
   '127.0.0.1', '::1', '::ffff:127.0.0.1',
 ];
 
@@ -50,14 +54,22 @@ export class PaymentService {
 
   // ─── IP Allowlist Check ──────────────────────────────────────────────────────
   /**
-   * Returns true if the request IP is in the provider's allowed list.
+   * Returns true if any IP in the request's IP chain is in the provider's allowed list.
    * If DISABLE_WEBHOOK_IP_CHECK=true the check is skipped (use only in dev).
    */
-  isAllowedWebhookIp(ip: string, allowed: string[]): boolean {
+  isAllowedWebhookIp(ip: string, allowed: string[], envVarName?: string): boolean {
     if (process.env.DISABLE_WEBHOOK_IP_CHECK === 'true') return true;
-    // Handle x-forwarded-for chains: take the first (client) IP
-    const clientIp = (ip || '').split(',')[0].trim();
-    return allowed.includes(clientIp);
+    if (!ip) return true;
+
+    const envVal = envVarName ? process.env[envVarName] : undefined;
+    const envAllowed = envVal
+      ? envVal.split(',').map(s => s.trim()).filter(Boolean)
+      : [];
+    const fullAllowList = new Set([...allowed, ...envAllowed]);
+
+    // Handle x-forwarded-for chains: split into individual IPs and test if ANY IP in proxy chain matches
+    const ips = ip.split(',').map(s => s.trim()).filter(Boolean);
+    return ips.some(clientIp => fullAllowList.has(clientIp));
   }
 
   // ─── Deposit Velocity Guard ──────────────────────────────────────────────────
@@ -360,7 +372,7 @@ export class PaymentService {
     requestIp?: string,
   ): Promise<boolean> {
     // ─── 1. IP Allowlist ────────────────────────────────────────────────────────
-    if (requestIp && !this.isAllowedWebhookIp(requestIp, MONNIFY_ALLOWED_IPS)) {
+    if (requestIp && !this.isAllowedWebhookIp(requestIp, MONNIFY_ALLOWED_IPS, 'MONNIFY_ALLOWED_IPS')) {
       this.logger.error(`SECURITY: Monnify webhook rejected — IP ${requestIp} not in allowlist`);
       await this.auditLogService.log(null, 'webhook@monnify.com', 'WEBHOOK_IP_BLOCKED',
         { ip: requestIp, provider: 'monnify' }, requestIp).catch(() => {});
@@ -491,47 +503,53 @@ export class PaymentService {
     requestIp?: string,
   ): Promise<boolean> {
     // ─── 1. IP Allowlist ────────────────────────────────────────────────────────
-    if (requestIp && !this.isAllowedWebhookIp(requestIp, GAFIAPAY_ALLOWED_IPS)) {
-      this.logger.error(`SECURITY: Gafiapay webhook rejected — IP ${requestIp} not in allowlist`);
-      await this.auditLogService.log(null, 'webhook@gafiapay.com', 'WEBHOOK_IP_BLOCKED',
-        { ip: requestIp, provider: 'gafiapay' }, requestIp).catch(() => {});
-      return false;
-    }
+    const isIpAllowed = !requestIp || this.isAllowedWebhookIp(requestIp, GAFIAPAY_ALLOWED_IPS, 'GAFIAPAY_ALLOWED_IPS');
 
     // ─── 2. HMAC Signature Verification ─────────────────────────────────────────
+    const sigToTest = (requestSignature || body?.signature || '').trim();
     const bodyForSigning = rawBodyString || (typeof body === 'string' ? body : JSON.stringify(body));
     const secretKey = this.gafiapaySecretKey || '';
 
     if (secretKey) {
-      if (!requestSignature) {
-        this.logger.error('SECURITY: Gafiapay webhook rejected — no signature header present');
+      if (!sigToTest && !isIpAllowed) {
+        this.logger.error(`SECURITY: Gafiapay webhook rejected — no signature present and IP ${requestIp} not in allowlist`);
         await this.auditLogService.log(null, 'webhook@gafiapay.com', 'WEBHOOK_NO_SIGNATURE',
           { provider: 'gafiapay', ip: requestIp }, requestIp).catch(() => {});
         return false;
       }
 
-      const computedSignature = crypto
-        .createHmac('sha256', secretKey)
-        .update(bodyForSigning)
-        .digest('hex');
+      if (sigToTest) {
+        const computedSignature = crypto
+          .createHmac('sha256', secretKey)
+          .update(bodyForSigning)
+          .digest('hex');
 
-      this.logger.debug(`Gafiapay Webhook: Signature check — received=${requestSignature?.substring(0, 8)}... computed=${computedSignature.substring(0, 8)}...`);
+        this.logger.debug(`Gafiapay Webhook: Signature check — received=${sigToTest?.substring(0, 8)}... computed=${computedSignature.substring(0, 8)}...`);
 
-      // Use timing-safe comparison to prevent timing attacks
-      const sigBuffer = Buffer.from(requestSignature || '', 'hex');
-      const computedBuffer = Buffer.from(computedSignature, 'hex');
-      const sigValid =
-        sigBuffer.length === computedBuffer.length &&
-        crypto.timingSafeEqual(sigBuffer, computedBuffer);
+        const normReceived = sigToTest.toLowerCase();
+        const normComputed = computedSignature.toLowerCase();
 
-      if (!sigValid) {
-        this.logger.error(`SECURITY: Gafiapay webhook REJECTED — HMAC-SHA256 signature mismatch from IP ${requestIp}`);
-        await this.auditLogService.log(null, 'webhook@gafiapay.com', 'WEBHOOK_SIG_MISMATCH',
-          { provider: 'gafiapay', receivedSig: requestSignature?.substring(0, 16) + '...', ip: requestIp },
-          requestIp).catch(() => {});
-        return false;
+        const sigBuffer = Buffer.from(normReceived, 'hex');
+        const computedBuffer = Buffer.from(normComputed, 'hex');
+        const sigValid =
+          sigBuffer.length === computedBuffer.length &&
+          crypto.timingSafeEqual(sigBuffer, computedBuffer);
+
+        if (!sigValid && !isIpAllowed) {
+          this.logger.error(`SECURITY: Gafiapay webhook REJECTED — HMAC-SHA256 signature mismatch and IP ${requestIp} not in allowlist`);
+          await this.auditLogService.log(null, 'webhook@gafiapay.com', 'WEBHOOK_SIG_MISMATCH',
+            { provider: 'gafiapay', receivedSig: sigToTest?.substring(0, 16) + '...', ip: requestIp },
+            requestIp).catch(() => {});
+          return false;
+        }
       }
     } else {
+      if (!isIpAllowed) {
+        this.logger.error(`SECURITY: Gafiapay webhook rejected — IP ${requestIp} not in allowlist (no secret key configured)`);
+        await this.auditLogService.log(null, 'webhook@gafiapay.com', 'WEBHOOK_IP_BLOCKED',
+          { ip: requestIp, provider: 'gafiapay' }, requestIp).catch(() => {});
+        return false;
+      }
       this.logger.warn('Gafiapay webhook: GAFIAPAY_SECRET_KEY not configured — skipping HMAC check (dev mode only)');
     }
 
