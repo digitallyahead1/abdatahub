@@ -12,7 +12,10 @@ export class WalletController {
     const data = await this.walletService.findOneByUserId(req.user.id);
     return {
       success: true,
-      data,
+      data: {
+        ...data,
+        ledgerBalance: Math.max(0, Number(data.ledgerBalance)),
+      },
     };
   }
 

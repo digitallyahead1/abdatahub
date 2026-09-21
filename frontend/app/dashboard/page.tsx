@@ -343,7 +343,7 @@ export default function DashboardPage() {
 
             <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-white/5 text-xs">
               <div className="text-silver-muted">
-                Ledger Balance: <span className="font-mono text-white font-semibold">₦{balance.ledgerBalance.toLocaleString()}</span>
+                Ledger Balance: <span className="font-mono text-white font-semibold">₦{Math.max(0, Number(balance.ledgerBalance || 0)).toLocaleString()}</span>
               </div>
 
               <div className="flex items-center gap-2">
