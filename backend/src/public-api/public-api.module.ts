@@ -12,6 +12,7 @@ import { ApiKeysModule } from '../api-keys/api-key.module';
 import { WalletModule } from '../wallet/wallet.module';
 import { ServicesModule } from '../services/services.module';
 import { UsersModule } from '../users/users.module';
+import { WebhookModule } from '../webhooks/webhook.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { UsersModule } from '../users/users.module';
     WalletModule,
     ServicesModule,
     UsersModule,
+    WebhookModule,
   ],
   providers: [PublicApiService, ApiRequestLogInterceptor],
   controllers: [PublicApiController],

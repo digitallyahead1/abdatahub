@@ -18,6 +18,7 @@ import { PaymentModule } from './payment/payment.module';
 import { PushNotificationModule } from './push-notification/push-notification.module';
 import { ApiKeysModule } from './api-keys/api-key.module';
 import { PublicApiModule } from './public-api/public-api.module';
+import { WebhookModule } from './webhooks/webhook.module';
 
 @Module({
   imports: [
@@ -46,6 +47,7 @@ import { PublicApiModule } from './public-api/public-api.module';
     PushNotificationModule,
     ApiKeysModule,
     PublicApiModule,
+    WebhookModule,
   ],
 })
 export class AppModule {}

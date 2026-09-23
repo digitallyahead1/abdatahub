@@ -21,10 +21,20 @@
 7. [Transactions](#transactions)
    - [List Transactions](#list-transactions)
    - [Get Transaction by Reference](#get-transaction-by-reference)
-8. [Error Reference](#error-reference)
-9. [Providers Reference](#providers-reference)
-10. [Code Examples](#code-examples)
-11. [Changelog](#changelog)
+8. [Webhooks](#webhooks)
+   - [Register an Endpoint](#register-an-endpoint)
+   - [List Endpoints](#list-endpoints)
+   - [Delete an Endpoint](#delete-an-endpoint)
+   - [Disable an Endpoint](#disable-an-endpoint)
+   - [View Delivery History](#view-delivery-history)
+   - [Send a Test Ping](#send-a-test-ping)
+   - [Webhook Events](#webhook-events)
+   - [Payload Structure](#payload-structure)
+   - [Signature Verification](#signature-verification)
+9. [Error Reference](#error-reference)
+10. [Providers Reference](#providers-reference)
+11. [Code Examples](#code-examples)
+12. [Changelog](#changelog)
 
 ---
 
@@ -667,10 +677,293 @@ void main() async {
 
 ---
 
+## Webhooks
+
+Webhooks allow AB Data Hub to **push real-time notifications** to your server when events happen — such as when a data purchase succeeds or fails. This is far more efficient than polling the transactions API.
+
+> **Requires:** JWT authentication. Manage your webhooks from your server — never expose your webhook secret in a client app.
+
+### Register an Endpoint
+
+```http
+POST /v1/webhooks
+```
+
+**Request Body:**
+
+```json
+{
+  "label": "Production App",
+  "url": "https://yourapp.com/hooks/abdatahub",
+  "events": ["data.purchase.success", "data.purchase.failed"]
+}
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `label` | string | No | Friendly name for this endpoint |
+| `url` | string | Yes | Your HTTPS endpoint URL |
+| `events` | string[] | No | Events to subscribe to (defaults to all) |
+
+**Response (201):**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "wh_3f1a2b4c-0e9d-4f7a-b8c1-1234567890ab",
+    "label": "Production App",
+    "url": "https://yourapp.com/hooks/abdatahub",
+    "events": ["data.purchase.success", "data.purchase.failed"],
+    "status": "active",
+    "secret": "whsec_a1b2c3d4e5f6...",
+    "created_at": "2026-09-24T00:10:00Z"
+  },
+  "message": "Webhook endpoint registered. Save your secret — it will not be shown again."
+}
+```
+
+> **Save your `secret` immediately.** It is shown only once and is required to verify incoming webhook signatures.
+
+---
+
+### List Endpoints
+
+```http
+GET /v1/webhooks
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "wh_3f1a2b4c-...",
+      "label": "Production App",
+      "url": "https://yourapp.com/hooks/abdatahub",
+      "events": ["data.purchase.success", "data.purchase.failed"],
+      "status": "active",
+      "created_at": "2026-09-24T00:10:00Z"
+    }
+  ]
+}
+```
+
+> The `secret` is **not returned** after initial registration.
+
+---
+
+### Delete an Endpoint
+
+```http
+DELETE /v1/webhooks/{id}
+```
+
+Permanently removes the endpoint and all its delivery history.
+
+---
+
+### Disable an Endpoint
+
+```http
+POST /v1/webhooks/{id}/disable
+```
+
+Pauses deliveries without deleting the endpoint. Re-enable by deleting and re-registering.
+
+---
+
+### View Delivery History
+
+```http
+GET /v1/webhooks/{id}/deliveries?limit=50
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": "del_abc123",
+      "event": "data.purchase.success",
+      "success": true,
+      "attempt": 1,
+      "response_status": 200,
+      "response_body": "ok",
+      "delivered_at": "2026-09-24T00:15:43Z",
+      "created_at": "2026-09-24T00:15:40Z"
+    }
+  ]
+}
+```
+
+| Field | Description |
+|-------|-------------|
+| `attempt` | Delivery attempt number (1 = first try, 2+ = retry) |
+| `success` | `true` if your server returned HTTP 2xx |
+| `response_status` | HTTP status your server returned |
+
+---
+
+### Send a Test Ping
+
+```http
+POST /v1/webhooks/{id}/test
+```
+
+Sends a `test.ping` event to your endpoint to verify connectivity before going live.
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "response_status": 200,
+    "message": "Test ping delivered successfully."
+  }
+}
+```
+
+---
+
+### Webhook Events
+
+| Event | Fired When |
+|-------|------------|
+| `data.purchase.success` | A data purchase completes successfully |
+| `data.purchase.failed` | A data purchase fails (refund is automatically issued) |
+| `test.ping` | Sent only via the test endpoint — not a real transaction |
+
+**Retry policy:** Failed deliveries are retried up to **3 times** with exponential backoff (1s → 3s → 9s). After all retries fail, the event is marked as failed in delivery history.
+
+---
+
+### Payload Structure
+
+Every webhook POST to your URL contains:
+
+```json
+{
+  "event": "data.purchase.success",
+  "data": {
+    "transaction_reference": "DATA-20260924-A1B2C3D4",
+    "network": "mtn",
+    "plan": "MTN 1GB SME - 30 Days",
+    "phone": "08012345678",
+    "amount": 350.00,
+    "status": "success",
+    "provider_transaction_id": "DAN-78291",
+    "completed_at": "2026-09-24T00:15:43Z",
+    "message": "Data subscription sent to 08012345678"
+  },
+  "timestamp": "2026-09-24T00:15:44Z"
+}
+```
+
+**HTTP Headers sent with every delivery:**
+
+| Header | Value |
+|--------|-------|
+| `Content-Type` | `application/json` |
+| `X-ABHub-Signature` | `sha256=<HMAC-SHA256 of request body>` |
+| `X-ABHub-Event` | e.g. `data.purchase.success` |
+| `User-Agent` | `ABDataHub-Webhooks/1.0` |
+
+---
+
+### Signature Verification
+
+**Always verify the `X-ABHub-Signature` header** before processing a webhook — this confirms the delivery genuinely comes from AB Data Hub and hasn't been tampered with.
+
+The signature is computed as:
+```
+sha256=HMAC-SHA256(webhookSecret, rawRequestBody)
+```
+
+#### Node.js
+
+```javascript
+const crypto = require('crypto');
+
+function verifyWebhook(rawBody, signatureHeader, secret) {
+  const expected = 'sha256=' + crypto
+    .createHmac('sha256', secret)
+    .update(rawBody)  // rawBody must be the raw Buffer/string, NOT parsed JSON
+    .digest('hex');
+  // Use timingSafeEqual to prevent timing attacks
+  return crypto.timingSafeEqual(
+    Buffer.from(expected),
+    Buffer.from(signatureHeader)
+  );
+}
+
+// Express example
+app.post('/hooks/abdatahub', express.raw({ type: 'application/json' }), (req, res) => {
+  const sig = req.headers['x-abhub-signature'];
+  if (!verifyWebhook(req.body, sig, process.env.WEBHOOK_SECRET)) {
+    return res.status(401).send('Invalid signature');
+  }
+  const event = JSON.parse(req.body);
+  console.log('Received:', event.event, event.data.transaction_reference);
+  res.status(200).send('ok');
+});
+```
+
+#### Python (Flask)
+
+```python
+import hmac, hashlib, os
+from flask import Flask, request, abort
+
+app = Flask(__name__)
+
+@app.route('/hooks/abdatahub', methods=['POST'])
+def webhook():
+    sig = request.headers.get('X-ABHub-Signature', '')
+    raw = request.get_data()  # raw bytes — do NOT call request.json first
+    expected = 'sha256=' + hmac.new(
+        os.environ['WEBHOOK_SECRET'].encode(),
+        raw,
+        hashlib.sha256
+    ).hexdigest()
+    if not hmac.compare_digest(expected, sig):
+        abort(401)
+    event = request.json
+    print('Received:', event['event'], event['data']['transaction_reference'])
+    return 'ok', 200
+```
+
+#### Dart (Flutter backend / server)
+
+```dart
+import 'dart:convert';
+import 'dart:io';
+import 'package:crypto/crypto.dart';
+
+bool verifySignature(String rawBody, String sigHeader, String secret) {
+  final mac = Hmac(sha256, utf8.encode(secret));
+  final digest = mac.convert(utf8.encode(rawBody));
+  final expected = 'sha256=\${digest.toString()}';
+  // Constant-time comparison
+  if (expected.length != sigHeader.length) return false;
+  var result = 0;
+  for (var i = 0; i < expected.length; i++) {
+    result |= expected.codeUnitAt(i) ^ sigHeader.codeUnitAt(i);
+  }
+  return result == 0;
+}
+```
+
+---
+
 ## Changelog
 
 | Date | Version | Change |
 |------|---------|--------|
+| Sept 2026 | v1.4 | Added **Outgoing Webhook System** — `data.purchase.success`, `data.purchase.failed` events with HMAC-SHA256 signing and 3-attempt retry |
 | Sept 2026 | v1.3 | Added **Danmalama** provider — MTN, Airtel, and Glo plans now available via Danmalama |
 | Sept 2026 | v1.2 | Added Swiftbills provider for MTN plans |
 | Aug 2026 | v1.1 | Added AMZAET provider for MTN plans |

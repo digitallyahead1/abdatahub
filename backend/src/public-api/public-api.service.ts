@@ -11,6 +11,7 @@ import { SmePlugService } from '../services/smeplug.service';
 import { SwiftbillsService } from '../services/swiftbills.service';
 import { DanmalamaService } from '../services/danmalama.service';
 import { UsersService } from '../users/users.service';
+import { WebhookService } from '../webhooks/webhook.service';
 import axios from 'axios';
 
 @Injectable()
@@ -39,6 +40,7 @@ export class PublicApiService {
     private swiftbillsService: SwiftbillsService,
     private danmalamaService: DanmalamaService,
     private usersService: UsersService,
+    private webhookService: WebhookService,
   ) {}
 
   // ─── Networks ────────────────────────────────────────────────────────────────
@@ -271,7 +273,13 @@ export class PublicApiService {
       message: success ? `Data subscription sent to ${cleanPhone}` : (dataTx.failureReason || 'Transaction failed'),
     };
 
-    // 13. Store idempotency result
+    // 13. Fire outgoing webhook (non-blocking — doesn't affect response time)
+    const webhookEvent = success ? 'data.purchase.success' : 'data.purchase.failed';
+    this.webhookService.fire(userId, apiKeyId, webhookEvent, result).catch(err => {
+      this.logger.error(`Webhook fire error for user ${userId}: ${err.message}`);
+    });
+
+    // 14. Store idempotency result
     if (idempotency_key && success) {
       const exp = new Date();
       exp.setHours(exp.getHours() + 24);
