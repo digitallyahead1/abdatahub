@@ -9,6 +9,7 @@ import { ApiKey } from '../entities/api-key.entity';
 import { WalletService } from '../wallet/wallet.service';
 import { SmePlugService } from '../services/smeplug.service';
 import { SwiftbillsService } from '../services/swiftbills.service';
+import { DanmalamaService } from '../services/danmalama.service';
 import { UsersService } from '../users/users.service';
 import axios from 'axios';
 
@@ -36,6 +37,7 @@ export class PublicApiService {
     private walletService: WalletService,
     private smePlugService: SmePlugService,
     private swiftbillsService: SwiftbillsService,
+    private danmalamaService: DanmalamaService,
     private usersService: UsersService,
   ) {}
 
@@ -207,6 +209,8 @@ export class PublicApiService {
     try {
       if (plan.provider === 'swiftbills') {
         providerResult = await this.swiftbillsService.purchaseData(plan.network, cleanPhone, plan.smeplugPlanId, ref);
+      } else if (plan.provider === 'danmalama') {
+        providerResult = await this.danmalamaService.purchaseData(plan.network, cleanPhone, plan.smeplugPlanId, ref);
       } else if (plan.provider === 'amzaet') {
         const amzaetToken = process.env.AMZAET_TOKEN;
         if (!amzaetToken) throw new Error('AMZAET service is not configured.');

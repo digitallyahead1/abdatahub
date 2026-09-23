@@ -11,6 +11,7 @@ import { WalletService } from '../wallet/wallet.service';
 import { SmePlugService } from './smeplug.service';
 import { IacafeService } from './iacafe.service';
 import { SwiftbillsService } from './swiftbills.service';
+import { DanmalamaService } from './danmalama.service';
 import { AdminService } from '../admin/admin.service';
 import { UsersService } from '../users/users.service';
 import { formatToWatIso } from '../common/date.util';
@@ -24,6 +25,7 @@ export class ServicesService {
     private smePlugService: SmePlugService,
     private iacafeService: IacafeService,
     private swiftbillsService: SwiftbillsService,
+    private danmalamaService: DanmalamaService,
     @Inject(forwardRef(() => AdminService))
     private adminService: AdminService,
     private usersService: UsersService,
@@ -218,6 +220,14 @@ export class ServicesService {
         plan.smeplugPlanId,
         ref,
       );
+    } else if (plan.provider === 'danmalama') {
+      this.logger.log(`Purchasing data via Danmalama API for plan ${plan.smeplugPlanId} (${plan.bundleName}) on phone ${phoneNumber}`);
+      result = await this.danmalamaService.purchaseData(
+        plan.network,
+        phoneNumber,
+        plan.smeplugPlanId,
+        ref,
+      );
     } else if (plan.provider === 'amzaet') {
       const amzaetToken = process.env.AMZAET_TOKEN;
       if (!amzaetToken) {
@@ -400,7 +410,7 @@ export class ServicesService {
 
         let rawErr = result?.data?.msg || result?.msg || 'Data purchase transaction failed on provider gateway';
         if (typeof rawErr === 'string' && rawErr.toLowerCase().includes('insufficient')) {
-          rawErr = 'Provider Gateway Error: Insufficient balance on API provider account (swiftbills/amzaet/smeplug). Please contact admin to top up provider API wallet.';
+          rawErr = 'Provider Gateway Error: Insufficient balance on API provider account (danmalama/swiftbills/amzaet/smeplug). Please contact admin to top up provider API wallet.';
         }
         throw new BadRequestException(rawErr);
       }

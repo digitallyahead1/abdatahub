@@ -5,6 +5,7 @@ import { DataPlan } from '../entities/data-plan.entity';
 import { AirtimePricing } from '../entities/airtime-pricing.entity';
 import { SyncLog } from '../entities/sync-log.entity';
 import { SmePlugService } from './smeplug.service';
+import { DanmalamaService } from './danmalama.service';
 import { AdminService } from '../admin/admin.service';
 
 @Injectable()
@@ -14,6 +15,7 @@ export class SmePlugSyncService implements OnModuleInit {
 
   constructor(
     private smePlugService: SmePlugService,
+    private danmalamaService: DanmalamaService,
     @Inject(forwardRef(() => AdminService))
     private adminService: AdminService,
     @InjectRepository(DataPlan)
@@ -40,6 +42,11 @@ export class SmePlugSyncService implements OnModuleInit {
     // Seed Swiftbills data plans on startup
     this.seedSwiftbillsPlans().catch(err => {
       this.logger.error('Failed to seed Swiftbills plans:', err);
+    });
+
+    // Seed Danmalama data plans on startup
+    this.seedDanmalamaPlans().catch(err => {
+      this.logger.error('Failed to seed Danmalama plans:', err);
     });
 
     // Run first sync in background after a brief delay
@@ -216,6 +223,101 @@ export class SmePlugSyncService implements OnModuleInit {
         }
       }
     }
+  }
+
+  async seedDanmalamaPlans(): Promise<{ added: number; updated: number; total: number }> {
+    const provider = 'danmalama';
+
+    // Comprehensive reference fallback plans
+    const fallbackPlans = [
+      // MTN
+      { smeplugPlanId: 173, network: 'mtn', bundleName: '1GB WEEKLY', smeplugCost: 450, sellingPrice: 450, agentPrice: 0 },
+      { smeplugPlanId: 174, network: 'mtn', bundleName: '2GB MONTHLY', smeplugCost: 1000, sellingPrice: 1000, agentPrice: 0 },
+      { smeplugPlanId: 175, network: 'mtn', bundleName: '3GB - Monthly', smeplugCost: 1100, sellingPrice: 1100, agentPrice: 0 },
+      { smeplugPlanId: 176, network: 'mtn', bundleName: '5GB MONTHLY', smeplugCost: 1400, sellingPrice: 1400, agentPrice: 0 },
+      { smeplugPlanId: 522, network: 'mtn', bundleName: '10GB MONTHLY', smeplugCost: 2800, sellingPrice: 2800, agentPrice: 0 },
+      { smeplugPlanId: 524, network: 'mtn', bundleName: '20GB MONTHLY', smeplugCost: 5000, sellingPrice: 5000, agentPrice: 0 },
+      // AIRTEL
+      { smeplugPlanId: 409, network: 'airtel', bundleName: '3GB 2DAYS', smeplugCost: 1000, sellingPrice: 1000, agentPrice: 0 },
+      { smeplugPlanId: 411, network: 'airtel', bundleName: '1.5GB DAILY', smeplugCost: 600, sellingPrice: 600, agentPrice: 0 },
+      { smeplugPlanId: 293, network: 'airtel', bundleName: 'Data - 2GB', smeplugCost: 850, sellingPrice: 850, agentPrice: 0 },
+      { smeplugPlanId: 410, network: 'airtel', bundleName: '5GB WEEKLY', smeplugCost: 1700, sellingPrice: 1700, agentPrice: 0 },
+      // GLO
+      { smeplugPlanId: 467, network: 'glo', bundleName: '1GB [Corporate] - 30 Days', smeplugCost: 600, sellingPrice: 600, agentPrice: 0 },
+      { smeplugPlanId: 469, network: 'glo', bundleName: '2GB [Corporate] - 30 Days', smeplugCost: 1100, sellingPrice: 1100, agentPrice: 0 },
+      { smeplugPlanId: 470, network: 'glo', bundleName: '3GB [Corporate] - 30 Days', smeplugCost: 1550, sellingPrice: 1550, agentPrice: 0 },
+    ];
+
+    let plansToSeed = fallbackPlans;
+
+    try {
+      const liveData = await this.danmalamaService.getDataPlans();
+      if (liveData?.status === true && liveData?.data) {
+        const livePlans: typeof fallbackPlans = [];
+        const networks = ['MTN', 'AIRTEL', 'GLO', '9MOBILE'];
+        for (const net of networks) {
+          const arr = liveData.data[net];
+          if (Array.isArray(arr)) {
+            for (const item of arr) {
+              const planIdNum = parseInt(item.planId, 10);
+              const price = parseFloat(item.price) || 0;
+              if (planIdNum && price > 0) {
+                livePlans.push({
+                  smeplugPlanId: planIdNum,
+                  network: net.toLowerCase(),
+                  bundleName: item.name?.trim() || `${net} Data`,
+                  smeplugCost: price,
+                  sellingPrice: price,
+                  agentPrice: 0,
+                });
+              }
+            }
+          }
+        }
+        if (livePlans.length > 0) {
+          plansToSeed = livePlans;
+          this.logger.log(`Using ${livePlans.length} live plans fetched from Danmalama API.`);
+        }
+      }
+    } catch (e: any) {
+      this.logger.warn(`Could not fetch live Danmalama plans; using fallback list: ${e.message}`);
+    }
+
+    let added = 0;
+    let updated = 0;
+
+    for (const p of plansToSeed) {
+      const existing = await this.dataPlanRepository.findOne({
+        where: { smeplugPlanId: p.smeplugPlanId, provider },
+      });
+
+      if (!existing) {
+        const newPlan = this.dataPlanRepository.create({
+          ...p,
+          overrideStatus: false,
+          visibilityStatus: true,
+          provider,
+          lastSyncedAt: new Date(),
+        });
+        await this.dataPlanRepository.save(newPlan);
+        added++;
+        this.logger.log(`Seeded Danmalama plan: ${p.bundleName} (ID ${p.smeplugPlanId}) at ₦${p.smeplugCost}.`);
+      } else {
+        if (!existing.overrideStatus) {
+          existing.bundleName = p.bundleName;
+          existing.smeplugCost = p.smeplugCost;
+          existing.network = p.network;
+          existing.lastSyncedAt = new Date();
+          await this.dataPlanRepository.save(existing);
+          updated++;
+          this.logger.log(`Updated Danmalama plan: ${p.bundleName} (ID ${p.smeplugPlanId}).`);
+        } else {
+          this.logger.log(`Skipped Danmalama plan update (admin override active): ${p.bundleName} (ID ${p.smeplugPlanId}).`);
+        }
+      }
+    }
+
+    return { added, updated, total: plansToSeed.length };
   }
 
   async runSync(): Promise<SyncLog> {

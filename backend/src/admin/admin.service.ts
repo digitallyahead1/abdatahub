@@ -538,6 +538,13 @@ export class AdminService implements OnModuleInit {
     return log;
   }
 
+  async triggerDanmalamaSync(adminUser: any) {
+    this.logger.log(`Manual Danmalama sync triggered by admin: ${adminUser.email}`);
+    const result = await this.smePlugSyncService.seedDanmalamaPlans();
+    await this.auditLogService.log(adminUser.id, adminUser.email, 'danmalama_manual_sync', result);
+    return result;
+  }
+
   async getDataPlans(): Promise<DataPlan[]> {
     return this.dataPlanRepository.find({
       order: { network: 'ASC', sellingPrice: 'ASC' },
@@ -901,6 +908,9 @@ export class AdminService implements OnModuleInit {
       } else if (txProvider === 'swiftbills') {
         // Swiftbills does not have a standard requery endpoint — keep current status
         message = 'Swiftbills transactions cannot be requeried automatically. Please verify manually on the Swiftbills dashboard.';
+      } else if (txProvider === 'danmalama') {
+        // Danmalama does not have a standard requery endpoint — keep current status
+        message = 'Danmalama transactions cannot be requeried automatically. Please verify manually on the Danmalama dashboard.';
       } else {
         // SMEPlug: query /transactions by customer_reference
         try {

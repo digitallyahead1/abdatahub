@@ -101,6 +101,7 @@ export default function BuyDataPage() {
     reference: string
     network: string
     status: string
+    createdAt?: string
   } | null>(null)
   const [failedReceipt, setFailedReceipt] = useState<{
     planName: string

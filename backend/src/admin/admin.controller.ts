@@ -221,6 +221,17 @@ export class AdminController {
     };
   }
 
+  @Post('danmalama/sync')
+  @Permissions('manage:settings')
+  async triggerDanmalamaSync(@Req() req: any) {
+    const data = await this.adminService.triggerDanmalamaSync(req.user);
+    return {
+      success: true,
+      message: 'Danmalama plans synchronization complete!',
+      data,
+    };
+  }
+
   @Get('data-plans')
   @Permissions('manage:settings')
   async getDataPlans() {

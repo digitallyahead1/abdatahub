@@ -115,3 +115,4 @@ tmp/
 temp/
 
 /generated/prisma
+*.tsbuildinfo

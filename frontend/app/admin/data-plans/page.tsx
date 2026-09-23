@@ -18,7 +18,7 @@ interface DataPlan {
   provider?: string
 }
 
-type TabType = 'mtn' | 'airtel' | 'glo' | '9mobile' | 'amzaet' | 'swiftbills'
+type TabType = 'mtn' | 'airtel' | 'glo' | '9mobile' | 'amzaet' | 'swiftbills' | 'danmalama'
 
 export default function AdminDataPlansPage() {
   const [plans, setPlans] = useState<DataPlan[]>([])
@@ -51,7 +51,8 @@ export default function AdminDataPlansPage() {
   const handleSync = async () => {
     try {
       setSyncing(true)
-      const res = await api.post('/admin/smeplug/sync')
+      const endpoint = activeTab === 'danmalama' ? '/admin/danmalama/sync' : '/admin/smeplug/sync'
+      const res = await api.post(endpoint)
       toast.success(res.data.message || 'Synchronization complete!')
       await fetchPlans()
     } catch (err: any) {
@@ -147,6 +148,9 @@ export default function AdminDataPlansPage() {
     if (activeTab === 'swiftbills') {
       return p.provider === 'swiftbills'
     }
+    if (activeTab === 'danmalama') {
+      return p.provider === 'danmalama'
+    }
     // Treat null/undefined provider as 'smeplug' (pre-migration rows)
     return p.network === activeTab && (!p.provider || p.provider === 'smeplug')
   })
@@ -189,14 +193,14 @@ export default function AdminDataPlansPage() {
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89H18" />
               </svg>
-              <span>Sync SMEPlug plans</span>
+              <span>{activeTab === 'danmalama' ? 'Sync Danmalama plans' : 'Sync SMEPlug plans'}</span>
             </>
           )}
         </button>
       </div>
 
       {/* Network / Provider Selection tabs */}
-      <div className="flex space-x-2 border-b border-white/5 pb-px">
+      <div className="flex space-x-2 border-b border-white/5 pb-px overflow-x-auto">
         {[
           { id: 'mtn', name: 'MTN (SMEPlug)' },
           { id: 'airtel', name: 'Airtel' },
@@ -204,6 +208,7 @@ export default function AdminDataPlansPage() {
           { id: '9mobile', name: '9mobile' },
           { id: 'amzaet', name: 'AMZAET (MTN)' },
           { id: 'swiftbills', name: 'Swiftbills (MTN)' },
+          { id: 'danmalama', name: 'Danmalama' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -230,7 +235,7 @@ export default function AdminDataPlansPage() {
               <tr className="bg-white/5 border-b border-silver-muted/10 text-xs font-bold text-silver-muted uppercase tracking-wider">
                 <th className="px-6 py-4">Plan ID</th>
                 <th className="px-6 py-4">Bundle Name</th>
-                <th className="px-6 py-4">{activeTab === 'amzaet' ? 'AMZAET Cost' : activeTab === 'swiftbills' ? 'Swiftbills Cost' : 'SMEPlug Cost'}</th>
+                <th className="px-6 py-4">{activeTab === 'amzaet' ? 'AMZAET Cost' : activeTab === 'swiftbills' ? 'Swiftbills Cost' : activeTab === 'danmalama' ? 'Danmalama Cost' : 'SMEPlug Cost'}</th>
                 <th className="px-6 py-4">Selling Price</th>
                 <th className="px-6 py-4">Agent Price</th>
                 <th className="px-6 py-4">Override Status</th>
@@ -242,7 +247,7 @@ export default function AdminDataPlansPage() {
               {filteredPlans.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="px-6 py-10 text-center text-silver-muted font-medium">
-                    No active plans synced for this network yet. Try clicking "Sync SMEPlug plans".
+                    No active plans synced for this network yet. Try clicking "{activeTab === 'danmalama' ? 'Sync Danmalama plans' : 'Sync SMEPlug plans'}".
                   </td>
                 </tr>
               ) : (
