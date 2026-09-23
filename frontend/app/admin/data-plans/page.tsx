@@ -208,7 +208,7 @@ export default function AdminDataPlansPage() {
           { id: '9mobile', name: '9mobile' },
           { id: 'amzaet', name: 'AMZAET (MTN)' },
           { id: 'swiftbills', name: 'Swiftbills (MTN)' },
-          { id: 'danmalama', name: 'Danmalama' },
+          { id: 'danmalama', name: 'Danmalama (MTN/Airtel/Glo)' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -235,6 +235,7 @@ export default function AdminDataPlansPage() {
               <tr className="bg-white/5 border-b border-silver-muted/10 text-xs font-bold text-silver-muted uppercase tracking-wider">
                 <th className="px-6 py-4">Plan ID</th>
                 <th className="px-6 py-4">Bundle Name</th>
+                {activeTab === 'danmalama' && <th className="px-6 py-4">Network</th>}
                 <th className="px-6 py-4">{activeTab === 'amzaet' ? 'AMZAET Cost' : activeTab === 'swiftbills' ? 'Swiftbills Cost' : activeTab === 'danmalama' ? 'Danmalama Cost' : 'SMEPlug Cost'}</th>
                 <th className="px-6 py-4">Selling Price</th>
                 <th className="px-6 py-4">Agent Price</th>
@@ -246,7 +247,7 @@ export default function AdminDataPlansPage() {
             <tbody className="divide-y divide-white/5">
               {filteredPlans.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-6 py-10 text-center text-silver-muted font-medium">
+                  <td colSpan={activeTab === 'danmalama' ? 9 : 8} className="px-6 py-10 text-center text-silver-muted font-medium">
                     No active plans synced for this network yet. Try clicking "{activeTab === 'danmalama' ? 'Sync Danmalama plans' : 'Sync SMEPlug plans'}".
                   </td>
                 </tr>
@@ -282,6 +283,23 @@ export default function AdminDataPlansPage() {
                         plan.bundleName
                       )}
                     </td>
+                    {activeTab === 'danmalama' && (
+                      <td className="px-6 py-4">
+                        <span
+                          className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${
+                            plan.network === 'mtn'
+                              ? 'bg-yellow-400/10 text-yellow-300 border-yellow-400/20'
+                              : plan.network === 'airtel'
+                              ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                              : plan.network === 'glo'
+                              ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                              : 'bg-purple-500/10 text-purple-400 border-purple-500/20'
+                          }`}
+                        >
+                          {plan.network?.toUpperCase() || 'N/A'}
+                        </span>
+                      </td>
+                    )}
                     <td className="px-6 py-4 font-mono">₦{plan.smeplugCost.toFixed(2)}</td>
                     <td className="px-6 py-4">
                       {editingId === plan.id ? (

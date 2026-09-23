@@ -16,6 +16,7 @@ interface DataPlan {
   network: string
   bundleName: string
   sellingPrice: number
+  provider?: string
 }
 
 // Helpers for plan parsing and badge styling
@@ -443,6 +444,14 @@ export default function BuyDataPage() {
                         {/* Selected Indicator Dot */}
                         {isSelected && (
                           <div className="absolute top-2 right-2 w-1.5 h-1.5 rounded-full bg-primary-glow animate-pulse" />
+                        )}
+                        {/* Provider badge – shown only for non-default providers */}
+                        {plan.provider && plan.provider !== 'smeplug' && (
+                          <div className="mt-1.5 text-right">
+                            <span className="text-[8px] font-bold uppercase tracking-widest text-silver-muted/50 border border-white/5 px-1.5 py-0.5 rounded">
+                              {plan.provider}
+                            </span>
+                          </div>
                         )}
                       </button>
                     )
