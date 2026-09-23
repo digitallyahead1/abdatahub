@@ -21,6 +21,11 @@ import { PushNotificationLog } from '../entities/push-notification-log.entity';
 import { ApiKey } from '../entities/api-key.entity';
 import { ApiRequestLog } from '../entities/api-request-log.entity';
 import { IdempotencyKey } from '../entities/idempotency-key.entity';
+import { PricingGroup } from '../entities/pricing-group.entity';
+import { PricingGroupMember } from '../entities/pricing-group-member.entity';
+import { PricingGroupPlan } from '../entities/pricing-group-plan.entity';
+import { WebhookEndpoint } from '../entities/webhook-endpoint.entity';
+import { WebhookDelivery } from '../entities/webhook-delivery.entity';
 
 // Parse DATABASE_URL or DIRECT_URL if provided (e.g. Supabase, Railway Postgres, etc.)
 const databaseUrl = process.env.DATABASE_URL || process.env.DIRECT_URL;
@@ -88,6 +93,11 @@ export const DatabaseConfig: TypeOrmModuleOptions = {
     ApiKey,
     ApiRequestLog,
     IdempotencyKey,
+    PricingGroup,
+    PricingGroupMember,
+    PricingGroupPlan,
+    WebhookEndpoint,
+    WebhookDelivery,
   ],
   synchronize: process.env.NODE_ENV !== 'production',
   logging: process.env.NODE_ENV === 'development',

@@ -72,23 +72,46 @@ export class ServicesService {
     }
 
     let role = userRole;
-    if (!role && userIdOrRole) {
+    let userId: string | null = null;
+    if (userIdOrRole) {
       if (userIdOrRole === 'agent' || userIdOrRole === 'user' || userIdOrRole === 'admin') {
         role = userIdOrRole;
       } else {
-        const user = await this.usersService.findOneById(userIdOrRole);
-        role = user?.role;
+        userId = userIdOrRole;
+        if (!role) {
+          const user = await this.usersService.findOneById(userIdOrRole);
+          role = user?.role;
+        }
       }
     }
 
-    if (role === 'agent') {
+    let groupPrices: Record<string, number> = {};
+    if (userId) {
+      try {
+        groupPrices = await this.adminService.getUserGroupPrices(userId);
+      } catch (err) {
+        // ignore if pricing group lookup fails
+      }
+    }
+
+    const hasGroupPrices = Object.keys(groupPrices).length > 0;
+
+    if (hasGroupPrices || role === 'agent') {
       return plans.map((plan) => {
-        const agentPrice = Number(plan.agentPrice);
-        if (agentPrice > 0) {
+        if (groupPrices[plan.id] !== undefined && groupPrices[plan.id] > 0) {
           return {
             ...plan,
-            sellingPrice: agentPrice,
+            sellingPrice: groupPrices[plan.id],
           };
+        }
+        if (role === 'agent') {
+          const agentPrice = Number(plan.agentPrice);
+          if (agentPrice > 0) {
+            return {
+              ...plan,
+              sellingPrice: agentPrice,
+            };
+          }
         }
         return plan;
       });
@@ -170,7 +193,10 @@ export class ServicesService {
     }
 
     let amount = plan.sellingPrice;
-    if (user.role === 'agent' && Number(plan.agentPrice) > 0) {
+    const groupPrice = await this.adminService.getUserGroupPrice(userId, plan.id);
+    if (groupPrice !== null && groupPrice > 0) {
+      amount = groupPrice;
+    } else if (user.role === 'agent' && Number(plan.agentPrice) > 0) {
       amount = Number(plan.agentPrice);
     }
     const planName = plan.bundleName;

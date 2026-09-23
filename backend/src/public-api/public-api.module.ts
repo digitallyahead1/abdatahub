@@ -13,6 +13,7 @@ import { WalletModule } from '../wallet/wallet.module';
 import { ServicesModule } from '../services/services.module';
 import { UsersModule } from '../users/users.module';
 import { WebhookModule } from '../webhooks/webhook.module';
+import { AdminModule } from '../admin/admin.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { WebhookModule } from '../webhooks/webhook.module';
     ServicesModule,
     UsersModule,
     WebhookModule,
+    forwardRef(() => AdminModule),
   ],
   providers: [PublicApiService, ApiRequestLogInterceptor],
   controllers: [PublicApiController],

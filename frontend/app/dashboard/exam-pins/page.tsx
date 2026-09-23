@@ -408,7 +408,7 @@ export default function BuyExamPinsPage() {
             <div className="p-4 bg-white/5 border border-silver-muted/10 rounded-xl text-left space-y-2 text-xs font-mono text-silver-muted">
               <div className="flex justify-between">
                 <span>Date:</span>
-                <span className="text-white font-bold">{successData.createdAt ? new Date(successData.createdAt).toLocaleString('en-GB', { timeZone: 'Africa/Lagos', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : new Date().toLocaleString('en-GB', { timeZone: 'Africa/Lagos', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</span>
+                <span className="text-white font-bold">{(successData as any).createdAt ? new Date((successData as any).createdAt).toLocaleString('en-GB', { timeZone: 'Africa/Lagos', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }) : new Date().toLocaleString('en-GB', { timeZone: 'Africa/Lagos', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false })}</span>
               </div>
               <div className="flex justify-between">
                 <span>Reference:</span>

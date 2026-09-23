@@ -51,7 +51,6 @@ export default function AdminApiManagementPage() {
   const [stats, setStats] = useState<AdminApiStats | null>(null)
   const [keys, setKeys] = useState<AdminApiKey[]>([])
   const [logs, setLogs] = useState<ApiLogItem[]>([])
-  const [loading, setLoading] = useState(true)
 
   // Filtering for Keys
   const [keySearch, setKeySearch] = useState('')
@@ -92,8 +91,7 @@ export default function AdminApiManagementPage() {
   }
 
   useEffect(() => {
-    setLoading(true)
-    Promise.all([fetchOverview(), fetchLogs(1)]).finally(() => setLoading(false))
+    Promise.all([fetchOverview(), fetchLogs(1)])
   }, [])
 
   const handleRevokeKey = async (keyId: string) => {

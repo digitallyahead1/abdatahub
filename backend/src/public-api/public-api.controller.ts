@@ -47,10 +47,11 @@ export class PublicApiController {
   @Get('data/plans')
   @UseGuards(ApiKeyGuard)
   async getDataPlans(
+    @Req() req: any,
     @Query('network') network?: string,
     @Query('status') status?: string,
   ) {
-    const data = await this.publicApiService.getDataPlans(network, status);
+    const data = await this.publicApiService.getDataPlans(network, status, req.apiKey?.userId);
     return {
       success: true,
       data,
@@ -60,8 +61,8 @@ export class PublicApiController {
 
   @Get('data/plans/:planId')
   @UseGuards(ApiKeyGuard)
-  async getDataPlan(@Param('planId') planId: string) {
-    const data = await this.publicApiService.getDataPlan(planId);
+  async getDataPlan(@Req() req: any, @Param('planId') planId: string) {
+    const data = await this.publicApiService.getDataPlan(planId, req.apiKey?.userId);
     return { success: true, data, message: 'Data plan retrieved successfully' };
   }
 

@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, Logger, Inject, forwardRef } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
 import { DataPlan } from '../entities/data-plan.entity';
@@ -12,6 +12,7 @@ import { SwiftbillsService } from '../services/swiftbills.service';
 import { DanmalamaService } from '../services/danmalama.service';
 import { UsersService } from '../users/users.service';
 import { WebhookService } from '../webhooks/webhook.service';
+import { AdminService } from '../admin/admin.service';
 import axios from 'axios';
 
 @Injectable()
@@ -41,6 +42,8 @@ export class PublicApiService {
     private danmalamaService: DanmalamaService,
     private usersService: UsersService,
     private webhookService: WebhookService,
+    @Inject(forwardRef(() => AdminService))
+    private adminService: AdminService,
   ) {}
 
   // ─── Networks ────────────────────────────────────────────────────────────────
@@ -78,7 +81,7 @@ export class PublicApiService {
 
   // ─── Data Plans ───────────────────────────────────────────────────────────
 
-  async getDataPlans(networkFilter?: string, statusFilter?: string) {
+  async getDataPlans(networkFilter?: string, statusFilter?: string, userId?: string) {
     const query = this.dataPlanRepository.createQueryBuilder('plan');
 
     if (statusFilter === 'active' || !statusFilter) {
@@ -91,24 +94,44 @@ export class PublicApiService {
     query.orderBy('plan.network', 'ASC').addOrderBy('plan.sellingPrice', 'ASC');
     const plans = await query.getMany();
 
-    return plans.map(p => this.formatPlan(p));
+    let groupPrices: Record<string, number> = {};
+    if (userId) {
+      try {
+        groupPrices = await this.adminService.getUserGroupPrices(userId);
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    return plans.map(p => this.formatPlan(p, groupPrices[p.id]));
   }
 
-  async getDataPlan(planId: string) {
+  async getDataPlan(planId: string, userId?: string) {
     const plan = await this.dataPlanRepository.findOne({
       where: { id: planId, visibilityStatus: true },
     });
     if (!plan) throw new NotFoundException(`Data plan '${planId}' not found`);
-    return this.formatPlan(plan);
+
+    let customPrice: number | undefined;
+    if (userId) {
+      try {
+        const gp = await this.adminService.getUserGroupPrice(userId, planId);
+        if (gp !== null && gp > 0) customPrice = gp;
+      } catch (e) {
+        // ignore
+      }
+    }
+
+    return this.formatPlan(plan, customPrice);
   }
 
-  private formatPlan(p: DataPlan) {
+  private formatPlan(p: DataPlan, customPrice?: number) {
     return {
       id: p.id,
       provider_plan_id: p.smeplugPlanId,
       network: p.network,
       name: p.bundleName,
-      price: p.sellingPrice,
+      price: customPrice !== undefined && customPrice > 0 ? customPrice : p.sellingPrice,
       provider_price: p.smeplugCost,
       provider: p.provider || 'smeplug',
       status: p.visibilityStatus ? 'active' : 'inactive',
@@ -162,10 +185,13 @@ export class PublicApiService {
     const user = await this.usersService.findOneById(userId);
     if (!user) throw new NotFoundException('User account not found.');
 
-    // 5. Determine price
-    const amount = user.role === 'agent' && Number(plan.agentPrice) > 0
-      ? Number(plan.agentPrice)
-      : Number(plan.sellingPrice);
+    // 5. Determine price (Group pricing -> Agent pricing -> Selling price)
+    const groupPrice = await this.adminService.getUserGroupPrice(userId, plan.id);
+    const amount = (groupPrice !== null && groupPrice > 0)
+      ? groupPrice
+      : (user.role === 'agent' && Number(plan.agentPrice) > 0
+        ? Number(plan.agentPrice)
+        : Number(plan.sellingPrice));
 
     // 6. Generate transaction reference
     const ref = `DATA-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${crypto()

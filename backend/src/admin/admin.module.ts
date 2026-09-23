@@ -21,6 +21,9 @@ import { ExamCategory } from '../entities/exam-category.entity';
 
 import { ApiRequestLog } from '../entities/api-request-log.entity';
 import { ApiKeysModule } from '../api-keys/api-key.module';
+import { PricingGroup } from '../entities/pricing-group.entity';
+import { PricingGroupMember } from '../entities/pricing-group-member.entity';
+import { PricingGroupPlan } from '../entities/pricing-group-plan.entity';
 
 @Module({
   imports: [
@@ -38,6 +41,9 @@ import { ApiKeysModule } from '../api-keys/api-key.module';
       SystemSetting,
       ExamCategory,
       ApiRequestLog,
+      PricingGroup,
+      PricingGroupMember,
+      PricingGroupPlan,
     ]),
     AuditLogModule,
     forwardRef(() => ServicesModule),

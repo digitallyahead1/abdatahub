@@ -20,6 +20,9 @@ import { WalletService } from '../wallet/wallet.service';
 import { IacafeService } from '../services/iacafe.service';
 import { AuthService } from '../auth/auth.service';
 import { ApiRequestLog } from '../entities/api-request-log.entity';
+import { PricingGroup } from '../entities/pricing-group.entity';
+import { PricingGroupMember } from '../entities/pricing-group-member.entity';
+import { PricingGroupPlan } from '../entities/pricing-group-plan.entity';
 
 @Injectable()
 export class AdminService implements OnModuleInit {
@@ -60,6 +63,12 @@ export class AdminService implements OnModuleInit {
     private examCategoryRepository: Repository<ExamCategory>,
     @InjectRepository(ApiRequestLog)
     private apiRequestLogRepository: Repository<ApiRequestLog>,
+    @InjectRepository(PricingGroup)
+    private pricingGroupRepository: Repository<PricingGroup>,
+    @InjectRepository(PricingGroupMember)
+    private pricingGroupMemberRepository: Repository<PricingGroupMember>,
+    @InjectRepository(PricingGroupPlan)
+    private pricingGroupPlanRepository: Repository<PricingGroupPlan>,
   ) {}
 
   async onModuleInit() {
@@ -1300,6 +1309,262 @@ export class AdminService implements OnModuleInit {
       monthRequests: monthCount,
       avgResponseTimeMs: parseFloat(avgTime?.avg || '0').toFixed(0),
       activeApiUsers: parseInt(activeApiUsers?.count || '0', 10),
+    };
+  }
+
+  // ============= PRICING GROUPS =============
+
+  private async bootstrapPricingGroupTables() {
+    try {
+      const m = this.pricingGroupRepository.manager;
+      await m.query(`
+        CREATE TABLE IF NOT EXISTS "pricing_group" (
+          "id"          uuid NOT NULL DEFAULT gen_random_uuid(),
+          "name"        character varying NOT NULL,
+          "description" character varying,
+          "isActive"    boolean NOT NULL DEFAULT true,
+          "createdAt"   TIMESTAMP NOT NULL DEFAULT now(),
+          "updatedAt"   TIMESTAMP NOT NULL DEFAULT now(),
+          CONSTRAINT "PK_pricing_group_id" PRIMARY KEY ("id"),
+          CONSTRAINT "UQ_pricing_group_name" UNIQUE ("name")
+        );
+        CREATE TABLE IF NOT EXISTS "pricing_group_member" (
+          "id"        uuid NOT NULL DEFAULT gen_random_uuid(),
+          "groupId"   uuid NOT NULL,
+          "userId"    uuid NOT NULL,
+          "addedAt"   TIMESTAMP NOT NULL DEFAULT now(),
+          CONSTRAINT "PK_pricing_group_member_id" PRIMARY KEY ("id"),
+          CONSTRAINT "UQ_pricing_group_member_user" UNIQUE ("userId"),
+          CONSTRAINT "FK_pgm_group" FOREIGN KEY ("groupId") REFERENCES "pricing_group"("id") ON DELETE CASCADE,
+          CONSTRAINT "FK_pgm_user"  FOREIGN KEY ("userId")  REFERENCES "user"("id") ON DELETE CASCADE
+        );
+        CREATE INDEX IF NOT EXISTS "IDX_pgm_groupId" ON "pricing_group_member" ("groupId");
+        CREATE TABLE IF NOT EXISTS "pricing_group_plan" (
+          "id"        uuid NOT NULL DEFAULT gen_random_uuid(),
+          "groupId"   uuid NOT NULL,
+          "planId"    uuid NOT NULL,
+          "price"     numeric(20,2) NOT NULL,
+          "createdAt" TIMESTAMP NOT NULL DEFAULT now(),
+          "updatedAt" TIMESTAMP NOT NULL DEFAULT now(),
+          CONSTRAINT "PK_pricing_group_plan_id" PRIMARY KEY ("id"),
+          CONSTRAINT "UQ_pgp_group_plan" UNIQUE ("groupId", "planId"),
+          CONSTRAINT "FK_pgp_group" FOREIGN KEY ("groupId") REFERENCES "pricing_group"("id") ON DELETE CASCADE,
+          CONSTRAINT "FK_pgp_plan"  FOREIGN KEY ("planId")  REFERENCES "data_plan"("id") ON DELETE CASCADE
+        );
+      `);
+      this.logger.log('Pricing group tables verified.');
+    } catch (err: any) {
+      this.logger.error('Failed to bootstrap pricing group tables:', err.message);
+    }
+  }
+
+  async createPricingGroup(name: string, description?: string) {
+    await this.bootstrapPricingGroupTables();
+    const existing = await this.pricingGroupRepository.findOne({ where: { name } });
+    if (existing) throw new BadRequestException(`A group named "${name}" already exists.`);
+    const group = this.pricingGroupRepository.create({ name, description });
+    return this.pricingGroupRepository.save(group);
+  }
+
+  async listPricingGroups() {
+    const groups = await this.pricingGroupRepository.find({ order: { createdAt: 'DESC' } });
+    const result = await Promise.all(groups.map(async g => {
+      const memberCount = await this.pricingGroupMemberRepository.count({ where: { groupId: g.id } });
+      const planCount = await this.pricingGroupPlanRepository.count({ where: { groupId: g.id } });
+      return { ...g, memberCount, planCount };
+    }));
+    return result;
+  }
+
+  async getPricingGroup(id: string) {
+    const group = await this.pricingGroupRepository.findOne({ where: { id } });
+    if (!group) throw new NotFoundException('Pricing group not found.');
+
+    const members = await this.pricingGroupMemberRepository.find({
+      where: { groupId: id },
+      relations: ['user'],
+    });
+
+    const planPrices = await this.pricingGroupPlanRepository.find({
+      where: { groupId: id },
+      relations: ['plan'],
+    });
+
+    return {
+      ...group,
+      members: members.map(m => ({
+        id: m.id,
+        userId: m.userId,
+        fullName: m.user?.fullName,
+        email: m.user?.email,
+        role: (m.user as any)?.role,
+        addedAt: m.addedAt,
+      })),
+      planPrices: planPrices.map(p => ({
+        id: p.id,
+        planId: p.planId,
+        network: p.plan?.network,
+        bundleName: p.plan?.bundleName,
+        sellingPrice: p.plan?.sellingPrice,
+        groupPrice: p.price,
+        updatedAt: p.updatedAt,
+      })),
+    };
+  }
+
+  async updatePricingGroup(id: string, name?: string, description?: string, isActive?: boolean) {
+    const group = await this.pricingGroupRepository.findOne({ where: { id } });
+    if (!group) throw new NotFoundException('Pricing group not found.');
+    if (name !== undefined) group.name = name;
+    if (description !== undefined) group.description = description;
+    if (isActive !== undefined) group.isActive = isActive;
+    return this.pricingGroupRepository.save(group);
+  }
+
+  async deletePricingGroup(id: string) {
+    const group = await this.pricingGroupRepository.findOne({ where: { id } });
+    if (!group) throw new NotFoundException('Pricing group not found.');
+    await this.pricingGroupRepository.remove(group);
+  }
+
+  async addGroupMember(groupId: string, userId: string) {
+    const group = await this.pricingGroupRepository.findOne({ where: { id: groupId } });
+    if (!group) throw new NotFoundException('Pricing group not found.');
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found.');
+    // Remove from old group if already in one
+    await this.pricingGroupMemberRepository.delete({ userId });
+    const member = this.pricingGroupMemberRepository.create({ groupId, userId });
+    await this.pricingGroupMemberRepository.save(member);
+    return { groupId, userId, fullName: user.fullName, email: user.email };
+  }
+
+  async removeGroupMember(groupId: string, userId: string) {
+    const member = await this.pricingGroupMemberRepository.findOne({ where: { groupId, userId } });
+    if (!member) throw new NotFoundException('Member not found in this group.');
+    await this.pricingGroupMemberRepository.remove(member);
+  }
+
+  async setGroupPlanPrice(groupId: string, planId: string, price: number) {
+    if (price < 0) throw new BadRequestException('Price cannot be negative.');
+    const group = await this.pricingGroupRepository.findOne({ where: { id: groupId } });
+    if (!group) throw new NotFoundException('Pricing group not found.');
+    const plan = await this.dataPlanRepository.findOne({ where: { id: planId } });
+    if (!plan) throw new NotFoundException('Data plan not found.');
+    let existing = await this.pricingGroupPlanRepository.findOne({ where: { groupId, planId } });
+    if (existing) {
+      existing.price = price;
+      return this.pricingGroupPlanRepository.save(existing);
+    }
+    const entry = this.pricingGroupPlanRepository.create({ groupId, planId, price });
+    return this.pricingGroupPlanRepository.save(entry);
+  }
+
+  async removeGroupPlanPrice(groupId: string, planId: string) {
+    const entry = await this.pricingGroupPlanRepository.findOne({ where: { groupId, planId } });
+    if (entry) await this.pricingGroupPlanRepository.remove(entry);
+  }
+
+  /**
+   * Used in purchase flow: returns a user's group price for a specific plan (or null).
+   */
+  async getUserGroupPrice(userId: string, planId: string): Promise<number | null> {
+    const membership = await this.pricingGroupMemberRepository.findOne({ where: { userId } });
+    if (!membership) return null;
+    const groupPlan = await this.pricingGroupPlanRepository.findOne({
+      where: { groupId: membership.groupId, planId },
+    });
+    if (!groupPlan) return null;
+    // Only apply if the group is active
+    const group = await this.pricingGroupRepository.findOne({ where: { id: membership.groupId } });
+    if (!group?.isActive) return null;
+    return Number(groupPlan.price);
+  }
+
+  async getUserGroupPrices(userId: string): Promise<Record<string, number>> {
+    const membership = await this.pricingGroupMemberRepository.findOne({ where: { userId } });
+    if (!membership) return {};
+    const group = await this.pricingGroupRepository.findOne({ where: { id: membership.groupId } });
+    if (!group?.isActive) return {};
+    const groupPlans = await this.pricingGroupPlanRepository.find({
+      where: { groupId: membership.groupId },
+    });
+    const map: Record<string, number> = {};
+    for (const gp of groupPlans) {
+      map[gp.planId] = Number(gp.price);
+    }
+    return map;
+  }
+
+  // ============= API USERS ADMIN =============
+
+  async getApiUsers() {
+    const rows = await this.userRepository.manager.query(`
+      SELECT
+        u.id,
+        u."fullName",
+        u.email,
+        u.role,
+        u."createdAt",
+        COUNT(k.id)::int                                          AS "totalKeys",
+        COUNT(k.id) FILTER (WHERE k.status = 'active')::int      AS "activeKeys",
+        COALESCE(SUM(k."requestCount"), 0)::bigint               AS "totalRequests",
+        COALESCE(SUM(k."successCount"), 0)::bigint               AS "totalSuccess",
+        COALESCE(SUM(k."failCount"), 0)::bigint                  AS "totalFail",
+        MAX(k."lastUsedAt")                                       AS "lastActiveAt",
+        COALESCE(
+          (SELECT SUM(dt."sellingPrice") FROM data_transaction dt
+           WHERE dt."userId" = u.id AND dt."apiKeyId" IS NOT NULL AND dt.status = 'success'), 0
+        )::numeric                                                 AS "totalApiRevenue",
+        pgm."groupId"                                             AS "pricingGroupId",
+        pg.name                                                   AS "pricingGroupName"
+      FROM "user" u
+      JOIN api_key k ON k."userId" = u.id
+      LEFT JOIN pricing_group_member pgm ON pgm."userId" = u.id
+      LEFT JOIN pricing_group pg ON pg.id = pgm."groupId"
+      GROUP BY u.id, u."fullName", u.email, u.role, u."createdAt", pgm."groupId", pg.name
+      ORDER BY "totalRequests" DESC
+    `);
+    return rows;
+  }
+
+  async getApiUserDetail(userId: string) {
+    const user = await this.userRepository.findOne({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found.');
+
+    const keys = await this.userRepository.manager.query(
+      `SELECT id, name, "keyPrefix", scope, status, "requestCount", "successCount", "failCount", "lastUsedAt", "createdAt"
+       FROM api_key WHERE "userId" = $1 ORDER BY "createdAt" DESC`,
+      [userId],
+    );
+
+    const webhooks = await this.userRepository.manager.query(
+      `SELECT id, label, url, events, status, "createdAt" FROM webhook_endpoint WHERE "userId" = $1 ORDER BY "createdAt" DESC`,
+      [userId],
+    );
+
+    const recentTx = await this.userRepository.manager.query(
+      `SELECT "transactionReference", network, "bundleName", "sellingPrice", status, "createdAt"
+       FROM data_transaction WHERE "userId" = $1 AND "apiKeyId" IS NOT NULL
+       ORDER BY "createdAt" DESC LIMIT 20`,
+      [userId],
+    );
+
+    const membership = await this.pricingGroupMemberRepository.findOne({
+      where: { userId },
+      relations: ['group'],
+    });
+
+    return {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      role: (user as any).role,
+      createdAt: user.createdAt,
+      keys,
+      webhooks,
+      recentTransactions: recentTx,
+      pricingGroup: membership ? { id: membership.groupId, name: (membership as any).group?.name } : null,
     };
   }
 }

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Post, Put, Patch, Delete, Body, Param, Query, UseGuards, Req } from '@nestjs/common';
 import { AdminService } from './admin.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/permissions.guard';
@@ -417,4 +417,107 @@ export class AdminController {
     const data = await this.adminService.getApiStats();
     return { success: true, data };
   }
+
+  // ============= PRICING GROUPS =============
+
+  @Get('pricing-groups')
+  @Permissions('manage:settings')
+  async listPricingGroups() {
+    const data = await this.adminService.listPricingGroups();
+    return { success: true, data };
+  }
+
+  @Post('pricing-groups')
+  @Permissions('manage:settings')
+  async createPricingGroup(
+    @Body('name') name: string,
+    @Body('description') description?: string,
+  ) {
+    const data = await this.adminService.createPricingGroup(name, description);
+    return { success: true, data };
+  }
+
+  @Get('pricing-groups/:id')
+  @Permissions('manage:settings')
+  async getPricingGroup(@Param('id') id: string) {
+    const data = await this.adminService.getPricingGroup(id);
+    return { success: true, data };
+  }
+
+  @Patch('pricing-groups/:id')
+  @Permissions('manage:settings')
+  async updatePricingGroup(
+    @Param('id') id: string,
+    @Body('name') name?: string,
+    @Body('description') description?: string,
+    @Body('isActive') isActive?: boolean,
+  ) {
+    const data = await this.adminService.updatePricingGroup(id, name, description, isActive);
+    return { success: true, data };
+  }
+
+  @Delete('pricing-groups/:id')
+  @Permissions('manage:settings')
+  async deletePricingGroup(@Param('id') id: string) {
+    await this.adminService.deletePricingGroup(id);
+    return { success: true, message: 'Pricing group deleted successfully.' };
+  }
+
+  @Post('pricing-groups/:id/members')
+  @Permissions('manage:settings')
+  async addGroupMember(
+    @Param('id') groupId: string,
+    @Body('userId') userId: string,
+  ) {
+    const data = await this.adminService.addGroupMember(groupId, userId);
+    return { success: true, data };
+  }
+
+  @Delete('pricing-groups/:id/members/:userId')
+  @Permissions('manage:settings')
+  async removeGroupMember(
+    @Param('id') groupId: string,
+    @Param('userId') userId: string,
+  ) {
+    await this.adminService.removeGroupMember(groupId, userId);
+    return { success: true, message: 'Member removed from group.' };
+  }
+
+  @Post('pricing-groups/:id/plans')
+  @Permissions('manage:settings')
+  async setGroupPlanPrice(
+    @Param('id') groupId: string,
+    @Body('planId') planId: string,
+    @Body('price') price: number,
+  ) {
+    const data = await this.adminService.setGroupPlanPrice(groupId, planId, Number(price));
+    return { success: true, data };
+  }
+
+  @Delete('pricing-groups/:id/plans/:planId')
+  @Permissions('manage:settings')
+  async removeGroupPlanPrice(
+    @Param('id') groupId: string,
+    @Param('planId') planId: string,
+  ) {
+    await this.adminService.removeGroupPlanPrice(groupId, planId);
+    return { success: true, message: 'Custom group plan price removed.' };
+  }
+
+  // ============= API USERS ADMIN =============
+
+  @Get('api-users')
+  @Permissions('manage:users')
+  async getApiUsers() {
+    const data = await this.adminService.getApiUsers();
+    return { success: true, data };
+  }
+
+  @Get('api-users/:userId')
+  @Permissions('manage:users')
+  async getApiUserDetail(@Param('userId') userId: string) {
+    const data = await this.adminService.getApiUserDetail(userId);
+    return { success: true, data };
+  }
 }
+
