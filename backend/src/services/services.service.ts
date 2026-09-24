@@ -98,26 +98,112 @@ export class ServicesService {
 
     if (hasGroupPrices || role === 'agent') {
       return plans.map((plan) => {
+        const planObj = {
+          id: plan.id,
+          smeplugPlanId: plan.smeplugPlanId,
+          provider: plan.provider,
+          network: plan.network,
+          bundleName: plan.bundleName,
+          sellingPrice: Number(plan.sellingPrice),
+          agentPrice: Number(plan.agentPrice),
+          smeplugCost: Number(plan.smeplugCost),
+          visibilityStatus: plan.visibilityStatus,
+        };
         if (groupPrices[plan.id] !== undefined && groupPrices[plan.id] > 0) {
-          return {
-            ...plan,
-            sellingPrice: groupPrices[plan.id],
-          };
+          return { ...planObj, sellingPrice: groupPrices[plan.id], hasGroupPrice: true };
         }
         if (role === 'agent') {
           const agentPrice = Number(plan.agentPrice);
           if (agentPrice > 0) {
-            return {
-              ...plan,
-              sellingPrice: agentPrice,
-            };
+            return { ...planObj, sellingPrice: agentPrice };
           }
         }
-        return plan;
+        return planObj;
       });
     }
 
-    return plans;
+    return plans.map((plan) => ({
+      id: plan.id,
+      smeplugPlanId: plan.smeplugPlanId,
+      provider: plan.provider,
+      network: plan.network,
+      bundleName: plan.bundleName,
+      sellingPrice: Number(plan.sellingPrice),
+      agentPrice: Number(plan.agentPrice),
+      smeplugCost: Number(plan.smeplugCost),
+      visibilityStatus: plan.visibilityStatus,
+    }));
+  }
+
+  /**
+   * Returns the user's group membership info + full custom pricing table.
+   * Called by the user-facing "My Pricing" page.
+   */
+  async getMyPricing(userId: string) {
+    const now = Date.now();
+    let plans = this.cachedPlans;
+    if (!plans || now - this.plansCachedAt > this.CACHE_TTL_MS) {
+      plans = await this.dataPlanRepository.find({
+        where: { visibilityStatus: true },
+        order: { network: 'ASC', sellingPrice: 'ASC' },
+      });
+      this.cachedPlans = plans;
+      this.plansCachedAt = now;
+    }
+
+    const user = await this.usersService.findOneById(userId);
+    let groupInfo: { id: string; name: string; description?: string } | null = null;
+    let groupPrices: Record<string, number> = {};
+
+    try {
+      const result = await this.adminService.getUserGroupMembership(userId);
+      groupInfo = result.group;
+      groupPrices = result.prices;
+    } catch {
+      // not in a group
+    }
+
+    const hasGroup = groupInfo !== null;
+    const pricingTable = plans.map((plan) => {
+      const standardPrice = Number(plan.sellingPrice);
+      const agentPrice = Number(plan.agentPrice);
+      const groupPrice = groupPrices[plan.id] !== undefined ? Number(groupPrices[plan.id]) : null;
+
+      let effectivePrice = standardPrice;
+      let priceSource: 'group' | 'agent' | 'standard' = 'standard';
+
+      if (groupPrice !== null && groupPrice > 0) {
+        effectivePrice = groupPrice;
+        priceSource = 'group';
+      } else if (user?.role === 'agent' && agentPrice > 0) {
+        effectivePrice = agentPrice;
+        priceSource = 'agent';
+      }
+
+      return {
+        id: plan.id,
+        network: plan.network,
+        bundleName: plan.bundleName,
+        standardPrice,
+        agentPrice: agentPrice || null,
+        groupPrice,
+        effectivePrice,
+        priceSource,
+        savings: standardPrice > effectivePrice ? standardPrice - effectivePrice : 0,
+      };
+    });
+
+    return {
+      hasGroup,
+      group: groupInfo,
+      userRole: user?.role || 'user',
+      pricingTable,
+      summary: {
+        totalPlans: plans.length,
+        customPricedPlans: Object.keys(groupPrices).length,
+        averageSavings: pricingTable.reduce((sum, p) => sum + p.savings, 0) / (plans.length || 1),
+      },
+    };
   }
 
   async getSettingsForUsers() {

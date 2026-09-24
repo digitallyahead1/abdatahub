@@ -79,6 +79,16 @@ export class ServicesController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Get('my-pricing')
+  async getMyPricing(@Req() req: any) {
+    const data = await this.servicesService.getMyPricing(req.user.id);
+    return {
+      success: true,
+      data,
+    };
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Get('airtime/pricing')
   async getAirtimePricing(@Req() req: any) {
     const data = await this.servicesService.getAirtimePricing(req.user.id, req.user?.role);

@@ -1504,6 +1504,31 @@ export class AdminService implements OnModuleInit {
     return map;
   }
 
+  /**
+   * Returns both the group object and the full price map for a user.
+   * Used by the user-facing "My Pricing" page.
+   */
+  async getUserGroupMembership(userId: string): Promise<{
+    group: { id: string; name: string; description?: string } | null;
+    prices: Record<string, number>;
+  }> {
+    const membership = await this.pricingGroupMemberRepository.findOne({ where: { userId } });
+    if (!membership) return { group: null, prices: {} };
+    const group = await this.pricingGroupRepository.findOne({ where: { id: membership.groupId } });
+    if (!group?.isActive) return { group: null, prices: {} };
+    const groupPlans = await this.pricingGroupPlanRepository.find({
+      where: { groupId: membership.groupId },
+    });
+    const prices: Record<string, number> = {};
+    for (const gp of groupPlans) {
+      prices[gp.planId] = Number(gp.price);
+    }
+    return {
+      group: { id: group.id, name: group.name, description: group.description },
+      prices,
+    };
+  }
+
   // ============= API USERS ADMIN =============
 
   async getApiUsers() {
