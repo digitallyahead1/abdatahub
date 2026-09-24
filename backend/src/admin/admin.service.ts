@@ -72,6 +72,7 @@ export class AdminService implements OnModuleInit {
   ) {}
 
   async onModuleInit() {
+    await this.bootstrapPricingGroupTables();
     try {
       const count = await this.systemSettingRepository.count();
       if (count === 0) {
@@ -1351,6 +1352,7 @@ export class AdminService implements OnModuleInit {
           CONSTRAINT "FK_pgp_group" FOREIGN KEY ("groupId") REFERENCES "pricing_group"("id") ON DELETE CASCADE,
           CONSTRAINT "FK_pgp_plan"  FOREIGN KEY ("planId")  REFERENCES "data_plan"("id") ON DELETE CASCADE
         );
+        ALTER TABLE "data_transaction" ADD COLUMN IF NOT EXISTS "apiKeyId" uuid;
       `);
       this.logger.log('Pricing group tables verified.');
     } catch (err: any) {
@@ -1367,13 +1369,19 @@ export class AdminService implements OnModuleInit {
   }
 
   async listPricingGroups() {
-    const groups = await this.pricingGroupRepository.find({ order: { createdAt: 'DESC' } });
-    const result = await Promise.all(groups.map(async g => {
-      const memberCount = await this.pricingGroupMemberRepository.count({ where: { groupId: g.id } });
-      const planCount = await this.pricingGroupPlanRepository.count({ where: { groupId: g.id } });
-      return { ...g, memberCount, planCount };
-    }));
-    return result;
+    await this.bootstrapPricingGroupTables();
+    try {
+      const groups = await this.pricingGroupRepository.find({ order: { createdAt: 'DESC' } });
+      const result = await Promise.all(groups.map(async g => {
+        const memberCount = await this.pricingGroupMemberRepository.count({ where: { groupId: g.id } });
+        const planCount = await this.pricingGroupPlanRepository.count({ where: { groupId: g.id } });
+        return { ...g, memberCount, planCount };
+      }));
+      return result;
+    } catch (err: any) {
+      this.logger.error('Failed to list pricing groups:', err.message);
+      return [];
+    }
   }
 
   async getPricingGroup(id: string) {
@@ -1499,36 +1507,43 @@ export class AdminService implements OnModuleInit {
   // ============= API USERS ADMIN =============
 
   async getApiUsers() {
-    const rows = await this.userRepository.manager.query(`
-      SELECT
-        u.id,
-        u."fullName",
-        u.email,
-        u.role,
-        u."createdAt",
-        COUNT(k.id)::int                                          AS "totalKeys",
-        COUNT(k.id) FILTER (WHERE k.status = 'active')::int      AS "activeKeys",
-        COALESCE(SUM(k."requestCount"), 0)::bigint               AS "totalRequests",
-        COALESCE(SUM(k."successCount"), 0)::bigint               AS "totalSuccess",
-        COALESCE(SUM(k."failCount"), 0)::bigint                  AS "totalFail",
-        MAX(k."lastUsedAt")                                       AS "lastActiveAt",
-        COALESCE(
-          (SELECT SUM(dt."sellingPrice") FROM data_transaction dt
-           WHERE dt."userId" = u.id AND dt."apiKeyId" IS NOT NULL AND dt.status = 'success'), 0
-        )::numeric                                                 AS "totalApiRevenue",
-        pgm."groupId"                                             AS "pricingGroupId",
-        pg.name                                                   AS "pricingGroupName"
-      FROM "user" u
-      JOIN api_key k ON k."userId" = u.id
-      LEFT JOIN pricing_group_member pgm ON pgm."userId" = u.id
-      LEFT JOIN pricing_group pg ON pg.id = pgm."groupId"
-      GROUP BY u.id, u."fullName", u.email, u.role, u."createdAt", pgm."groupId", pg.name
-      ORDER BY "totalRequests" DESC
-    `);
-    return rows;
+    await this.bootstrapPricingGroupTables();
+    try {
+      const rows = await this.userRepository.manager.query(`
+        SELECT
+          u.id,
+          u."fullName",
+          u.email,
+          u.role,
+          u."createdAt",
+          COUNT(k.id)::int                                          AS "totalKeys",
+          COUNT(k.id) FILTER (WHERE k.status = 'active')::int      AS "activeKeys",
+          COALESCE(SUM(k."requestCount"), 0)::bigint               AS "totalRequests",
+          COALESCE(SUM(k."successCount"), 0)::bigint               AS "totalSuccess",
+          COALESCE(SUM(k."failCount"), 0)::bigint                  AS "totalFail",
+          MAX(k."lastUsedAt")                                       AS "lastActiveAt",
+          COALESCE(
+            (SELECT SUM(dt."sellingPrice") FROM data_transaction dt
+             WHERE dt."userId" = u.id AND dt."apiKeyId" IS NOT NULL AND dt.status = 'success'), 0
+          )::numeric                                                 AS "totalApiRevenue",
+          pgm."groupId"                                             AS "pricingGroupId",
+          pg.name                                                   AS "pricingGroupName"
+        FROM "user" u
+        JOIN api_key k ON k."userId" = u.id
+        LEFT JOIN pricing_group_member pgm ON pgm."userId" = u.id
+        LEFT JOIN pricing_group pg ON pg.id = pgm."groupId"
+        GROUP BY u.id, u."fullName", u.email, u.role, u."createdAt", pgm."groupId", pg.name
+        ORDER BY "totalRequests" DESC
+      `);
+      return rows;
+    } catch (err: any) {
+      this.logger.error('Failed to get API users query:', err.message);
+      return [];
+    }
   }
 
   async getApiUserDetail(userId: string) {
+    await this.bootstrapPricingGroupTables();
     const user = await this.userRepository.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found.');
 

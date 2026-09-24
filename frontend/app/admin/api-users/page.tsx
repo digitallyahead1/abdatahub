@@ -102,17 +102,29 @@ export default function AdminApiUsersPage() {
   const fetchData = async () => {
     try {
       setLoading(true)
-      const [usersRes, groupsRes, plansRes] = await Promise.all([
+      const [usersRes, groupsRes, plansRes] = await Promise.allSettled([
         api.get('/admin/api-users'),
         api.get('/admin/pricing-groups'),
         api.get('/admin/data-plans'),
       ])
-      if (usersRes.data.success) setUsers(usersRes.data.data)
-      if (groupsRes.data.success) setPricingGroups(groupsRes.data.data)
-      if (plansRes.data.success) setAllPlans(plansRes.data.data)
+
+      if (usersRes.status === 'fulfilled' && usersRes.value.data.success) {
+        setUsers(usersRes.value.data.data)
+      } else if (usersRes.status === 'rejected') {
+        console.error('API Users fetch failed:', usersRes.reason)
+        const msg = usersRes.reason?.response?.data?.message || 'Could not load API users list.'
+        toast.error(msg)
+      }
+
+      if (groupsRes.status === 'fulfilled' && groupsRes.value.data.success) {
+        setPricingGroups(groupsRes.value.data.data)
+      }
+
+      if (plansRes.status === 'fulfilled' && plansRes.value.data.success) {
+        setAllPlans(plansRes.value.data.data)
+      }
     } catch (err: any) {
       console.error(err)
-      toast.error('Failed to load API users data.')
     } finally {
       setLoading(false)
     }
