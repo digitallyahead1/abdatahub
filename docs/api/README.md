@@ -228,7 +228,8 @@ curl -X GET "https://api.abdatahub.com/api/v1/data/plans?network=mtn" \
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | UUID string | **Use this as `plan_id` in purchase requests** |
+| `id` | UUID string | Internal unique database ID |
+| `plan_id` | string | **Use this as `plan_id` in purchase requests** (e.g. `s173`, `sw10`, `d5`) |
 | `provider_plan_id` | number | Internal plan ID from the upstream provider |
 | `network` | string | Network code (`mtn`, `airtel`, `glo`, `9mobile`) |
 | `name` | string | Human-readable plan name including size and validity |
@@ -259,7 +260,7 @@ GET /v1/data/plans/{planId}
 
 | Path Parameter | Type | Description |
 |----------------|------|-------------|
-| `planId` | UUID | The `id` from the plan listing |
+| `planId` | string | The `plan_id` or `id` from the plan listing |
 
 **Response:**
 ```json
@@ -267,6 +268,7 @@ GET /v1/data/plans/{planId}
   "success": true,
   "data": {
     "id": "3f1a2b4c-0e9d-4f7a-b8c1-1234567890ab",
+    "plan_id": "d173",
     "provider_plan_id": 173,
     "network": "mtn",
     "name": "MTN 1GB SME - 30 Days",
@@ -285,16 +287,23 @@ GET /v1/data/plans/{planId}
 
 ### Plan ID Reference Guide
 
-> **Important:** AB Data Hub uses **UUID-based `plan_id`s** (e.g. `3f1a2b4c-0e9d-4f7a-b8c1-1234567890ab`) as the standard identifier for purchasing data. These UUIDs are **stable** — they do not change when the upstream provider updates prices or names. Always use the `id` field from the plan listing.
+> **Important:** AB Data Hub supports **Vendor-Prefixed Plan IDs** (e.g. `s240`, `sw240`, `d240`) as well as UUIDs and raw numeric IDs as standard identifiers for purchasing data.
+
+#### Vendor Prefix Format
+
+- **SMEPlug**: `s` prefix + provider plan ID (e.g. `s240`)
+- **Swiftbills**: `sw` prefix + provider plan ID (e.g. `sw240`)
+- **Danmalama**: `d` prefix + provider plan ID (e.g. `d240`)
+- **AMZAET**: `a` prefix + provider plan ID (e.g. `a240`)
 
 #### How Plan IDs Work
 
-```
+```json
  GET /v1/data/plans?network=mtn
  Returns:
  [{
-   "id": "3f1a2b4c-...",    <-- USE THIS as plan_id in purchase
-   "provider_plan_id": 173,  <-- Internal upstream ID (read-only)
+   "plan_id": "d173",        <-- USE THIS as plan_id in purchase requests
+   "provider_plan_id": 173,  <-- Upstream provider numeric ID
    "network": "mtn",
    "provider": "danmalama"   <-- Routed automatically by the server
  }]

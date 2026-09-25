@@ -6,6 +6,9 @@ import { toast } from 'sonner'
 
 interface PricingEntry {
   id: string
+  apiPlanId?: string
+  smeplugPlanId?: number
+  provider?: string
   network: string
   bundleName: string
   standardPrice: number
@@ -14,6 +17,16 @@ interface PricingEntry {
   effectivePrice: number
   priceSource: 'group' | 'agent' | 'standard'
   savings: number
+}
+
+function getFormattedPlanId(plan: PricingEntry): string {
+  if (plan.apiPlanId) return plan.apiPlanId
+  if (!plan.smeplugPlanId) return plan.id.slice(0, 8)
+  const p = (plan.provider || 'smeplug').toLowerCase()
+  if (p === 'swiftbills') return `sw${plan.smeplugPlanId}`
+  if (p === 'danmalama') return `d${plan.smeplugPlanId}`
+  if (p === 'amzaet') return `a${plan.smeplugPlanId}`
+  return `s${plan.smeplugPlanId}`
 }
 
 interface MyPricingData {
@@ -261,6 +274,7 @@ export default function MyPricingPage() {
             <thead className="bg-dark-bg/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-dark-border/60">
               <tr>
                 <th className="py-3.5 px-4">Network & Plan</th>
+                <th className="py-3.5 px-4">API Plan ID</th>
                 <th className="py-3.5 px-4 text-right">Standard Price</th>
                 {(data.hasGroup || data.userRole === 'agent') && (
                   <th className="py-3.5 px-4 text-right">Your Rate</th>
@@ -272,7 +286,7 @@ export default function MyPricingPage() {
             <tbody className="divide-y divide-dark-border/30">
               {filteredPlans.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="py-12 text-center text-slate-500">
+                  <td colSpan={6} className="py-12 text-center text-slate-500">
                     No plans match your filters.
                   </td>
                 </tr>
@@ -283,6 +297,7 @@ export default function MyPricingPage() {
                     'text-slate-400 bg-slate-700/30 border-slate-600/30'
                   const isCustom = plan.priceSource === 'group'
                   const isAgent = plan.priceSource === 'agent'
+                  const formattedId = getFormattedPlanId(plan)
                   return (
                     <tr
                       key={plan.id}
@@ -299,6 +314,11 @@ export default function MyPricingPage() {
                           </span>
                           <span className="text-slate-200 text-xs">{plan.bundleName}</span>
                         </div>
+                      </td>
+                      <td className="py-3 px-4 font-mono">
+                        <span className="px-2 py-0.5 rounded bg-primary-glow/10 text-primary-glow border border-primary-glow/20 font-bold text-xs">
+                          {formattedId}
+                        </span>
                       </td>
                       <td className="py-3 px-4 text-right">
                         <span

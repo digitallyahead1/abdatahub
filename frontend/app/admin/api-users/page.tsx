@@ -70,10 +70,21 @@ interface ApiUserDetail {
 
 interface DataPlan {
   id: string
+  smeplugPlanId?: number
+  provider?: string
   network: string
   bundleName: string
   sellingPrice: number
   agentPrice: number
+}
+
+function formatApiPlanId(plan: DataPlan): string {
+  if (!plan.smeplugPlanId) return plan.id.slice(0, 8)
+  const p = (plan.provider || 'smeplug').toLowerCase()
+  if (p === 'swiftbills') return `sw${plan.smeplugPlanId}`
+  if (p === 'danmalama') return `d${plan.smeplugPlanId}`
+  if (p === 'amzaet') return `a${plan.smeplugPlanId}`
+  return `s${plan.smeplugPlanId}`
 }
 
 export default function AdminApiUsersPage() {
@@ -85,6 +96,10 @@ export default function AdminApiUsersPage() {
   // Filtering
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedGroupFilter, setSelectedGroupFilter] = useState<string>('all')
+
+  // Modal Plan Filtering
+  const [modalPlanSearch, setModalPlanSearch] = useState('')
+  const [modalPlanNetwork, setModalPlanNetwork] = useState('all')
 
   // Selected User Detail Drawer
   const [selectedUserId, setSelectedUserId] = useState<string | null>(null)
@@ -624,24 +639,56 @@ export default function AdminApiUsersPage() {
 
             {/* Custom Pricing Preview Table */}
             {userDetail.pricingGroup && (
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400">
-                    Group Plan Rates for {userDetail.pricingGroup.name}
-                  </h4>
+              <div className="space-y-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-300">
+                      Group Plan Rates for {userDetail.pricingGroup.name}
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Showing rates for all {allPlans.length} active data plans
+                    </p>
+                  </div>
                   <a
                     href="/admin/pricing-groups"
-                    className="text-xs text-primary-glow hover:underline"
+                    className="text-xs text-primary-glow hover:underline shrink-0"
                   >
                     Edit Rates in Group Manager →
                   </a>
                 </div>
 
-                <div className="overflow-x-auto rounded-2xl border border-dark-border/60 max-h-56 overflow-y-auto">
+                {/* Filter Controls for Rates Preview */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 bg-dark-bg/60 p-2 rounded-xl border border-dark-border/40 text-xs">
+                  <div className="flex items-center gap-1 overflow-x-auto">
+                    {['all', 'mtn', 'airtel', 'glo', '9mobile'].map((net) => (
+                      <button
+                        key={net}
+                        onClick={() => setModalPlanNetwork(net)}
+                        className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold uppercase transition-all ${
+                          modalPlanNetwork === net
+                            ? 'bg-primary-glow/20 text-primary-glow border border-primary-glow/30'
+                            : 'text-slate-400 hover:text-white bg-dark-surface'
+                        }`}
+                      >
+                        {net}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search plan or ID..."
+                    value={modalPlanSearch}
+                    onChange={(e) => setModalPlanSearch(e.target.value)}
+                    className="bg-dark-surface border border-dark-border rounded-lg px-2.5 py-1 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:border-primary-glow"
+                  />
+                </div>
+
+                <div className="overflow-x-auto rounded-2xl border border-dark-border/60 max-h-72 overflow-y-auto">
                   <table className="w-full text-left text-xs">
-                    <thead className="bg-dark-bg/80 text-slate-400 uppercase tracking-wider font-semibold sticky top-0 border-b border-dark-border/60">
+                    <thead className="bg-dark-bg/90 text-slate-400 uppercase tracking-wider font-semibold sticky top-0 border-b border-dark-border/60 z-10">
                       <tr>
                         <th className="py-2.5 px-3">Network & Plan</th>
+                        <th className="py-2.5 px-3">Plan ID</th>
                         <th className="py-2.5 px-3">Standard Price</th>
                         <th className="py-2.5 px-3">Agent Price</th>
                         <th className="py-2.5 px-3">This User Pays</th>
@@ -649,46 +696,67 @@ export default function AdminApiUsersPage() {
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-dark-border/40">
-                      {allPlans.slice(0, 15).map((plan) => {
-                        const gp = groupPlanPrices[plan.id]
-                        const hasCustom = gp !== undefined && gp > 0
-                        const userPay = hasCustom
-                          ? gp
-                          : userDetail.role === 'agent' && Number(plan.agentPrice) > 0
-                          ? Number(plan.agentPrice)
-                          : Number(plan.sellingPrice)
+                      {allPlans
+                        .filter((plan) => {
+                          if (modalPlanNetwork !== 'all' && plan.network !== modalPlanNetwork) return false
+                          if (modalPlanSearch.trim()) {
+                            const q = modalPlanSearch.toLowerCase()
+                            const formattedId = formatApiPlanId(plan).toLowerCase()
+                            return (
+                              plan.bundleName.toLowerCase().includes(q) ||
+                              plan.network.toLowerCase().includes(q) ||
+                              formattedId.includes(q) ||
+                              (plan.smeplugPlanId && plan.smeplugPlanId.toString().includes(q))
+                            )
+                          }
+                          return true
+                        })
+                        .map((plan) => {
+                          const gp = groupPlanPrices[plan.id]
+                          const hasCustom = gp !== undefined && gp > 0
+                          const userPay = hasCustom
+                            ? gp
+                            : userDetail.role === 'agent' && Number(plan.agentPrice) > 0
+                            ? Number(plan.agentPrice)
+                            : Number(plan.sellingPrice)
+                          const formattedId = formatApiPlanId(plan)
 
-                        return (
-                          <tr key={plan.id} className="hover:bg-dark-bg/40">
-                            <td className="py-2 px-3">
-                              <span className="font-semibold text-white uppercase text-[11px] mr-1.5">
-                                {plan.network}:
-                              </span>
-                              <span className="text-slate-300">{plan.bundleName}</span>
-                            </td>
-                            <td className="py-2 px-3 font-mono text-slate-400">
-                              ₦{Number(plan.sellingPrice).toLocaleString()}
-                            </td>
-                            <td className="py-2 px-3 font-mono text-slate-400">
-                              ₦{Number(plan.agentPrice || 0).toLocaleString()}
-                            </td>
-                            <td className="py-2 px-3 font-mono font-bold text-primary-glow">
-                              ₦{userPay.toLocaleString()}
-                            </td>
-                            <td className="py-2 px-3 text-center">
-                              {hasCustom ? (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary-glow/10 text-primary-glow border border-primary-glow/20">
-                                  Group Custom
+                          return (
+                            <tr key={plan.id} className="hover:bg-dark-bg/40">
+                              <td className="py-2 px-3">
+                                <span className="font-semibold text-white uppercase text-[11px] mr-1.5">
+                                  {plan.network}:
                                 </span>
-                              ) : (
-                                <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-400">
-                                  Default
+                                <span className="text-slate-300">{plan.bundleName}</span>
+                              </td>
+                              <td className="py-2 px-3 font-mono text-[11px]">
+                                <span className="px-1.5 py-0.5 rounded bg-primary-glow/10 text-primary-glow border border-primary-glow/20 font-bold">
+                                  {formattedId}
                                 </span>
-                              )}
-                            </td>
-                          </tr>
-                        )
-                      })}
+                              </td>
+                              <td className="py-2 px-3 font-mono text-slate-400">
+                                ₦{Number(plan.sellingPrice).toLocaleString()}
+                              </td>
+                              <td className="py-2 px-3 font-mono text-slate-400">
+                                ₦{Number(plan.agentPrice || 0).toLocaleString()}
+                              </td>
+                              <td className="py-2 px-3 font-mono font-bold text-primary-glow">
+                                ₦{userPay.toLocaleString()}
+                              </td>
+                              <td className="py-2 px-3 text-center">
+                                {hasCustom ? (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-primary-glow/10 text-primary-glow border border-primary-glow/20">
+                                    Group Custom
+                                  </span>
+                                ) : (
+                                  <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-400">
+                                    Default
+                                  </span>
+                                )}
+                              </td>
+                            </tr>
+                          )
+                        })}
                     </tbody>
                   </table>
                 </div>

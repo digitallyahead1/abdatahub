@@ -180,8 +180,19 @@ export class ServicesService {
         priceSource = 'agent';
       }
 
+      const provider = plan.provider || 'smeplug';
+      let prefix = 's';
+      if (provider === 'swiftbills') prefix = 'sw';
+      else if (provider === 'danmalama') prefix = 'd';
+      else if (provider === 'amzaet') prefix = 'a';
+
+      const apiPlanId = `${prefix}${plan.smeplugPlanId}`;
+
       return {
         id: plan.id,
+        apiPlanId,
+        smeplugPlanId: plan.smeplugPlanId,
+        provider,
         network: plan.network,
         bundleName: plan.bundleName,
         standardPrice,
@@ -253,20 +264,45 @@ export class ServicesService {
     await this.usersService.verifyTransactionPin(userId, pin);
     
     const planIdStr = String(planId || '').trim();
-    const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(planIdStr);
+    const isUuid = /^[0-9a-fA-F-]{36}$/.test(planIdStr);
     
     let plan: DataPlan | null = null;
     if (isUuid) {
       plan = await this.dataPlanRepository.findOne({ where: { id: planIdStr } });
-    } else if (/^\d+$/.test(planIdStr)) {
-      const planIdNum = parseInt(planIdStr, 10);
-      const whereCondition: any = { smeplugPlanId: planIdNum };
-      if (network) {
-        whereCondition.network = network.toLowerCase().trim();
-      }
-      plan = await this.dataPlanRepository.findOne({ where: whereCondition });
     } else {
-      plan = await this.dataPlanRepository.findOne({ where: { id: planIdStr } });
+      let rawIdStr = planIdStr;
+      let targetProvider: string | null = null;
+
+      if (rawIdStr.toLowerCase().startsWith('sw')) {
+        targetProvider = 'swiftbills';
+        rawIdStr = rawIdStr.slice(2);
+      } else if (rawIdStr.toLowerCase().startsWith('d')) {
+        targetProvider = 'danmalama';
+        rawIdStr = rawIdStr.slice(1);
+      } else if (rawIdStr.toLowerCase().startsWith('s')) {
+        targetProvider = 'smeplug';
+        rawIdStr = rawIdStr.slice(1);
+      } else if (rawIdStr.toLowerCase().startsWith('a')) {
+        targetProvider = 'amzaet';
+        rawIdStr = rawIdStr.slice(1);
+      }
+
+      const numId = parseInt(rawIdStr, 10);
+      if (!isNaN(numId)) {
+        if (targetProvider) {
+          plan = await this.dataPlanRepository.findOne({
+            where: { smeplugPlanId: numId, provider: targetProvider },
+          });
+        }
+        if (!plan) {
+          const whereCondition: any = { smeplugPlanId: numId };
+          if (network) whereCondition.network = network.toLowerCase().trim();
+          plan = await this.dataPlanRepository.findOne({ where: whereCondition });
+        }
+      }
+      if (!plan) {
+        plan = await this.dataPlanRepository.findOne({ where: { id: planIdStr } });
+      }
     }
 
     if (!plan) {

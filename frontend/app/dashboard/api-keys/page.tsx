@@ -28,10 +28,45 @@ interface ApiStats {
   lastUsedAt: string | null
 }
 
+interface ApiPricingPlan {
+  id: string
+  apiPlanId?: string
+  smeplugPlanId?: number
+  provider?: string
+  network: string
+  bundleName: string
+  standardPrice: number
+  effectivePrice: number
+  priceSource: 'group' | 'agent' | 'standard'
+}
+
+interface MyPricingData {
+  hasGroup: boolean
+  group: { id: string; name: string } | null
+  userRole: string
+  pricingTable: ApiPricingPlan[]
+}
+
+function getFormattedPlanId(plan: ApiPricingPlan): string {
+  if (plan.apiPlanId) return plan.apiPlanId
+  if (!plan.smeplugPlanId) return plan.id
+  const p = (plan.provider || 'smeplug').toLowerCase()
+  if (p === 'swiftbills') return `sw${plan.smeplugPlanId}`
+  if (p === 'danmalama') return `d${plan.smeplugPlanId}`
+  if (p === 'amzaet') return `a${plan.smeplugPlanId}`
+  return `s${plan.smeplugPlanId}`
+}
+
 export default function UserApiKeysPage() {
   const [keys, setKeys] = useState<ApiKeyItem[]>([])
   const [stats, setStats] = useState<ApiStats | null>(null)
+  const [pricingData, setPricingData] = useState<MyPricingData | null>(null)
   const [loading, setLoading] = useState(true)
+
+  // API Plan IDs Directory Filters
+  const [planNetworkFilter, setPlanNetworkFilter] = useState('all')
+  const [planSearch, setPlanSearch] = useState('')
+  const [copiedPlanId, setCopiedPlanId] = useState<string | null>(null)
 
   // Generate Key Modal State
   const [generateModalOpen, setGenerateModalOpen] = useState(false)
@@ -51,15 +86,19 @@ export default function UserApiKeysPage() {
   const fetchData = async () => {
     try {
       setLoading(true)
-      const [keysRes, statsRes] = await Promise.all([
+      const [keysRes, statsRes, pricingRes] = await Promise.allSettled([
         api.get('/user/api-keys'),
         api.get('/user/api-keys/stats'),
+        api.get('/services/my-pricing'),
       ])
-      if (keysRes.data.success) {
-        setKeys(keysRes.data.data)
+      if (keysRes.status === 'fulfilled' && keysRes.value.data.success) {
+        setKeys(keysRes.value.data.data)
       }
-      if (statsRes.data.success) {
-        setStats(statsRes.data.data)
+      if (statsRes.status === 'fulfilled' && statsRes.value.data.success) {
+        setStats(statsRes.value.data.data)
+      }
+      if (pricingRes.status === 'fulfilled' && pricingRes.value.data.success) {
+        setPricingData(pricingRes.value.data.data)
       }
     } catch (err: any) {
       console.error('Error fetching API key data:', err)
@@ -363,6 +402,157 @@ export default function UserApiKeysPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+      </div>
+
+      {/* API Plan IDs & Rates Directory */}
+      <div className="bg-dark-bg-secondary border border-silver-muted/10 rounded-2xl overflow-hidden shadow-xl">
+        <div className="p-6 border-b border-silver-muted/10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-lg font-bold text-white">API Plan IDs & Rates Directory</h2>
+              {pricingData?.hasGroup && (
+                <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 uppercase tracking-wider">
+                  {pricingData.group?.name} Group Rates
+                </span>
+              )}
+            </div>
+            <p className="text-xs md:text-sm text-silver-muted mt-1">
+              Copy exact <code className="text-primary-glow font-mono font-bold">plan_id</code> strings to pass in your <code className="text-emerald-400 font-mono">POST /v1/data/purchase</code> API requests.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            <div className="flex items-center bg-dark-bg rounded-xl p-1 border border-silver-muted/15">
+              {['all', 'mtn', 'airtel', 'glo', '9mobile'].map((net) => (
+                <button
+                  key={net}
+                  onClick={() => setPlanNetworkFilter(net)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-semibold uppercase transition-all ${
+                    planNetworkFilter === net
+                      ? 'bg-primary-blue text-white shadow-md'
+                      : 'text-silver-muted hover:text-white'
+                  }`}
+                >
+                  {net}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Prefix Instructions Banner */}
+        <div className="bg-primary-blue/5 border-b border-silver-muted/10 px-6 py-3 flex flex-col sm:flex-row sm:items-center justify-between gap-2 text-xs">
+          <div className="flex items-center gap-2 text-slate-300">
+            <span className="text-primary-glow font-bold">💡 Vendor Prefix Rule:</span>
+            <span>SMEPlug: <code className="text-primary-glow font-bold font-mono">s...</code> | Swiftbills: <code className="text-amber-400 font-bold font-mono">sw...</code> | Danmalama: <code className="text-emerald-400 font-bold font-mono">d...</code></span>
+          </div>
+          <div className="relative max-w-xs w-full sm:w-auto">
+            <input
+              type="text"
+              placeholder="Search plan or ID..."
+              value={planSearch}
+              onChange={(e) => setPlanSearch(e.target.value)}
+              className="w-full bg-dark-bg border border-silver-muted/20 rounded-xl px-3 py-1.5 text-xs text-white placeholder-silver-muted focus:outline-none focus:border-primary-glow"
+            />
+          </div>
+        </div>
+
+        {pricingData ? (
+          <div className="overflow-x-auto max-h-96 overflow-y-auto">
+            <table className="w-full text-left border-collapse text-xs md:text-sm">
+              <thead className="bg-dark-bg/80 text-silver-muted uppercase tracking-wider font-semibold sticky top-0 border-b border-silver-muted/10 z-10">
+                <tr>
+                  <th className="py-3 px-6">Network & Bundle Name</th>
+                  <th className="py-3 px-6">API Plan ID (<code className="lowercase">plan_id</code>)</th>
+                  <th className="py-3 px-6 text-right">Standard Price</th>
+                  <th className="py-3 px-6 text-right">Your Rate</th>
+                  <th className="py-3 px-6 text-center">Tier</th>
+                  <th className="py-3 px-6 text-right">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-silver-muted/10">
+                {pricingData.pricingTable
+                  .filter((plan) => {
+                    if (planNetworkFilter !== 'all' && plan.network !== planNetworkFilter) return false
+                    if (planSearch.trim()) {
+                      const q = planSearch.toLowerCase()
+                      const formattedId = getFormattedPlanId(plan).toLowerCase()
+                      return (
+                        plan.bundleName.toLowerCase().includes(q) ||
+                        plan.network.toLowerCase().includes(q) ||
+                        formattedId.includes(q)
+                      )
+                    }
+                    return true
+                  })
+                  .map((plan) => {
+                    const formattedId = getFormattedPlanId(plan)
+                    const isCustom = plan.priceSource === 'group'
+                    const isAgent = plan.priceSource === 'agent'
+                    const isCopied = copiedPlanId === formattedId
+
+                    return (
+                      <tr key={plan.id} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="py-3 px-6 font-medium text-white">
+                          <span className="uppercase text-xs font-bold text-primary-glow mr-2">
+                            {plan.network}
+                          </span>
+                          {plan.bundleName}
+                        </td>
+                        <td className="py-3 px-6 font-mono">
+                          <span className="px-2.5 py-1 rounded-lg bg-primary-blue/15 text-primary-glow border border-primary-blue/30 font-bold text-xs">
+                            {formattedId}
+                          </span>
+                        </td>
+                        <td className="py-3 px-6 text-right font-mono text-silver-muted text-xs">
+                          <span className={isCustom || isAgent ? 'line-through opacity-60' : ''}>
+                            ₦{Number(plan.standardPrice).toLocaleString()}
+                          </span>
+                        </td>
+                        <td className="py-3 px-6 text-right font-mono font-bold text-white">
+                          <span className={isCustom ? 'text-primary-glow' : isAgent ? 'text-amber-400' : ''}>
+                            ₦{Number(plan.effectivePrice).toLocaleString()}
+                          </span>
+                        </td>
+                        <td className="py-3 px-6 text-center">
+                          {isCustom ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-primary-glow/10 text-primary-glow border border-primary-glow/20 uppercase">
+                              Group
+                            </span>
+                          ) : isAgent ? (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase">
+                              Agent
+                            </span>
+                          ) : (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-slate-800 text-slate-400 uppercase">
+                              Standard
+                            </span>
+                          )}
+                        </td>
+                        <td className="py-3 px-6 text-right">
+                          <button
+                            onClick={() => {
+                              navigator.clipboard.writeText(formattedId)
+                              setCopiedPlanId(formattedId)
+                              toast.success(`Copied plan_id "${formattedId}" to clipboard!`)
+                              setTimeout(() => setCopiedPlanId(null), 2500)
+                            }}
+                            className="px-3 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-silver-light border border-silver-muted/20 text-xs font-medium transition-all"
+                          >
+                            {isCopied ? 'Copied!' : 'Copy ID'}
+                          </button>
+                        </td>
+                      </tr>
+                    )
+                  })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <div className="p-8 text-center text-silver-muted text-xs">
+            Loading data plans and developer IDs...
           </div>
         )}
       </div>

@@ -125,15 +125,27 @@ export class PublicApiService {
     return this.formatPlan(plan, customPrice);
   }
 
+  private getApiPlanId(smeplugPlanId: number, provider?: string): string {
+    const p = (provider || 'smeplug').toLowerCase();
+    if (p === 'swiftbills') return `sw${smeplugPlanId}`;
+    if (p === 'danmalama') return `d${smeplugPlanId}`;
+    if (p === 'amzaet') return `a${smeplugPlanId}`;
+    return `s${smeplugPlanId}`;
+  }
+
   private formatPlan(p: DataPlan, customPrice?: number) {
+    const provider = p.provider || 'smeplug';
+    const apiPlanId = this.getApiPlanId(p.smeplugPlanId, provider);
+
     return {
       id: p.id,
+      plan_id: apiPlanId,
       provider_plan_id: p.smeplugPlanId,
       network: p.network,
       name: p.bundleName,
       price: customPrice !== undefined && customPrice > 0 ? customPrice : p.sellingPrice,
       provider_price: p.smeplugCost,
-      provider: p.provider || 'smeplug',
+      provider,
       status: p.visibilityStatus ? 'active' : 'inactive',
       created_at: p.createdAt,
       updated_at: p.updatedAt,
@@ -171,11 +183,44 @@ export class PublicApiService {
       throw new BadRequestException('Invalid phone number. Must be 10 or 11 digits.');
     }
 
-    // 3. Lookup plan
+    // 3. Lookup plan (supports UUID, prefixed IDs like s240, sw240, d240, or raw numeric IDs)
     const isUuid = /^[0-9a-fA-F-]{36}$/.test(plan_id);
-    const plan = isUuid
-      ? await this.dataPlanRepository.findOne({ where: { id: plan_id } })
-      : await this.dataPlanRepository.findOne({ where: { smeplugPlanId: parseInt(plan_id, 10), network: network?.toLowerCase() } });
+    let plan: DataPlan | null = null;
+
+    if (isUuid) {
+      plan = await this.dataPlanRepository.findOne({ where: { id: plan_id } });
+    } else {
+      let rawIdStr = String(plan_id || '').trim();
+      let targetProvider: string | null = null;
+
+      if (rawIdStr.toLowerCase().startsWith('sw')) {
+        targetProvider = 'swiftbills';
+        rawIdStr = rawIdStr.slice(2);
+      } else if (rawIdStr.toLowerCase().startsWith('d')) {
+        targetProvider = 'danmalama';
+        rawIdStr = rawIdStr.slice(1);
+      } else if (rawIdStr.toLowerCase().startsWith('s')) {
+        targetProvider = 'smeplug';
+        rawIdStr = rawIdStr.slice(1);
+      } else if (rawIdStr.toLowerCase().startsWith('a')) {
+        targetProvider = 'amzaet';
+        rawIdStr = rawIdStr.slice(1);
+      }
+
+      const numId = parseInt(rawIdStr, 10);
+      if (!isNaN(numId)) {
+        if (targetProvider) {
+          plan = await this.dataPlanRepository.findOne({
+            where: { smeplugPlanId: numId, provider: targetProvider },
+          });
+        }
+        if (!plan) {
+          plan = await this.dataPlanRepository.findOne({
+            where: network ? { smeplugPlanId: numId, network: network.toLowerCase() } : { smeplugPlanId: numId },
+          });
+        }
+      }
+    }
 
     if (!plan || !plan.visibilityStatus) {
       throw new NotFoundException('Data plan not found or is currently inactive.');
