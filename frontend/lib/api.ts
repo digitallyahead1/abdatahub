@@ -12,9 +12,11 @@ export const api = axios.create({
 
 // Add token to requests + boost timeout for service purchase endpoints
 api.interceptors.request.use((config) => {
-  const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+  if (!config.headers.Authorization) {
+    const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
   }
   // Service purchase endpoints call external APIs – give them more time
   if (config.url?.includes('/services/')) {
