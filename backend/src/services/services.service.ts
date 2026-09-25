@@ -188,6 +188,18 @@ export class ServicesService {
 
       const apiPlanId = `${prefix}${plan.smeplugPlanId}`;
 
+      let validity = '30 Days';
+      if (plan.bundleName) {
+        const daysMatch = plan.bundleName.match(/(\d+)\s*(days?|day)/i);
+        if (daysMatch) validity = `${daysMatch[1]} ${parseInt(daysMatch[1], 10) === 1 ? 'Day' : 'Days'}`;
+        else {
+          const monthMatch = plan.bundleName.match(/(\d+)\s*(months?|month)/i);
+          if (monthMatch) validity = `${monthMatch[1]} ${parseInt(monthMatch[1], 10) === 1 ? 'Month' : 'Months'}`;
+          else if (/weekly/i.test(plan.bundleName)) validity = '7 Days';
+          else if (/daily/i.test(plan.bundleName)) validity = '1 Day';
+        }
+      }
+
       return {
         id: plan.id,
         apiPlanId,
@@ -195,6 +207,7 @@ export class ServicesService {
         provider,
         network: plan.network,
         bundleName: plan.bundleName,
+        validity,
         standardPrice,
         agentPrice: agentPrice || null,
         groupPrice,

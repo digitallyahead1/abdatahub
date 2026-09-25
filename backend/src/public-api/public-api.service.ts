@@ -133,6 +133,20 @@ export class PublicApiService {
     return `s${smeplugPlanId}`;
   }
 
+  private extractValidity(bundleName: string): string {
+    if (!bundleName) return '30 Days';
+    const daysMatch = bundleName.match(/(\d+)\s*(days?|day)/i);
+    if (daysMatch) return `${daysMatch[1]} ${parseInt(daysMatch[1], 10) === 1 ? 'Day' : 'Days'}`;
+    const monthMatch = bundleName.match(/(\d+)\s*(months?|month)/i);
+    if (monthMatch) return `${monthMatch[1]} ${parseInt(monthMatch[1], 10) === 1 ? 'Month' : 'Months'}`;
+    const hourMatch = bundleName.match(/(\d+)\s*(hrs?|hours?)/i);
+    if (hourMatch) return `${hourMatch[1]} ${parseInt(hourMatch[1], 10) === 1 ? 'Hour' : 'Hours'}`;
+    if (/monthly/i.test(bundleName)) return '30 Days';
+    if (/weekly/i.test(bundleName)) return '7 Days';
+    if (/daily/i.test(bundleName)) return '1 Day';
+    return '30 Days';
+  }
+
   private formatPlan(p: DataPlan, customPrice?: number) {
     const provider = p.provider || 'smeplug';
     const apiPlanId = this.getApiPlanId(p.smeplugPlanId, provider);
@@ -143,6 +157,7 @@ export class PublicApiService {
       provider_plan_id: p.smeplugPlanId,
       network: p.network,
       name: p.bundleName,
+      validity: this.extractValidity(p.bundleName),
       price: customPrice !== undefined && customPrice > 0 ? customPrice : p.sellingPrice,
       provider_price: p.smeplugCost,
       provider,

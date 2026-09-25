@@ -29,6 +29,25 @@ function getFormattedPlanId(plan: PricingEntry): string {
   return `s${plan.smeplugPlanId}`
 }
 
+function extractValidity(bundleName: string): string {
+  if (!bundleName) return '30 Days'
+  
+  const daysMatch = bundleName.match(/(\d+)\s*(days?|day)/i)
+  if (daysMatch) return `${daysMatch[1]} ${parseInt(daysMatch[1]) === 1 ? 'Day' : 'Days'}`
+  
+  const monthMatch = bundleName.match(/(\d+)\s*(months?|month)/i)
+  if (monthMatch) return `${monthMatch[1]} ${parseInt(monthMatch[1]) === 1 ? 'Month' : 'Months'}`
+
+  const hourMatch = bundleName.match(/(\d+)\s*(hrs?|hours?)/i)
+  if (hourMatch) return `${hourMatch[1]} ${parseInt(hourMatch[1]) === 1 ? 'Hour' : 'Hours'}`
+
+  if (/monthly/i.test(bundleName)) return '30 Days'
+  if (/weekly/i.test(bundleName)) return '7 Days'
+  if (/daily/i.test(bundleName)) return '1 Day'
+
+  return '30 Days'
+}
+
 interface MyPricingData {
   hasGroup: boolean
   group: { id: string; name: string; description?: string } | null
@@ -274,6 +293,7 @@ export default function MyPricingPage() {
             <thead className="bg-dark-bg/80 text-slate-400 uppercase tracking-wider font-semibold border-b border-dark-border/60">
               <tr>
                 <th className="py-3.5 px-4">Network & Plan</th>
+                <th className="py-3.5 px-4 text-center">Validity</th>
                 <th className="py-3.5 px-4">API Plan ID</th>
                 <th className="py-3.5 px-4 text-right">Standard Price</th>
                 {(data.hasGroup || data.userRole === 'agent') && (
@@ -286,7 +306,7 @@ export default function MyPricingPage() {
             <tbody className="divide-y divide-dark-border/30">
               {filteredPlans.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-500">
+                  <td colSpan={7} className="py-12 text-center text-slate-500">
                     No plans match your filters.
                   </td>
                 </tr>
@@ -298,6 +318,7 @@ export default function MyPricingPage() {
                   const isCustom = plan.priceSource === 'group'
                   const isAgent = plan.priceSource === 'agent'
                   const formattedId = getFormattedPlanId(plan)
+                  const validityStr = extractValidity(plan.bundleName)
                   return (
                     <tr
                       key={plan.id}
@@ -314,6 +335,11 @@ export default function MyPricingPage() {
                           </span>
                           <span className="text-slate-200 text-xs">{plan.bundleName}</span>
                         </div>
+                      </td>
+                      <td className="py-3 px-4 text-center">
+                        <span className="px-2 py-0.5 rounded bg-dark-bg text-slate-300 border border-dark-border/60 font-medium text-xs whitespace-nowrap">
+                          {validityStr}
+                        </span>
                       </td>
                       <td className="py-3 px-4 font-mono">
                         <span className="px-2 py-0.5 rounded bg-primary-glow/10 text-primary-glow border border-primary-glow/20 font-bold text-xs">

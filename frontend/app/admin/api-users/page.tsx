@@ -87,6 +87,25 @@ function formatApiPlanId(plan: DataPlan): string {
   return `s${plan.smeplugPlanId}`
 }
 
+function extractValidity(bundleName: string): string {
+  if (!bundleName) return '30 Days'
+  
+  const daysMatch = bundleName.match(/(\d+)\s*(days?|day)/i)
+  if (daysMatch) return `${daysMatch[1]} ${parseInt(daysMatch[1]) === 1 ? 'Day' : 'Days'}`
+  
+  const monthMatch = bundleName.match(/(\d+)\s*(months?|month)/i)
+  if (monthMatch) return `${monthMatch[1]} ${parseInt(monthMatch[1]) === 1 ? 'Month' : 'Months'}`
+
+  const hourMatch = bundleName.match(/(\d+)\s*(hrs?|hours?)/i)
+  if (hourMatch) return `${hourMatch[1]} ${parseInt(hourMatch[1]) === 1 ? 'Hour' : 'Hours'}`
+
+  if (/monthly/i.test(bundleName)) return '30 Days'
+  if (/weekly/i.test(bundleName)) return '7 Days'
+  if (/daily/i.test(bundleName)) return '1 Day'
+
+  return '30 Days'
+}
+
 export default function AdminApiUsersPage() {
   const [users, setUsers] = useState<ApiUserRow[]>([])
   const [pricingGroups, setPricingGroups] = useState<PricingGroupSimple[]>([])
@@ -688,6 +707,7 @@ export default function AdminApiUsersPage() {
                     <thead className="bg-dark-bg/90 text-slate-400 uppercase tracking-wider font-semibold sticky top-0 border-b border-dark-border/60 z-10">
                       <tr>
                         <th className="py-2.5 px-3">Network & Plan</th>
+                        <th className="py-2.5 px-3 text-center">Validity</th>
                         <th className="py-2.5 px-3">Plan ID</th>
                         <th className="py-2.5 px-3">Standard Price</th>
                         <th className="py-2.5 px-3">Agent Price</th>
@@ -720,6 +740,7 @@ export default function AdminApiUsersPage() {
                             ? Number(plan.agentPrice)
                             : Number(plan.sellingPrice)
                           const formattedId = formatApiPlanId(plan)
+                          const validityStr = extractValidity(plan.bundleName)
 
                           return (
                             <tr key={plan.id} className="hover:bg-dark-bg/40">
@@ -728,6 +749,11 @@ export default function AdminApiUsersPage() {
                                   {plan.network}:
                                 </span>
                                 <span className="text-slate-300">{plan.bundleName}</span>
+                              </td>
+                              <td className="py-2 px-3 text-center">
+                                <span className="px-1.5 py-0.5 rounded bg-dark-bg text-slate-400 border border-dark-border/60 text-[11px]">
+                                  {validityStr}
+                                </span>
                               </td>
                               <td className="py-2 px-3 font-mono text-[11px]">
                                 <span className="px-1.5 py-0.5 rounded bg-primary-glow/10 text-primary-glow border border-primary-glow/20 font-bold">

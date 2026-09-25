@@ -35,6 +35,7 @@ interface ApiPricingPlan {
   provider?: string
   network: string
   bundleName: string
+  validity?: string
   standardPrice: number
   effectivePrice: number
   priceSource: 'group' | 'agent' | 'standard'
@@ -55,6 +56,26 @@ function getFormattedPlanId(plan: ApiPricingPlan): string {
   if (p === 'danmalama') return `d${plan.smeplugPlanId}`
   if (p === 'amzaet') return `a${plan.smeplugPlanId}`
   return `s${plan.smeplugPlanId}`
+}
+
+function extractValidity(bundleName: string, backendValidity?: string): string {
+  if (backendValidity) return backendValidity
+  if (!bundleName) return '30 Days'
+  
+  const daysMatch = bundleName.match(/(\d+)\s*(days?|day)/i)
+  if (daysMatch) return `${daysMatch[1]} ${parseInt(daysMatch[1]) === 1 ? 'Day' : 'Days'}`
+  
+  const monthMatch = bundleName.match(/(\d+)\s*(months?|month)/i)
+  if (monthMatch) return `${monthMatch[1]} ${parseInt(monthMatch[1]) === 1 ? 'Month' : 'Months'}`
+
+  const hourMatch = bundleName.match(/(\d+)\s*(hrs?|hours?)/i)
+  if (hourMatch) return `${hourMatch[1]} ${parseInt(hourMatch[1]) === 1 ? 'Hour' : 'Hours'}`
+
+  if (/monthly/i.test(bundleName)) return '30 Days'
+  if (/weekly/i.test(bundleName)) return '7 Days'
+  if (/daily/i.test(bundleName)) return '1 Day'
+
+  return '30 Days'
 }
 
 export default function UserApiKeysPage() {
@@ -465,6 +486,7 @@ export default function UserApiKeysPage() {
               <thead className="bg-dark-bg/80 text-silver-muted uppercase tracking-wider font-semibold sticky top-0 border-b border-silver-muted/10 z-10">
                 <tr>
                   <th className="py-3 px-6">Network & Bundle Name</th>
+                  <th className="py-3 px-6 text-center">Validity</th>
                   <th className="py-3 px-6">API Plan ID (<code className="lowercase">plan_id</code>)</th>
                   <th className="py-3 px-6 text-right">Standard Price</th>
                   <th className="py-3 px-6 text-right">Your Rate</th>
@@ -492,6 +514,7 @@ export default function UserApiKeysPage() {
                     const isCustom = plan.priceSource === 'group'
                     const isAgent = plan.priceSource === 'agent'
                     const isCopied = copiedPlanId === formattedId
+                    const validityStr = extractValidity(plan.bundleName, plan.validity)
 
                     return (
                       <tr key={plan.id} className="hover:bg-white/[0.02] transition-colors">
@@ -500,6 +523,11 @@ export default function UserApiKeysPage() {
                             {plan.network}
                           </span>
                           {plan.bundleName}
+                        </td>
+                        <td className="py-3 px-6 text-center">
+                          <span className="px-2 py-0.5 rounded-md bg-dark-bg text-slate-300 border border-silver-muted/15 font-medium text-xs whitespace-nowrap">
+                            {validityStr}
+                          </span>
                         </td>
                         <td className="py-3 px-6 font-mono">
                           <span className="px-2.5 py-1 rounded-lg bg-primary-blue/15 text-primary-glow border border-primary-blue/30 font-bold text-xs">
