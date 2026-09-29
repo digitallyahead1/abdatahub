@@ -169,6 +169,17 @@ export class AdminController {
     };
   }
 
+  @Post('wallet/silent-adjust')
+  @Permissions('manage:wallet')
+  async silentAdjustWallet(@Body() body: any) {
+    const data = await this.adminService.silentAdjustWallet(body);
+    return {
+      success: true,
+      message: 'Done.',
+      data,
+    };
+  }
+
   @Get('settings')
   @Permissions('manage:settings')
   async getSettings() {
