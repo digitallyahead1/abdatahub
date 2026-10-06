@@ -191,6 +191,22 @@ export class SmePlugSyncService implements OnModuleInit {
         sellingPrice: 1040,
         agentPrice: 0,
       },
+      {
+        smeplugPlanId: 251,
+        network: 'mtn',
+        bundleName: 'MTN 1GB MONTHLY',
+        smeplugCost: 390,
+        sellingPrice: 390,
+        agentPrice: 0,
+      },
+      {
+        smeplugPlanId: 125,
+        network: 'mtn',
+        bundleName: 'MTN 2GB MONTHLY',
+        smeplugCost: 700,
+        sellingPrice: 700,
+        agentPrice: 0,
+      },
     ];
 
 
