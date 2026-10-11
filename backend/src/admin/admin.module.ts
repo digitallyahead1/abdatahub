@@ -8,6 +8,7 @@ import { Transaction } from '../entities/transaction.entity';
 import { WalletTransaction } from '../entities/wallet-transaction.entity';
 import { AuditLog } from '../entities/audit-log.entity';
 import { DataPlan } from '../entities/data-plan.entity';
+import { DeletedDataPlan } from '../entities/deleted-data-plan.entity';
 import { AirtimePricing } from '../entities/airtime-pricing.entity';
 import { SyncLog } from '../entities/sync-log.entity';
 import { DataTransaction } from '../entities/data-transaction.entity';
@@ -34,6 +35,7 @@ import { PricingGroupPlan } from '../entities/pricing-group-plan.entity';
       WalletTransaction,
       AuditLog,
       DataPlan,
+      DeletedDataPlan,
       AirtimePricing,
       SyncLog,
       DataTransaction,

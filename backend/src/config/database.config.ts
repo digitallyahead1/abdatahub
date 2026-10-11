@@ -10,6 +10,7 @@ import { DataTransaction } from '../entities/data-transaction.entity';
 import { AirtimeTransaction } from '../entities/airtime-transaction.entity';
 import { SyncLog } from '../entities/sync-log.entity';
 import { SystemSetting } from '../entities/system-setting.entity';
+import { DeletedDataPlan } from '../entities/deleted-data-plan.entity';
 
 import { ExamCategory } from '../entities/exam-category.entity';
 import { ExamPin } from '../entities/exam-pin.entity';
@@ -78,6 +79,7 @@ export const DatabaseConfig: TypeOrmModuleOptions = {
     WalletTransaction,
     AuditLog,
     DataPlan,
+    DeletedDataPlan,
     AirtimePricing,
     DataTransaction,
     AirtimeTransaction,

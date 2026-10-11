@@ -272,12 +272,33 @@ export class AdminController {
   @Permissions('manage:settings')
   async deleteDataPlan(@Param('id') id: string, @Req() req: any) {
     const data = await this.adminService.deleteDataPlan(id, req.user);
+    return data;
+  }
+
+  @Post('data-plans/bulk-delete')
+  @Permissions('manage:settings')
+  async bulkDeleteDataPlans(@Body('ids') ids: string[], @Req() req: any) {
+    const data = await this.adminService.bulkDeleteDataPlans(ids, req.user);
+    return data;
+  }
+
+  @Get('data-plans/deleted')
+  @Permissions('manage:settings')
+  async getDeletedDataPlans() {
+    const data = await this.adminService.getDeletedDataPlans();
     return {
       success: true,
-      message: 'Data plan deleted successfully!',
       data,
     };
   }
+
+  @Post('data-plans/deleted/:id/restore')
+  @Permissions('manage:settings')
+  async restoreDataPlan(@Param('id') id: string, @Req() req: any) {
+    const data = await this.adminService.restoreDataPlan(id, req.user);
+    return data;
+  }
+
 
   @Get('airtime-pricing')
   @Permissions('manage:settings')

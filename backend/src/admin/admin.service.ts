@@ -9,6 +9,7 @@ import { Transaction } from '../entities/transaction.entity';
 import { WalletTransaction } from '../entities/wallet-transaction.entity';
 import { AuditLogService } from '../audit-log/audit-log.service';
 import { DataPlan } from '../entities/data-plan.entity';
+import { DeletedDataPlan } from '../entities/deleted-data-plan.entity';
 import { AirtimePricing } from '../entities/airtime-pricing.entity';
 import { SyncLog } from '../entities/sync-log.entity';
 import { DataTransaction } from '../entities/data-transaction.entity';
@@ -39,6 +40,8 @@ export class AdminService implements OnModuleInit {
     private walletTransactionRepository: Repository<WalletTransaction>,
     @InjectRepository(DataPlan)
     private dataPlanRepository: Repository<DataPlan>,
+    @InjectRepository(DeletedDataPlan)
+    private deletedDataPlanRepository: Repository<DeletedDataPlan>,
     @InjectRepository(AirtimePricing)
     private airtimePricingRepository: Repository<AirtimePricing>,
     @InjectRepository(SyncLog)
@@ -652,16 +655,127 @@ export class AdminService implements OnModuleInit {
     const plan = await this.dataPlanRepository.findOne({ where: { id } });
     if (!plan) throw new NotFoundException('Data plan not found');
 
+    const provider = plan.provider || 'smeplug';
+
+    // Record into deleted_data_plan so sync/seed will NEVER re-create this plan
+    const existingDeleted = await this.deletedDataPlanRepository.findOne({
+      where: { smeplugPlanId: plan.smeplugPlanId, provider },
+    });
+
+    if (!existingDeleted) {
+      const deletedRecord = this.deletedDataPlanRepository.create({
+        smeplugPlanId: plan.smeplugPlanId,
+        provider,
+        network: plan.network,
+        bundleName: plan.bundleName,
+        costPrice: plan.smeplugCost || 0,
+        deletedBy: adminUser?.email || 'admin',
+      });
+      await this.deletedDataPlanRepository.save(deletedRecord);
+    }
+
+    // Permanently remove from active data_plan table
     await this.dataPlanRepository.remove(plan);
 
-    await this.auditLogService.log(adminUser.id, adminUser.email, 'data_plan_deleted', {
+    await this.auditLogService.log(adminUser.id, adminUser.email, 'data_plan_permanently_deleted', {
       planId: id,
       bundleName: plan.bundleName,
       smeplugPlanId: plan.smeplugPlanId,
+      provider,
+      network: plan.network,
     });
 
-    return { success: true, message: 'Data plan deleted successfully' };
+    return { success: true, message: `Plan "${plan.bundleName}" permanently deleted.` };
   }
+
+  async bulkDeleteDataPlans(ids: string[], adminUser: any) {
+    if (!Array.isArray(ids) || ids.length === 0) {
+      throw new BadRequestException('Please provide an array of plan IDs to delete.');
+    }
+
+    const plans = await this.dataPlanRepository.findByIds(ids);
+    if (!plans || plans.length === 0) {
+      return { success: true, count: 0, message: 'No matching plans found to delete.' };
+    }
+
+    for (const plan of plans) {
+      const provider = plan.provider || 'smeplug';
+      const existing = await this.deletedDataPlanRepository.findOne({
+        where: { smeplugPlanId: plan.smeplugPlanId, provider },
+      });
+      if (!existing) {
+        const deletedRecord = this.deletedDataPlanRepository.create({
+          smeplugPlanId: plan.smeplugPlanId,
+          provider,
+          network: plan.network,
+          bundleName: plan.bundleName,
+          costPrice: plan.smeplugCost || 0,
+          deletedBy: adminUser?.email || 'admin',
+        });
+        await this.deletedDataPlanRepository.save(deletedRecord);
+      }
+    }
+
+    await this.dataPlanRepository.remove(plans);
+
+    await this.auditLogService.log(adminUser.id, adminUser.email, 'data_plans_bulk_deleted', {
+      count: plans.length,
+      planIds: ids,
+    });
+
+    return {
+      success: true,
+      count: plans.length,
+      message: `${plans.length} plan(s) permanently deleted across all providers.`,
+    };
+  }
+
+  async getDeletedDataPlans(): Promise<DeletedDataPlan[]> {
+    return this.deletedDataPlanRepository.find({
+      order: { deletedAt: 'DESC' },
+    });
+  }
+
+  async restoreDataPlan(deletedPlanId: string, adminUser: any) {
+    const deletedRecord = await this.deletedDataPlanRepository.findOne({ where: { id: deletedPlanId } });
+    if (!deletedRecord) throw new NotFoundException('Deleted plan record not found.');
+
+    const provider = deletedRecord.provider || 'smeplug';
+
+    // Remove from deleted_data_plan so sync/admin can use it again
+    await this.deletedDataPlanRepository.remove(deletedRecord);
+
+    // Re-create the plan back into data_plan table if not present
+    const existing = await this.dataPlanRepository.findOne({
+      where: { smeplugPlanId: deletedRecord.smeplugPlanId, provider },
+    });
+
+    if (!existing) {
+      const restoredPlan = this.dataPlanRepository.create({
+        smeplugPlanId: deletedRecord.smeplugPlanId,
+        provider,
+        network: deletedRecord.network || 'mtn',
+        bundleName: deletedRecord.bundleName || 'Restored Plan',
+        smeplugCost: deletedRecord.costPrice || 0,
+        sellingPrice: deletedRecord.costPrice || 0,
+        agentPrice: 0,
+        overrideStatus: false,
+        visibilityStatus: true,
+        lastSyncedAt: new Date(),
+      });
+      await this.dataPlanRepository.save(restoredPlan);
+    }
+
+    await this.auditLogService.log(adminUser.id, adminUser.email, 'data_plan_restored', {
+      deletedPlanId,
+      smeplugPlanId: deletedRecord.smeplugPlanId,
+      provider,
+      bundleName: deletedRecord.bundleName,
+    });
+
+    return { success: true, message: `Plan "${deletedRecord.bundleName}" restored successfully.` };
+  }
+
 
   async getAirtimePricing(): Promise<AirtimePricing[]> {
     return this.airtimePricingRepository.find({
@@ -1393,8 +1507,20 @@ export class AdminService implements OnModuleInit {
           CONSTRAINT "FK_pgp_plan"  FOREIGN KEY ("planId")  REFERENCES "data_plan"("id") ON DELETE CASCADE
         );
         ALTER TABLE "data_transaction" ADD COLUMN IF NOT EXISTS "apiKeyId" uuid;
+        CREATE TABLE IF NOT EXISTS "deleted_data_plan" (
+          "id"            uuid NOT NULL DEFAULT gen_random_uuid(),
+          "smeplugPlanId" integer NOT NULL,
+          "provider"      character varying NOT NULL DEFAULT 'smeplug',
+          "network"       character varying,
+          "bundleName"    character varying,
+          "costPrice"     numeric(20,2) NOT NULL DEFAULT 0.00,
+          "deletedBy"     character varying,
+          "deletedAt"     TIMESTAMP NOT NULL DEFAULT now(),
+          CONSTRAINT "PK_deleted_data_plan_id" PRIMARY KEY ("id"),
+          CONSTRAINT "UQ_deleted_plan_provider_id" UNIQUE ("smeplugPlanId", "provider")
+        );
       `);
-      this.logger.log('Pricing group tables verified.');
+      this.logger.log('Pricing group & deleted plan tables verified.');
     } catch (err: any) {
       this.logger.error('Failed to bootstrap pricing group tables:', err.message);
     }

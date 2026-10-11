@@ -4,6 +4,7 @@ import { ServicesService } from './services.service';
 import { ServicesController } from './services.controller';
 import { Transaction } from '../entities/transaction.entity';
 import { DataPlan } from '../entities/data-plan.entity';
+import { DeletedDataPlan } from '../entities/deleted-data-plan.entity';
 import { AirtimePricing } from '../entities/airtime-pricing.entity';
 import { DataTransaction } from '../entities/data-transaction.entity';
 import { AirtimeTransaction } from '../entities/airtime-transaction.entity';
@@ -22,6 +23,7 @@ import { AdminModule } from '../admin/admin.module';
     TypeOrmModule.forFeature([
       Transaction,
       DataPlan,
+      DeletedDataPlan,
       AirtimePricing,
       DataTransaction,
       AirtimeTransaction,
