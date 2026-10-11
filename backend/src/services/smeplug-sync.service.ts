@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit, Inject, forwardRef } from '@nestjs/co
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { DataPlan } from '../entities/data-plan.entity';
+import { DeletedDataPlan } from '../entities/deleted-data-plan.entity';
 import { AirtimePricing } from '../entities/airtime-pricing.entity';
 import { SyncLog } from '../entities/sync-log.entity';
 import { SmePlugService } from './smeplug.service';
@@ -20,6 +21,8 @@ export class SmePlugSyncService implements OnModuleInit {
     private adminService: AdminService,
     @InjectRepository(DataPlan)
     private dataPlanRepository: Repository<DataPlan>,
+    @InjectRepository(DeletedDataPlan)
+    private deletedDataPlanRepository: Repository<DeletedDataPlan>,
     @InjectRepository(AirtimePricing)
     private airtimePricingRepository: Repository<AirtimePricing>,
     @InjectRepository(SyncLog)
@@ -141,6 +144,22 @@ export class SmePlugSyncService implements OnModuleInit {
         bundleName: 'MTN 2GB MONTHLY',
         smeplugCost: 700,
         sellingPrice: 700,
+        agentPrice: 0,
+      },
+      {
+        smeplugPlanId: 124,
+        network: 'mtn',
+        bundleName: 'MTN 1GB WEEKLY',
+        smeplugCost: 365,
+        sellingPrice: 365,
+        agentPrice: 0,
+      },
+      {
+        smeplugPlanId: 266,
+        network: 'mtn',
+        bundleName: 'MTN 2GB WEEKLY',
+        smeplugCost: 670,
+        sellingPrice: 670,
         agentPrice: 0,
       },
     ];
