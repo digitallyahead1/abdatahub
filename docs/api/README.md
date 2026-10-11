@@ -235,7 +235,7 @@ curl -X GET "https://api.abdatahub.com/api/v1/data/plans?network=mtn" \
 | `name` | string | Human-readable plan name including size and validity |
 | `price` | number | Selling price in NGN (what the user pays) |
 | `provider_price` | number | Our cost price from the upstream provider |
-| `provider` | string | Upstream provider: `smeplug`, `swiftbills`, `amzaet`, or `danmalama` |
+| `provider` | string | Upstream provider: `smeplug`, `swiftbills`, or `danmalama` |
 | `status` | string | `active` or `inactive` |
 
 ---
@@ -294,7 +294,6 @@ GET /v1/data/plans/{planId}
 - **SMEPlug**: `s` prefix + provider plan ID (e.g. `s240`)
 - **Swiftbills**: `sw` prefix + provider plan ID (e.g. `sw240`)
 - **Danmalama**: `d` prefix + provider plan ID (e.g. `d240`)
-- **AMZAET**: `a` prefix + provider plan ID (e.g. `a240`)
 
 #### How Plan IDs Work
 
@@ -562,7 +561,6 @@ The platform uses multiple upstream providers for reliability and pricing divers
 |----------|-----|--------|-----|---------|-------|
 | `smeplug` | Yes | Yes | Yes | Yes | v1.0 |
 | `swiftbills` | Yes | — | — | — | v1.1 |
-| `amzaet` | Yes | — | — | — | v1.1 |
 | `danmalama` | **Yes** | **Yes** | **Yes** | — | **v1.3** |
 
 > **Danmalama** (added Sept 2026) is the newest provider — it covers MTN, Airtel, and Glo. When you fetch plans and see `"provider": "danmalama"`, purchasing them works exactly the same way as any other plan.
@@ -975,7 +973,6 @@ bool verifySignature(String rawBody, String sigHeader, String secret) {
 | Sept 2026 | v1.4 | Added **Outgoing Webhook System** — `data.purchase.success`, `data.purchase.failed` events with HMAC-SHA256 signing and 3-attempt retry |
 | Sept 2026 | v1.3 | Added **Danmalama** provider — MTN, Airtel, and Glo plans now available via Danmalama |
 | Sept 2026 | v1.2 | Added Swiftbills provider for MTN plans |
-| Aug 2026 | v1.1 | Added AMZAET provider for MTN plans |
 | Jul 2026 | v1.0 | Initial release with SMEPlug as default provider |
 
 ---

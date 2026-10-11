@@ -34,9 +34,9 @@ export class SmePlugSyncService implements OnModuleInit {
       this.logger.error('Failed to seed default airtime rates:', err);
     });
 
-    // Seed AMZAET data plans on startup
-    this.seedAmzaetPlans().catch(err => {
-      this.logger.error('Failed to seed AMZAET plans:', err);
+    // Clean up any remaining AMZAET data plans
+    this.dataPlanRepository.delete({ provider: 'amzaet' }).catch(err => {
+      this.logger.warn('Failed to delete obsolete AMZAET plans:', err);
     });
 
     // Seed Swiftbills data plans on startup
@@ -88,70 +88,6 @@ export class SmePlugSyncService implements OnModuleInit {
         await this.airtimePricingRepository.save(pricing);
         this.logger.log(`Seeded default airtime pricing for ${net.toUpperCase()}`);
       }
-    }
-  }
-
-  async seedAmzaetPlans() {
-    const provider = 'amzaet';
-
-    // Cleanup legacy invalid plan 531 if present
-    await this.dataPlanRepository.delete({ smeplugPlanId: 531, provider });
-
-    // --- Plan 1: MTN SME 5.0 GB 14 days (Plan ID 500) ---
-    const apiPlanId1 = 500;
-    const plan1 = await this.dataPlanRepository.findOne({
-      where: { smeplugPlanId: apiPlanId1, provider },
-    });
-
-    if (!plan1) {
-      const newPlan = this.dataPlanRepository.create({
-        smeplugPlanId: apiPlanId1,
-        network: 'mtn',
-        bundleName: 'MTN SME 5.0 GB 14 days',
-        smeplugCost: 1040,
-        sellingPrice: 1040,
-        overrideStatus: false,
-        visibilityStatus: true,
-        provider,
-        lastSyncedAt: new Date(),
-      });
-      await this.dataPlanRepository.save(newPlan);
-      this.logger.log('Seeded AMZAET MTN SME 5.0 GB 14 days plan.');
-    } else {
-      plan1.smeplugCost = 1040;
-      await this.dataPlanRepository.save(plan1);
-      this.logger.log('Updated AMZAET MTN SME 5.0 GB 14 days cost to 1040.');
-    }
-
-    // --- Plan 2: MTN SME 1.0 GB 30 days (Plan ID 532) ---
-    const apiPlanId2 = 532;
-    const plan2 = await this.dataPlanRepository.findOne({
-      where: { smeplugPlanId: apiPlanId2, provider },
-    });
-
-    if (!plan2) {
-      const newPlan2 = this.dataPlanRepository.create({
-        smeplugPlanId: apiPlanId2,
-        network: 'mtn',
-        bundleName: 'MTN SME 1.0 GB 30 days',
-        smeplugCost: 220,
-        sellingPrice: 220,
-        agentPrice: 220,
-        overrideStatus: false,
-        visibilityStatus: true,
-        provider,
-        lastSyncedAt: new Date(),
-      });
-      await this.dataPlanRepository.save(newPlan2);
-      this.logger.log('Seeded AMZAET MTN SME 1.0 GB 30 days plan (ID 532) at ₦220.');
-    } else {
-      plan2.bundleName = 'MTN SME 1.0 GB 30 days';
-      plan2.smeplugCost = 220;
-      plan2.sellingPrice = 220;
-      plan2.agentPrice = 220;
-      plan2.visibilityStatus = true;
-      await this.dataPlanRepository.save(plan2);
-      this.logger.log('Updated AMZAET MTN SME 1.0 GB 30 days plan (ID 532) cost and price to ₦220.');
     }
   }
 
@@ -268,26 +204,21 @@ export class SmePlugSyncService implements OnModuleInit {
 
     try {
       const liveData = await this.danmalamaService.getDataPlans();
-      if (liveData?.status === true && liveData?.data) {
+      // New API: { success: true, data: [{ planId, network, label, price }] }
+      if (liveData?.success === true && Array.isArray(liveData?.data)) {
         const livePlans: typeof fallbackPlans = [];
-        const networks = ['MTN', 'AIRTEL', 'GLO', '9MOBILE'];
-        for (const net of networks) {
-          const arr = liveData.data[net];
-          if (Array.isArray(arr)) {
-            for (const item of arr) {
-              const planIdNum = parseInt(item.planId, 10);
-              const price = parseFloat(item.price) || 0;
-              if (planIdNum && price > 0) {
-                livePlans.push({
-                  smeplugPlanId: planIdNum,
-                  network: net.toLowerCase(),
-                  bundleName: item.name?.trim() || `${net} Data`,
-                  smeplugCost: price,
-                  sellingPrice: price,
-                  agentPrice: 0,
-                });
-              }
-            }
+        for (const item of liveData.data) {
+          const planIdNum = parseInt(String(item.planId), 10);
+          const price = parseFloat(item.price) || 0;
+          if (planIdNum && price > 0) {
+            livePlans.push({
+              smeplugPlanId: planIdNum,
+              network: (item.network || '').toLowerCase(),
+              bundleName: item.label?.trim() || `${item.network || 'Data'} Plan`,
+              smeplugCost: price,
+              sellingPrice: price,
+              agentPrice: 0,
+            });
           }
         }
         if (livePlans.length > 0) {

@@ -83,7 +83,6 @@ function formatApiPlanId(plan: DataPlan): string {
   const p = (plan.provider || 'smeplug').toLowerCase()
   if (p === 'swiftbills') return `sw${plan.smeplugPlanId}`
   if (p === 'danmalama') return `d${plan.smeplugPlanId}`
-  if (p === 'amzaet') return `a${plan.smeplugPlanId}`
   return `s${plan.smeplugPlanId}`
 }
 

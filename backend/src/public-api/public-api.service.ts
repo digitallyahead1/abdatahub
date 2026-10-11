@@ -129,7 +129,6 @@ export class PublicApiService {
     const p = (provider || 'smeplug').toLowerCase();
     if (p === 'swiftbills') return `sw${smeplugPlanId}`;
     if (p === 'danmalama') return `d${smeplugPlanId}`;
-    if (p === 'amzaet') return `a${smeplugPlanId}`;
     return `s${smeplugPlanId}`;
   }
 
@@ -217,9 +216,6 @@ export class PublicApiService {
       } else if (rawIdStr.toLowerCase().startsWith('s')) {
         targetProvider = 'smeplug';
         rawIdStr = rawIdStr.slice(1);
-      } else if (rawIdStr.toLowerCase().startsWith('a')) {
-        targetProvider = 'amzaet';
-        rawIdStr = rawIdStr.slice(1);
       }
 
       const numId = parseInt(rawIdStr, 10);
@@ -299,18 +295,6 @@ export class PublicApiService {
         providerResult = await this.swiftbillsService.purchaseData(plan.network, cleanPhone, plan.smeplugPlanId, ref);
       } else if (plan.provider === 'danmalama') {
         providerResult = await this.danmalamaService.purchaseData(plan.network, cleanPhone, plan.smeplugPlanId, ref);
-      } else if (plan.provider === 'amzaet') {
-        const amzaetToken = process.env.AMZAET_TOKEN;
-        if (!amzaetToken) throw new Error('AMZAET service is not configured.');
-        const resp = await axios.post('https://amzaet.com/api/data/', {
-          network: 1, mobile_number: cleanPhone, plan: plan.smeplugPlanId, Ported_number: true,
-        }, { headers: { Authorization: `Token ${amzaetToken}` }, timeout: 30000 });
-        const rawStatus = String(resp.data?.Status || resp.data?.status || '').toLowerCase();
-        providerResult = {
-          status: rawStatus === 'success' || rawStatus === 'true' || resp.data?.id != null,
-          msg: resp.data?.api_response || resp.data?.message || 'Processed',
-          providerTransactionId: String(resp.data?.id || ''),
-        };
       } else {
         providerResult = await this.smePlugService.purchaseData(
           this.NETWORK_MAP[plan.network]?.id || 1,

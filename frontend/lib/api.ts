@@ -4,7 +4,7 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001/api'
 
 export const api = axios.create({
   baseURL: API_URL,
-  timeout: 90000, // 90s default – provider APIs (AMZAET/SMEPlug) can take 30-40s
+  timeout: 90000, // 90s default – provider APIs can take 30-40s
   headers: {
     'Content-Type': 'application/json',
   },

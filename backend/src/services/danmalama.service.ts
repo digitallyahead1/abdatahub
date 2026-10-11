@@ -8,23 +8,30 @@ import * as https from 'https';
 export class DanmalamaService {
   private readonly logger = new Logger(DanmalamaService.name);
   private client: AxiosInstance;
+  private readonly pin: string;
 
   constructor(private configService: ConfigService) {
     const baseUrl =
       this.configService.get<string>('DANMALAMA_BASE_URL') ||
       process.env.DANMALAMA_BASE_URL ||
-      'https://www.danmalama.com.ng/api/v1';
+      'https://api.danmalama.com.ng/api';
+
     const apiKey =
       this.configService.get<string>('DANMALAMA_API_KEY') ||
       process.env.DANMALAMA_API_KEY ||
-      'vtu_33645c4ea8852f781fd1878b058f4421aa60c4732e1d30f6';
+      '';
+
+    this.pin =
+      this.configService.get<string>('DANMALAMA_PIN') ||
+      process.env.DANMALAMA_PIN ||
+      '';
 
     this.client = axios.create({
       baseURL: baseUrl,
       headers: {
-        'x-api-key': apiKey,
+        'X-API-Key': apiKey,
         'Content-Type': 'application/json',
-        'Accept': 'application/json',
+        Accept: 'application/json',
       },
       timeout: 35000,
       httpAgent: new http.Agent({ keepAlive: true, maxSockets: 100 }),
@@ -33,22 +40,27 @@ export class DanmalamaService {
   }
 
   /**
-   * Fetch all data plans available on Danmalama across all networks
+   * Fetch all data plans available on Danmalama across all networks.
+   * New endpoint: GET /vending/data/plans
+   * Response: { success: true, data: [{ planId, network, label, price }] }
    */
   async getDataPlans(): Promise<any> {
     try {
-      this.logger.log('Fetching Danmalama data plans from /data-plans...');
-      const response = await this.client.get('/data-plans');
+      this.logger.log('Fetching Danmalama data plans from /vending/data/plans...');
+      const response = await this.client.get('/vending/data/plans');
       this.logger.log(`Fetched Danmalama plans [HTTP ${response.status}]`);
       return response.data;
     } catch (error: any) {
-      this.logger.error('Failed to fetch Danmalama data plans:', error.response?.data || error.message);
+      this.logger.error(
+        'Failed to fetch Danmalama data plans:',
+        error.response?.data || error.message,
+      );
       return null;
     }
   }
 
   /**
-   * Format network string to Danmalama standard ('MTN', 'AIRTEL', 'GLO', '9MOBILE')
+   * Format network string to Danmalama standard ('MTN' | 'AIRTEL' | 'GLO' | '9MOBILE')
    */
   formatNetwork(network: string): string {
     const lower = (network || '').toLowerCase().trim();
@@ -60,7 +72,10 @@ export class DanmalamaService {
   }
 
   /**
-   * Execute data bundle purchase on Danmalama
+   * Execute a data bundle purchase on Danmalama.
+   * New endpoint: POST /vending/data
+   * Payload: { network, phone, planId, pin }
+   * Response: { success: true, data: { balance, transaction: { _id, reference, status, ... } } }
    */
   async purchaseData(
     network: string,
@@ -72,37 +87,40 @@ export class DanmalamaService {
       const networkUpper = this.formatNetwork(network);
       const planIdStr = String(planId).trim();
 
-      const payload = {
+      const payload: Record<string, any> = {
         network: networkUpper,
         phone: phone.trim(),
         planId: planIdStr,
+        pin: this.pin,
       };
 
-      this.logger.log(`Initiating Danmalama Data Purchase: ${JSON.stringify(payload)} (internalRef=${requestId || 'N/A'})`);
-      const response = await this.client.post('/purchase', payload);
-      this.logger.log(`Danmalama Data Purchase Response [HTTP ${response.status}]: ${JSON.stringify(response.data)}`);
+      this.logger.log(
+        `Initiating Danmalama Data Purchase: network=${networkUpper} phone=${phone.trim()} planId=${planIdStr} (internalRef=${requestId || 'N/A'})`,
+      );
+
+      const response = await this.client.post('/vending/data', payload);
+      this.logger.log(
+        `Danmalama Data Purchase Response [HTTP ${response.status}]: ${JSON.stringify(response.data)}`,
+      );
 
       const data = response.data;
-      const statusStr = String(data?.status || '').toLowerCase();
-      const isSuccess =
-        statusStr === 'true' ||
-        data?.status === true ||
-        statusStr === 'success' ||
-        statusStr === 'successful';
 
-      if (isSuccess) {
+      // New API uses { success: true/false } at the top level
+      if (data?.success === true) {
+        const tx = data?.data?.transaction || {};
         return {
           status: true,
           current_status: 'success',
-          data: data?.data || data,
-          reference: data?.data?.reference || `DAN_${Date.now()}`,
-          msg: data?.message || 'Data Purchase Successful',
+          data: data.data,
+          reference: tx.reference || `DAN_${Date.now()}`,
+          msg: 'Data Purchase Successful',
         };
       } else {
+        // { success: false, error: { code, message } }
         const failMsg =
+          data?.error?.message ||
+          data?.error?.code ||
           data?.message ||
-          data?.error ||
-          data?.response ||
           'Danmalama returned a failed status';
 
         return {
@@ -114,18 +132,18 @@ export class DanmalamaService {
         };
       }
     } catch (error: any) {
-      const errorMsg = error.response?.data || error.message;
-      this.logger.error('Danmalama data purchase failure:', errorMsg);
+      const errorPayload = error.response?.data;
+      this.logger.error('Danmalama data purchase failure:', errorPayload || error.message);
 
       let parsedMsg = 'Network error or provider failure';
-      if (typeof error.response?.data === 'string') {
-        parsedMsg = error.response.data;
-      } else if (error.response?.data?.message) {
-        parsedMsg = error.response.data.message;
-      } else if (error.response?.data?.error) {
-        parsedMsg = typeof error.response.data.error === 'string'
-          ? error.response.data.error
-          : JSON.stringify(error.response.data.error);
+      if (errorPayload?.error?.message) {
+        parsedMsg = errorPayload.error.message;
+      } else if (errorPayload?.error?.code) {
+        parsedMsg = errorPayload.error.code;
+      } else if (typeof errorPayload?.message === 'string') {
+        parsedMsg = errorPayload.message;
+      } else if (typeof errorPayload === 'string') {
+        parsedMsg = errorPayload;
       } else if (error.message) {
         parsedMsg = error.message;
       }
@@ -134,7 +152,7 @@ export class DanmalamaService {
         status: false,
         current_status: 'failed',
         msg: parsedMsg,
-        error: errorMsg,
+        error: errorPayload || error.message,
         isTransientError:
           !error.response ||
           error.response.status >= 500 ||

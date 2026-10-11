@@ -184,7 +184,6 @@ export class ServicesService {
       let prefix = 's';
       if (provider === 'swiftbills') prefix = 'sw';
       else if (provider === 'danmalama') prefix = 'd';
-      else if (provider === 'amzaet') prefix = 'a';
 
       const apiPlanId = `${prefix}${plan.smeplugPlanId}`;
 
@@ -295,9 +294,6 @@ export class ServicesService {
       } else if (rawIdStr.toLowerCase().startsWith('s')) {
         targetProvider = 'smeplug';
         rawIdStr = rawIdStr.slice(1);
-      } else if (rawIdStr.toLowerCase().startsWith('a')) {
-        targetProvider = 'amzaet';
-        rawIdStr = rawIdStr.slice(1);
       }
 
       const numId = parseInt(rawIdStr, 10);
@@ -389,125 +385,6 @@ export class ServicesService {
         plan.smeplugPlanId,
         ref,
       );
-    } else if (plan.provider === 'amzaet') {
-      const amzaetToken = process.env.AMZAET_TOKEN;
-      if (!amzaetToken) {
-        this.logger.error('AMZAET_TOKEN is not configured in the environment variables.');
-        throw new Error('AMZAET service is temporarily unavailable due to configuration error.');
-      }
-      this.logger.log(`Purchasing data via AMZAET API for plan ${plan.smeplugPlanId} on phone ${phoneNumber}`);
-
-      try {
-        const response = await axios.post(
-          'https://amzaet.com/api/data/',
-          {
-            network: 1, // MTN is 1 in AMZAET
-            mobile_number: phoneNumber,
-            plan: plan.smeplugPlanId,
-            Ported_number: true,
-          },
-          {
-            headers: {
-              Authorization: `Token ${amzaetToken}`,
-              'Content-Type': 'application/json',
-            },
-            timeout: 30000,
-          }
-        );
-        this.logger.log(`AMZAET API Response [HTTP ${response.status}]: ${JSON.stringify(response.data)}`);
-        
-        const rawStatus = response.data?.Status || response.data?.status || response.data?.current_status || '';
-        const statusStr = String(rawStatus).toLowerCase();
-
-        const rawMsg = response.data?.api_response || response.data?.message || response.data?.detail || '';
-        const msg = String(rawMsg).toLowerCase();
-
-        // Explicit failure indicators in the response body
-        const isExplicitFailure =
-          statusStr === 'false' ||
-          statusStr === 'failed' ||
-          statusStr === 'error' ||
-          msg.includes('failed') ||
-          msg.includes('error') ||
-          msg.includes('insufficient');
-
-        // If HTTP 2xx and no explicit failure in body → treat as success
-        // AMZAET may return "successful", "200", "created", "processing", etc.
-        const isSuccess =
-          !isExplicitFailure &&
-          (response.status >= 200 && response.status < 300) &&
-          (
-            statusStr === 'success' ||
-            statusStr === 'successful' ||
-            statusStr === 'true' ||
-            statusStr === '200' ||
-            statusStr === 'created' ||
-            statusStr === 'processing' ||
-            msg.includes('success') ||
-            msg.includes('successful') ||
-            msg.includes('submitted') ||
-            msg.includes('processing') ||
-            // If response has an id/plan field, the order was accepted
-            response.data?.id != null ||
-            response.data?.plan != null
-          );
-
-        if (isSuccess) {
-          result = {
-            status: true,
-            current_status: 'success',
-          };
-        } else {
-          const failMsg =
-            (Array.isArray(response.data?.error) && response.data.error[0]) ||
-            response.data?.message ||
-            response.data?.detail ||
-            'Provider returned an unrecognised response';
-          this.logger.warn(`AMZAET returned non-success body: ${JSON.stringify(response.data)}`);
-          result = {
-            status: false,
-            current_status: 'failed',
-            msg: failMsg,
-          };
-        }
-      } catch (err: any) {
-        // Distinguish transient errors (timeout, network, 5xx) from hard API failures
-        const isTransient = !err.response || err.response.status >= 500 || err.code === 'ECONNABORTED' || err.message?.includes('timeout');
-        const amzaetErrorData = err.response?.data;
-        let amzaetMsg = '';
-
-        if (typeof amzaetErrorData === 'string') {
-          amzaetMsg = amzaetErrorData;
-        } else if (Array.isArray(amzaetErrorData) && amzaetErrorData.length > 0) {
-          amzaetMsg = typeof amzaetErrorData[0] === 'string' ? amzaetErrorData[0] : JSON.stringify(amzaetErrorData[0]);
-        } else if (amzaetErrorData && typeof amzaetErrorData === 'object') {
-          const directMsg = amzaetErrorData.detail || amzaetErrorData.message || amzaetErrorData.api_response || (Array.isArray(amzaetErrorData.error) && amzaetErrorData.error[0]);
-          if (directMsg) {
-            amzaetMsg = directMsg;
-          } else {
-            // Extract error from first field property (e.g. { plan: ['Invalid pk...'] })
-            const firstKey = Object.keys(amzaetErrorData)[0];
-            const val = firstKey ? amzaetErrorData[firstKey] : null;
-            if (Array.isArray(val) && val.length > 0) {
-              amzaetMsg = `${firstKey}: ${val[0]}`;
-            } else if (typeof val === 'string') {
-              amzaetMsg = `${firstKey}: ${val}`;
-            } else {
-              amzaetMsg = err.message;
-            }
-          }
-        } else {
-          amzaetMsg = err.message;
-        }
-
-        this.logger.error(`AMZAET API call failed (transient=${isTransient}): ${JSON.stringify(amzaetErrorData || err.message)}`);
-        result = {
-          status: false,
-          current_status: isTransient ? 'pending' : 'failed',
-          msg: amzaetMsg,
-          isTransientError: isTransient,
-        };
-      }
     } else {
       // 4. Map network to SMEPlug ID
       const networkMap: Record<string, number> = {
@@ -571,7 +448,7 @@ export class ServicesService {
 
         let rawErr = result?.data?.msg || result?.msg || 'Data purchase transaction failed on provider gateway';
         if (typeof rawErr === 'string' && rawErr.toLowerCase().includes('insufficient')) {
-          rawErr = 'Provider Gateway Error: Insufficient balance on API provider account (danmalama/swiftbills/amzaet/smeplug). Please contact admin to top up provider API wallet.';
+          rawErr = 'Provider Gateway Error: Insufficient balance on API provider account (danmalama/swiftbills/smeplug). Please contact admin to top up provider API wallet.';
         }
         throw new BadRequestException(rawErr);
       }
@@ -632,7 +509,7 @@ export class ServicesService {
 
       let rawErr = result?.data?.msg || result?.msg || 'Unable to complete data purchase with the provider.';
       if (typeof rawErr === 'string' && rawErr.toLowerCase().includes('insufficient')) {
-        rawErr = 'Provider Gateway Error: Insufficient balance on API provider account (amzaet/smeplug). Please contact admin to top up provider API wallet.';
+        rawErr = 'Provider Gateway Error: Insufficient balance on API provider account (danmalama/swiftbills/smeplug). Please contact admin to top up provider API wallet.';
       }
       throw new BadRequestException(rawErr);
     }

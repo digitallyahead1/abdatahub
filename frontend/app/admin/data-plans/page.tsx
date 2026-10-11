@@ -18,7 +18,7 @@ interface DataPlan {
   provider?: string
 }
 
-type TabType = 'mtn' | 'airtel' | 'glo' | '9mobile' | 'amzaet' | 'swiftbills' | 'danmalama'
+type TabType = 'mtn' | 'airtel' | 'glo' | '9mobile' | 'swiftbills' | 'danmalama'
 
 export default function AdminDataPlansPage() {
   const [plans, setPlans] = useState<DataPlan[]>([])
@@ -142,9 +142,6 @@ export default function AdminDataPlansPage() {
   }
 
   const filteredPlans = plans.filter((p) => {
-    if (activeTab === 'amzaet') {
-      return p.provider === 'amzaet'
-    }
     if (activeTab === 'swiftbills') {
       return p.provider === 'swiftbills'
     }
@@ -206,7 +203,6 @@ export default function AdminDataPlansPage() {
           { id: 'airtel', name: 'Airtel' },
           { id: 'glo', name: 'Glo' },
           { id: '9mobile', name: '9mobile' },
-          { id: 'amzaet', name: 'AMZAET (MTN)' },
           { id: 'swiftbills', name: 'Swiftbills (MTN)' },
           { id: 'danmalama', name: 'Danmalama (MTN/Airtel/Glo)' },
         ].map((tab) => (
@@ -236,7 +232,7 @@ export default function AdminDataPlansPage() {
                 <th className="px-6 py-4">Plan ID</th>
                 <th className="px-6 py-4">Bundle Name</th>
                 {activeTab === 'danmalama' && <th className="px-6 py-4">Network</th>}
-                <th className="px-6 py-4">{activeTab === 'amzaet' ? 'AMZAET Cost' : activeTab === 'swiftbills' ? 'Swiftbills Cost' : activeTab === 'danmalama' ? 'Danmalama Cost' : 'SMEPlug Cost'}</th>
+                <th className="px-6 py-4">{activeTab === 'swiftbills' ? 'Swiftbills Cost' : activeTab === 'danmalama' ? 'Danmalama Cost' : 'SMEPlug Cost'}</th>
                 <th className="px-6 py-4">Selling Price</th>
                 <th className="px-6 py-4">Agent Price</th>
                 <th className="px-6 py-4">Override Status</th>

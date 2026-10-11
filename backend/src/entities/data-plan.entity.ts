@@ -9,7 +9,7 @@ export class DataPlan {
   smeplugPlanId: number;
 
   @Column({ nullable: true })
-  provider: string; // 'smeplug' or 'amzaet'. NULL is treated as 'smeplug'
+  provider: string; // 'smeplug', 'swiftbills', 'danmalama'. NULL is treated as 'smeplug'
 
   @Column()
   network: string; // mtn, airtel, glo, 9mobile

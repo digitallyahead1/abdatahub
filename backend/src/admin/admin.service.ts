@@ -955,9 +955,6 @@ export class AdminService implements OnModuleInit {
         } else {
           message = `Unable to verify status with IACAFE: ${result?.msg || 'Unknown error'}`;
         }
-      } else if (txProvider === 'amzaet') {
-        // AMZAET does not have a standard requery endpoint — keep current status
-        message = 'AMZAET transactions cannot be requeried automatically. Please verify manually on the AMZAET dashboard.';
       } else if (txProvider === 'swiftbills') {
         // Swiftbills does not have a standard requery endpoint — keep current status
         message = 'Swiftbills transactions cannot be requeried automatically. Please verify manually on the Swiftbills dashboard.';

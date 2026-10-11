@@ -73,7 +73,7 @@ export default function PrivacyPolicyPage() {
           </p>
           <ul className="list-disc list-inside space-y-1.5 pl-2 text-silver-light">
             <li><strong className="text-white">Payment Processors:</strong> Paystack and Flutterwave for secure online card payments and bank transfers.</li>
-            <li><strong className="text-white">Telecommunications & Utility Providers:</strong> SMEPlug, AMZAET, MTN, Airtel, Glo, 9mobile, and electricity DISCOs to fulfill data, airtime, and utility orders.</li>
+            <li><strong className="text-white">Telecommunications & Utility Providers:</strong> SMEPlug, Danmalama, Swiftbills, MTN, Airtel, Glo, 9mobile, and electricity DISCOs to fulfill data, airtime, and utility orders.</li>
             <li><strong className="text-white">Legal Compliance:</strong> When required by Nigerian laws, court orders, or law enforcement investigations.</li>
           </ul>
         </section>
