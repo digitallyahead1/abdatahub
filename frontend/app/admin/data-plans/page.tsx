@@ -29,7 +29,7 @@ interface DeletedDataPlan {
   deletedAt: string
 }
 
-type TabType = 'mtn' | 'airtel' | 'glo' | '9mobile' | 'swiftbills' | 'danmalama'
+type TabType = 'mtn' | 'airtel' | 'glo' | '9mobile' | 'swiftbills' | 'danmalama' | 'maitama'
 type ViewMode = 'active' | 'deleted'
 
 // ─── Permanent Delete Confirmation Modal ──────────────────────────────────────
@@ -278,7 +278,13 @@ export default function AdminDataPlansPage() {
   const handleSync = async () => {
     try {
       setSyncing(true)
-      const endpoint = activeTab === 'danmalama' ? '/admin/danmalama/sync' : '/admin/smeplug/sync'
+      const endpoint = activeTab === 'danmalama'
+        ? '/admin/danmalama/sync'
+        : activeTab === 'swiftbills'
+        ? '/admin/swiftbills/sync'
+        : activeTab === 'maitama'
+        ? '/admin/maitama/sync'
+        : '/admin/smeplug/sync'
       const res = await api.post(endpoint)
       toast.success(res.data.message || 'Synchronization complete!')
       await fetchPlans()
@@ -411,6 +417,7 @@ export default function AdminDataPlansPage() {
   const filteredPlans = plans.filter((p) => {
     if (activeTab === 'swiftbills') return p.provider === 'swiftbills'
     if (activeTab === 'danmalama') return p.provider === 'danmalama'
+    if (activeTab === 'maitama') return p.provider === 'maitama'
     return p.network === activeTab && (!p.provider || p.provider === 'smeplug')
   })
 
@@ -533,7 +540,15 @@ export default function AdminDataPlansPage() {
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 1121.21 7.89H18" />
                     </svg>
-                    <span>{activeTab === 'danmalama' ? 'Sync Danmalama plans' : 'Sync SMEPlug plans'}</span>
+                    <span>
+                      {activeTab === 'danmalama'
+                        ? 'Sync Danmalama plans'
+                        : activeTab === 'swiftbills'
+                        ? 'Sync Swiftbills plans'
+                        : activeTab === 'maitama'
+                        ? 'Sync Maitama plans'
+                        : 'Sync SMEPlug plans'}
+                    </span>
                   </>
                 )}
               </button>
@@ -553,6 +568,7 @@ export default function AdminDataPlansPage() {
                 { id: '9mobile', name: '9mobile' },
                 { id: 'swiftbills', name: 'Swiftbills (MTN)' },
                 { id: 'danmalama', name: 'Danmalama (MTN/Airtel/Glo)' },
+                { id: 'maitama', name: 'Maitama Data Hub' },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -603,8 +619,8 @@ export default function AdminDataPlansPage() {
                       </th>
                       <th className="px-6 py-4">Plan ID</th>
                       <th className="px-6 py-4">Bundle Name</th>
-                      {activeTab === 'danmalama' && <th className="px-6 py-4">Network</th>}
-                      <th className="px-6 py-4">{activeTab === 'swiftbills' ? 'Swiftbills Cost' : activeTab === 'danmalama' ? 'Danmalama Cost' : 'SMEPlug Cost'}</th>
+                      {(activeTab === 'danmalama' || activeTab === 'maitama') && <th className="px-6 py-4">Network</th>}
+                      <th className="px-6 py-4">{activeTab === 'swiftbills' ? 'Swiftbills Cost' : activeTab === 'danmalama' ? 'Danmalama Cost' : activeTab === 'maitama' ? 'Maitama Cost' : 'SMEPlug Cost'}</th>
                       <th className="px-6 py-4">Selling Price</th>
                       <th className="px-6 py-4">Agent Price</th>
                       <th className="px-6 py-4">Override</th>
@@ -615,8 +631,8 @@ export default function AdminDataPlansPage() {
                   <tbody className="divide-y divide-white/5">
                     {filteredPlans.length === 0 ? (
                       <tr>
-                        <td colSpan={activeTab === 'danmalama' ? 10 : 9} className="px-6 py-10 text-center text-silver-muted font-medium">
-                          No active plans synced for this network yet. Try clicking "{activeTab === 'danmalama' ? 'Sync Danmalama plans' : 'Sync SMEPlug plans'}".
+                        <td colSpan={(activeTab === 'danmalama' || activeTab === 'maitama') ? 10 : 9} className="px-6 py-10 text-center text-silver-muted font-medium">
+                          No active plans synced for this network yet. Try clicking "{activeTab === 'danmalama' ? 'Sync Danmalama plans' : activeTab === 'swiftbills' ? 'Sync Swiftbills plans' : activeTab === 'maitama' ? 'Sync Maitama plans' : 'Sync SMEPlug plans'}".
                         </td>
                       </tr>
                     ) : (
@@ -657,7 +673,7 @@ export default function AdminDataPlansPage() {
                               plan.bundleName
                             )}
                           </td>
-                          {activeTab === 'danmalama' && (
+                          {(activeTab === 'danmalama' || activeTab === 'maitama') && (
                             <td className="px-6 py-4">
                               <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${
                                 plan.network === 'mtn' ? 'bg-yellow-400/10 text-yellow-300 border-yellow-400/20'
@@ -801,6 +817,7 @@ export default function AdminDataPlansPage() {
                           <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${
                             dp.provider === 'danmalama' ? 'bg-blue-500/10 text-blue-300 border-blue-500/20'
                             : dp.provider === 'swiftbills' ? 'bg-purple-500/10 text-purple-300 border-purple-500/20'
+                            : dp.provider === 'maitama' ? 'bg-amber-500/10 text-amber-300 border-amber-500/20'
                             : 'bg-white/5 text-silver-muted border-white/10'
                           }`}>
                             {dp.provider || 'smeplug'}

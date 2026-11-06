@@ -12,6 +12,7 @@ import { SmePlugService } from './smeplug.service';
 import { IacafeService } from './iacafe.service';
 import { SwiftbillsService } from './swiftbills.service';
 import { DanmalamaService } from './danmalama.service';
+import { MaitamaService } from './maitama.service';
 import { AdminService } from '../admin/admin.service';
 import { UsersService } from '../users/users.service';
 import { formatToWatIso } from '../common/date.util';
@@ -26,6 +27,7 @@ export class ServicesService {
     private iacafeService: IacafeService,
     private swiftbillsService: SwiftbillsService,
     private danmalamaService: DanmalamaService,
+    private maitamaService: MaitamaService,
     @Inject(forwardRef(() => AdminService))
     private adminService: AdminService,
     private usersService: UsersService,
@@ -184,6 +186,7 @@ export class ServicesService {
       let prefix = 's';
       if (provider === 'swiftbills') prefix = 'sw';
       else if (provider === 'danmalama') prefix = 'd';
+      else if (provider === 'maitama') prefix = 'm';
 
       const apiPlanId = `${prefix}${plan.smeplugPlanId}`;
 
@@ -291,6 +294,9 @@ export class ServicesService {
       } else if (rawIdStr.toLowerCase().startsWith('d')) {
         targetProvider = 'danmalama';
         rawIdStr = rawIdStr.slice(1);
+      } else if (rawIdStr.toLowerCase().startsWith('m')) {
+        targetProvider = 'maitama';
+        rawIdStr = rawIdStr.slice(1);
       } else if (rawIdStr.toLowerCase().startsWith('s')) {
         targetProvider = 'smeplug';
         rawIdStr = rawIdStr.slice(1);
@@ -385,6 +391,14 @@ export class ServicesService {
         plan.smeplugPlanId,
         ref,
       );
+    } else if (plan.provider === 'maitama') {
+      this.logger.log(`Purchasing data via Maitama Data Hub API for plan ${plan.smeplugPlanId} (${plan.bundleName}) on phone ${phoneNumber}`);
+      result = await this.maitamaService.purchaseData(
+        plan.network,
+        phoneNumber,
+        plan.smeplugPlanId,
+        ref,
+      );
     } else {
       // 4. Map network to SMEPlug ID
       const networkMap: Record<string, number> = {
@@ -448,7 +462,7 @@ export class ServicesService {
 
         let rawErr = result?.data?.msg || result?.msg || 'Data purchase transaction failed on provider gateway';
         if (typeof rawErr === 'string' && rawErr.toLowerCase().includes('insufficient')) {
-          rawErr = 'Provider Gateway Error: Insufficient balance on API provider account (danmalama/swiftbills/smeplug). Please contact admin to top up provider API wallet.';
+          rawErr = 'Provider Gateway Error: Insufficient balance on API provider account (maitama/danmalama/swiftbills/smeplug). Please contact admin to top up provider API wallet.';
         }
         throw new BadRequestException(rawErr);
       }
@@ -509,7 +523,7 @@ export class ServicesService {
 
       let rawErr = result?.data?.msg || result?.msg || 'Unable to complete data purchase with the provider.';
       if (typeof rawErr === 'string' && rawErr.toLowerCase().includes('insufficient')) {
-        rawErr = 'Provider Gateway Error: Insufficient balance on API provider account (danmalama/swiftbills/smeplug). Please contact admin to top up provider API wallet.';
+        rawErr = 'Provider Gateway Error: Insufficient balance on API provider account (maitama/danmalama/swiftbills/smeplug). Please contact admin to top up provider API wallet.';
       }
       throw new BadRequestException(rawErr);
     }

@@ -19,6 +19,7 @@ import { SmePlugSyncService } from '../services/smeplug-sync.service';
 import { SmePlugService } from '../services/smeplug.service';
 import { WalletService } from '../wallet/wallet.service';
 import { IacafeService } from '../services/iacafe.service';
+import { MaitamaService } from '../services/maitama.service';
 import { AuthService } from '../auth/auth.service';
 import { ApiRequestLog } from '../entities/api-request-log.entity';
 import { PricingGroup } from '../entities/pricing-group.entity';
@@ -60,6 +61,8 @@ export class AdminService implements OnModuleInit {
     private walletService: WalletService,
     @Inject(forwardRef(() => IacafeService))
     private iacafeService: IacafeService,
+    @Inject(forwardRef(() => MaitamaService))
+    private maitamaService: MaitamaService,
     private authService: AuthService,
     private jwtService: JwtService,
     @InjectRepository(ExamCategory)
@@ -601,6 +604,24 @@ export class AdminService implements OnModuleInit {
     return result;
   }
 
+  async triggerSwiftbillsSync(adminUser: any) {
+    this.logger.log(`Manual Swiftbills sync triggered by admin: ${adminUser.email}`);
+    const result = await this.smePlugSyncService.seedSwiftbillsPlans();
+    await this.auditLogService.log(adminUser.id, adminUser.email, 'swiftbills_manual_sync', result);
+    return result;
+  }
+
+  async triggerMaitamaSync(adminUser: any) {
+    this.logger.log(`Manual Maitama Data Hub sync triggered by admin: ${adminUser.email}`);
+    const result = await this.smePlugSyncService.seedMaitamaPlans();
+    await this.auditLogService.log(adminUser.id, adminUser.email, 'maitama_manual_sync', result);
+    return result;
+  }
+
+  async getMaitamaBalance(): Promise<number> {
+    return this.maitamaService.getBalance();
+  }
+
   async getDataPlans(): Promise<DataPlan[]> {
     return this.dataPlanRepository.find({
       order: { network: 'ASC', sellingPrice: 'ASC' },
@@ -1075,6 +1096,9 @@ export class AdminService implements OnModuleInit {
       } else if (txProvider === 'danmalama') {
         // Danmalama does not have a standard requery endpoint — keep current status
         message = 'Danmalama transactions cannot be requeried automatically. Please verify manually on the Danmalama dashboard.';
+      } else if (txProvider === 'maitama') {
+        // Maitama Data Hub does not have a standard requery endpoint — keep current status
+        message = 'Maitama Data Hub transactions cannot be requeried automatically. Please verify manually on the Maitama Data Hub dashboard.';
       } else {
         // SMEPlug: query /transactions by customer_reference
         try {

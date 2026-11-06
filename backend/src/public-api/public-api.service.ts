@@ -10,6 +10,7 @@ import { WalletService } from '../wallet/wallet.service';
 import { SmePlugService } from '../services/smeplug.service';
 import { SwiftbillsService } from '../services/swiftbills.service';
 import { DanmalamaService } from '../services/danmalama.service';
+import { MaitamaService } from '../services/maitama.service';
 import { UsersService } from '../users/users.service';
 import { WebhookService } from '../webhooks/webhook.service';
 import { AdminService } from '../admin/admin.service';
@@ -40,6 +41,7 @@ export class PublicApiService {
     private smePlugService: SmePlugService,
     private swiftbillsService: SwiftbillsService,
     private danmalamaService: DanmalamaService,
+    private maitamaService: MaitamaService,
     private usersService: UsersService,
     private webhookService: WebhookService,
     @Inject(forwardRef(() => AdminService))
@@ -129,6 +131,7 @@ export class PublicApiService {
     const p = (provider || 'smeplug').toLowerCase();
     if (p === 'swiftbills') return `sw${smeplugPlanId}`;
     if (p === 'danmalama') return `d${smeplugPlanId}`;
+    if (p === 'maitama') return `m${smeplugPlanId}`;
     return `s${smeplugPlanId}`;
   }
 
@@ -213,6 +216,9 @@ export class PublicApiService {
       } else if (rawIdStr.toLowerCase().startsWith('d')) {
         targetProvider = 'danmalama';
         rawIdStr = rawIdStr.slice(1);
+      } else if (rawIdStr.toLowerCase().startsWith('m')) {
+        targetProvider = 'maitama';
+        rawIdStr = rawIdStr.slice(1);
       } else if (rawIdStr.toLowerCase().startsWith('s')) {
         targetProvider = 'smeplug';
         rawIdStr = rawIdStr.slice(1);
@@ -295,6 +301,8 @@ export class PublicApiService {
         providerResult = await this.swiftbillsService.purchaseData(plan.network, cleanPhone, plan.smeplugPlanId, ref);
       } else if (plan.provider === 'danmalama') {
         providerResult = await this.danmalamaService.purchaseData(plan.network, cleanPhone, plan.smeplugPlanId, ref);
+      } else if (plan.provider === 'maitama') {
+        providerResult = await this.maitamaService.purchaseData(plan.network, cleanPhone, plan.smeplugPlanId, ref);
       } else {
         providerResult = await this.smePlugService.purchaseData(
           this.NETWORK_MAP[plan.network]?.id || 1,

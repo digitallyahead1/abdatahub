@@ -10,7 +10,7 @@ export class DeletedDataPlan {
   smeplugPlanId: number;
 
   @Column({ default: 'smeplug' })
-  provider: string; // 'smeplug', 'swiftbills', 'danmalama'
+  provider: string; // 'smeplug', 'swiftbills', 'danmalama', 'maitama'
 
   @Column({ nullable: true })
   network: string; // mtn, airtel, glo, 9mobile

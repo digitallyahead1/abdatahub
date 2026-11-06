@@ -243,6 +243,38 @@ export class AdminController {
     };
   }
 
+  @Post('swiftbills/sync')
+  @Permissions('manage:settings')
+  async triggerSwiftbillsSync(@Req() req: any) {
+    const data = await this.adminService.triggerSwiftbillsSync(req.user);
+    return {
+      success: true,
+      message: 'Swiftbills plans synchronization complete!',
+      data,
+    };
+  }
+
+  @Post('maitama/sync')
+  @Permissions('manage:settings')
+  async triggerMaitamaSync(@Req() req: any) {
+    const data = await this.adminService.triggerMaitamaSync(req.user);
+    return {
+      success: true,
+      message: 'Maitama Data Hub plans synchronization complete!',
+      data,
+    };
+  }
+
+  @Get('maitama/balance')
+  @Permissions('manage:settings')
+  async getMaitamaBalance() {
+    const balance = await this.adminService.getMaitamaBalance();
+    return {
+      success: true,
+      balance,
+    };
+  }
+
   @Get('data-plans')
   @Permissions('manage:settings')
   async getDataPlans() {

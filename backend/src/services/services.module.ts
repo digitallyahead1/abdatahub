@@ -16,6 +16,7 @@ import { SmePlugSyncService } from './smeplug-sync.service';
 import { IacafeService } from './iacafe.service';
 import { SwiftbillsService } from './swiftbills.service';
 import { DanmalamaService } from './danmalama.service';
+import { MaitamaService } from './maitama.service';
 import { AdminModule } from '../admin/admin.module';
 
 @Module({
@@ -34,8 +35,24 @@ import { AdminModule } from '../admin/admin.module';
     forwardRef(() => AdminModule),
   ],
   controllers: [ServicesController],
-  providers: [ServicesService, SmePlugService, SmePlugSyncService, IacafeService, SwiftbillsService, DanmalamaService],
-  exports: [ServicesService, SmePlugService, SmePlugSyncService, IacafeService, SwiftbillsService, DanmalamaService],
+  providers: [
+    ServicesService,
+    SmePlugService,
+    SmePlugSyncService,
+    IacafeService,
+    SwiftbillsService,
+    DanmalamaService,
+    MaitamaService,
+  ],
+  exports: [
+    ServicesService,
+    SmePlugService,
+    SmePlugSyncService,
+    IacafeService,
+    SwiftbillsService,
+    DanmalamaService,
+    MaitamaService,
+  ],
 })
 export class ServicesModule {}
 

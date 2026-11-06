@@ -16,7 +16,7 @@ export class SwiftbillsService {
     this.client = axios.create({
       baseURL: baseUrl,
       headers: {
-        'Authorization': `Bearer ${apiKey}`,
+        'Authorization': `Token ${apiKey}`,
         'Content-Type': 'application/json',
         'Accept': 'application/json',
       },

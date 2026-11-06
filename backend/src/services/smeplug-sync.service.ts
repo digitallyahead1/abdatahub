@@ -7,6 +7,7 @@ import { AirtimePricing } from '../entities/airtime-pricing.entity';
 import { SyncLog } from '../entities/sync-log.entity';
 import { SmePlugService } from './smeplug.service';
 import { DanmalamaService } from './danmalama.service';
+import { MaitamaService } from './maitama.service';
 import { AdminService } from '../admin/admin.service';
 
 @Injectable()
@@ -17,6 +18,7 @@ export class SmePlugSyncService implements OnModuleInit {
   constructor(
     private smePlugService: SmePlugService,
     private danmalamaService: DanmalamaService,
+    private maitamaService: MaitamaService,
     @Inject(forwardRef(() => AdminService))
     private adminService: AdminService,
     @InjectRepository(DataPlan)
@@ -50,6 +52,11 @@ export class SmePlugSyncService implements OnModuleInit {
     // Seed Danmalama data plans on startup
     this.seedDanmalamaPlans().catch(err => {
       this.logger.error('Failed to seed Danmalama plans:', err);
+    });
+
+    // Seed Maitama Data Hub plans on startup
+    this.seedMaitamaPlans().catch(err => {
+      this.logger.error('Failed to seed Maitama Data Hub plans:', err);
     });
 
     // Run first sync in background after a brief delay
@@ -94,7 +101,7 @@ export class SmePlugSyncService implements OnModuleInit {
     }
   }
 
-  async seedSwiftbillsPlans() {
+  async seedSwiftbillsPlans(): Promise<{ added: number; updated: number; total: number }> {
     const provider = 'swiftbills';
 
     const plansToSeed = [
@@ -147,6 +154,30 @@ export class SmePlugSyncService implements OnModuleInit {
         agentPrice: 0,
       },
       {
+        smeplugPlanId: 126,
+        network: 'mtn',
+        bundleName: 'MTN 3GB MONTHLY',
+        smeplugCost: 940,
+        sellingPrice: 940,
+        agentPrice: 0,
+      },
+      {
+        smeplugPlanId: 127,
+        network: 'mtn',
+        bundleName: 'MTN 5GB MONTHLY',
+        smeplugCost: 1330,
+        sellingPrice: 1330,
+        agentPrice: 0,
+      },
+      {
+        smeplugPlanId: 279,
+        network: 'mtn',
+        bundleName: 'MTN 10GB MONTHLY',
+        smeplugCost: 2650,
+        sellingPrice: 2650,
+        agentPrice: 0,
+      },
+      {
         smeplugPlanId: 124,
         network: 'mtn',
         bundleName: 'MTN 1GB WEEKLY',
@@ -164,6 +195,8 @@ export class SmePlugSyncService implements OnModuleInit {
       },
     ];
 
+    let added = 0;
+    let updated = 0;
 
     for (const p of plansToSeed) {
       const existing = await this.dataPlanRepository.findOne({
@@ -179,6 +212,7 @@ export class SmePlugSyncService implements OnModuleInit {
           lastSyncedAt: new Date(),
         });
         await this.dataPlanRepository.save(newPlan);
+        added++;
         this.logger.log(`Seeded Swiftbills plan: ${p.bundleName} (ID ${p.smeplugPlanId}) at ₦${p.smeplugCost}.`);
       } else {
         // Only update cost fields if not under admin override
@@ -188,12 +222,15 @@ export class SmePlugSyncService implements OnModuleInit {
           existing.network = p.network;
           existing.lastSyncedAt = new Date();
           await this.dataPlanRepository.save(existing);
+          updated++;
           this.logger.log(`Updated Swiftbills plan: ${p.bundleName} (ID ${p.smeplugPlanId}).`);
         } else {
           this.logger.log(`Skipped Swiftbills plan update (admin override active): ${p.bundleName} (ID ${p.smeplugPlanId}).`);
         }
       }
     }
+
+    return { added, updated, total: plansToSeed.length };
   }
 
   async seedDanmalamaPlans(): Promise<{ added: number; updated: number; total: number }> {
@@ -279,6 +316,129 @@ export class SmePlugSyncService implements OnModuleInit {
           this.logger.log(`Updated Danmalama plan: ${p.bundleName} (ID ${p.smeplugPlanId}).`);
         } else {
           this.logger.log(`Skipped Danmalama plan update (admin override active): ${p.bundleName} (ID ${p.smeplugPlanId}).`);
+        }
+      }
+    }
+
+    return { added, updated, total: plansToSeed.length };
+  }
+
+  async seedMaitamaPlans(): Promise<{ added: number; updated: number; total: number }> {
+    const provider = 'maitama';
+
+    // Comprehensive fallback plans (prioritizing user specified plans: 453 & 345)
+    const fallbackPlans = [
+      {
+        smeplugPlanId: 453,
+        network: 'mtn',
+        bundleName: 'MTN 5GB SME Monthly',
+        smeplugCost: 1400,
+        sellingPrice: 1400,
+        agentPrice: 0,
+      },
+      {
+        smeplugPlanId: 345,
+        network: 'mtn',
+        bundleName: 'MTN 10GB GIFTING 30 Days',
+        smeplugCost: 2699,
+        sellingPrice: 2699,
+        agentPrice: 0,
+      },
+      {
+        smeplugPlanId: 468,
+        network: 'mtn',
+        bundleName: 'MTN 500MB SME Weekly',
+        smeplugCost: 270,
+        sellingPrice: 270,
+        agentPrice: 0,
+      },
+      {
+        smeplugPlanId: 445,
+        network: 'mtn',
+        bundleName: 'MTN 1GB SME Monthly',
+        smeplugCost: 450,
+        sellingPrice: 450,
+        agentPrice: 0,
+      },
+      {
+        smeplugPlanId: 464,
+        network: 'mtn',
+        bundleName: 'MTN 2GB SME Monthly',
+        smeplugCost: 800,
+        sellingPrice: 800,
+        agentPrice: 0,
+      },
+      {
+        smeplugPlanId: 458,
+        network: 'mtn',
+        bundleName: 'MTN 3GB SME Monthly',
+        smeplugCost: 1100,
+        sellingPrice: 1100,
+        agentPrice: 0,
+      },
+    ];
+
+    let plansToSeed = fallbackPlans;
+
+    try {
+      const liveData = await this.maitamaService.getDataPlans();
+      if (Array.isArray(liveData) && liveData.length > 0) {
+        const livePlans = liveData
+          .filter(item => item.active && item.cost > 0 && item.id)
+          .map(item => ({
+            smeplugPlanId: item.id,
+            network: item.network.toLowerCase(),
+            bundleName: item.name || `${item.network.toUpperCase()} ${item.size}${item.volume}`,
+            smeplugCost: item.cost,
+            sellingPrice: item.cost,
+            agentPrice: 0,
+          }));
+
+        if (livePlans.length > 0) {
+          // Ensure specific user requested plans are retained even if filtered
+          for (const fb of fallbackPlans) {
+            if (!livePlans.some(p => p.smeplugPlanId === fb.smeplugPlanId)) {
+              livePlans.push(fb);
+            }
+          }
+          plansToSeed = livePlans;
+          this.logger.log(`Using ${livePlans.length} live plans fetched from Maitama Data Hub API.`);
+        }
+      }
+    } catch (e: any) {
+      this.logger.warn(`Could not fetch live Maitama Data Hub plans; using fallback list: ${e.message}`);
+    }
+
+    let added = 0;
+    let updated = 0;
+
+    for (const p of plansToSeed) {
+      const existing = await this.dataPlanRepository.findOne({
+        where: { smeplugPlanId: p.smeplugPlanId, provider },
+      });
+
+      if (!existing) {
+        const newPlan = this.dataPlanRepository.create({
+          ...p,
+          overrideStatus: false,
+          visibilityStatus: true,
+          provider,
+          lastSyncedAt: new Date(),
+        });
+        await this.dataPlanRepository.save(newPlan);
+        added++;
+        this.logger.log(`Seeded Maitama plan: ${p.bundleName} (ID ${p.smeplugPlanId}) at ₦${p.smeplugCost}.`);
+      } else {
+        if (!existing.overrideStatus) {
+          existing.bundleName = p.bundleName;
+          existing.smeplugCost = p.smeplugCost;
+          existing.network = p.network;
+          existing.lastSyncedAt = new Date();
+          await this.dataPlanRepository.save(existing);
+          updated++;
+          this.logger.log(`Updated Maitama plan: ${p.bundleName} (ID ${p.smeplugPlanId}).`);
+        } else {
+          this.logger.log(`Skipped Maitama plan update (admin override active): ${p.bundleName} (ID ${p.smeplugPlanId}).`);
         }
       }
     }
