@@ -354,6 +354,7 @@ export class ServicesService {
       network: plan.network,
       planId: plan.smeplugPlanId.toString(),
       bundleName: planName,
+      phoneNumber,
       smeplugCost: plan.smeplugCost,
       sellingPrice: amount,
       profit,
@@ -424,12 +425,17 @@ export class ServicesService {
       const finalStatus = result.current_status === 'failed' ? 'failed' : 'success';
       
       dataTx.status = finalStatus;
+      dataTx.phoneNumber = phoneNumber;
+      dataTx.providerTransactionId = result.providerTransactionId || result.data?.id || null;
+      dataTx.providerResponse = result.data || result;
+      dataTx.completedAt = new Date();
       await this.dataTransactionRepository.save(dataTx);
 
+      const providerRef = result.data?.ident || result.data?.reference || result.reference || '';
       systemTx.status = finalStatus;
       systemTx.metadata = {
         ...(systemTx.metadata || {}),
-        providerReference: result.data?.reference || result.reference || '',
+        providerReference: providerRef,
       };
       await this.transactionRepository.save(systemTx);
 

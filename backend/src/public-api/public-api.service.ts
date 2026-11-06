@@ -321,12 +321,16 @@ export class PublicApiService {
 
     dataTx.status = newStatus;
     dataTx.providerResponse = providerResult;
-    dataTx.providerTransactionId = providerResult?.transactionId || providerResult?.orderId || null;
+    dataTx.providerTransactionId = providerResult?.providerTransactionId || providerResult?.data?.id || providerResult?.transactionId || providerResult?.orderId || null;
     dataTx.completedAt = new Date();
     if (!success) dataTx.failureReason = providerResult?.msg || 'Provider rejected the request';
     await this.dataTransactionRepository.save(dataTx);
 
     systemTx.status = newStatus;
+    systemTx.metadata = {
+      ...(systemTx.metadata || {}),
+      providerReference: providerResult?.data?.ident || providerResult?.reference || '',
+    };
     await this.transactionRepository.save(systemTx);
 
     // 11. Refund on failure

@@ -202,23 +202,63 @@ export class MaitamaService {
       );
 
       const resBody = response.data;
-      const dataObj = resBody?.data || {};
-      const statusStr = String(dataObj.Status || resBody.status || '').toLowerCase();
+      // Some APIs wrap in { data: { ... } }, some return flat { ... }
+      const dataObj = (resBody && typeof resBody === 'object' && resBody.data && typeof resBody.data === 'object')
+        ? resBody.data
+        : (resBody || {});
 
-      // Check if successful or pending
-      const isSuccess = statusStr === 'successful' || statusStr === 'success' || statusStr === 'true';
-      const isPending = statusStr === 'pending' || statusStr === 'processing';
+      // Extract all potential status indicators (case-insensitive and tolerant of wrapper styles)
+      const rawStatus =
+        dataObj.Status ??
+        dataObj.status ??
+        resBody.Status ??
+        resBody.status ??
+        dataObj.state ??
+        resBody.state ??
+        '';
+
+      const statusStr = String(rawStatus).toLowerCase().trim();
+      const apiResponseStr = String(dataObj.api_response || resBody.api_response || '').toLowerCase().trim();
+
+      const isExplicitFail =
+        statusStr === 'failed' ||
+        statusStr === 'failure' ||
+        statusStr === 'false' ||
+        statusStr === 'error' ||
+        rawStatus === false ||
+        resBody.success === false;
+
+      const isPending =
+        statusStr === 'pending' ||
+        statusStr === 'processing' ||
+        statusStr === 'queued' ||
+        statusStr === 'submitted';
+
+      const isExplicitSuccess =
+        statusStr === 'successful' ||
+        statusStr === 'success' ||
+        statusStr === 'completed' ||
+        statusStr === 'done' ||
+        statusStr === 'true' ||
+        rawStatus === true ||
+        resBody.success === true ||
+        apiResponseStr === 'success' ||
+        apiResponseStr === 'successful';
+
+      // If HTTP 200/201 and has transaction info (ident, id, balance_after), and not explicitly failed, treat as success!
+      const hasTransactionData = !!(dataObj.ident || dataObj.id || dataObj.balance_after || dataObj.create_date);
+      const isSuccess = isExplicitSuccess || (!isExplicitFail && !isPending && (response.status === 200 || response.status === 201) && hasTransactionData);
 
       if (isSuccess || isPending) {
         return {
           status: true,
           current_status: isPending ? 'processing' : 'success',
           data: dataObj,
-          reference: dataObj.ident || requestId || `MTM_${Date.now()}`,
+          reference: dataObj.ident || dataObj.reference || requestId || `MTM_${Date.now()}`,
           providerTransactionId: dataObj.id,
           balanceBefore: dataObj.balance_before,
           balanceAfter: dataObj.balance_after,
-          msg: dataObj.api_response || 'Data Purchase Successful',
+          msg: dataObj.api_response || dataObj.description || 'Data Purchase Successful',
         };
       } else {
         const failMsg =
