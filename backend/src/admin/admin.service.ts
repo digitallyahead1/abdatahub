@@ -20,6 +20,7 @@ import { SmePlugService } from '../services/smeplug.service';
 import { WalletService } from '../wallet/wallet.service';
 import { IacafeService } from '../services/iacafe.service';
 import { MaitamaService } from '../services/maitama.service';
+import { NabatuluService } from '../services/nabatulu.service';
 import { AuthService } from '../auth/auth.service';
 import { ApiRequestLog } from '../entities/api-request-log.entity';
 import { PricingGroup } from '../entities/pricing-group.entity';
@@ -63,6 +64,8 @@ export class AdminService implements OnModuleInit {
     private iacafeService: IacafeService,
     @Inject(forwardRef(() => MaitamaService))
     private maitamaService: MaitamaService,
+    @Inject(forwardRef(() => NabatuluService))
+    private nabatuluService: NabatuluService,
     private authService: AuthService,
     private jwtService: JwtService,
     @InjectRepository(ExamCategory)
@@ -622,6 +625,17 @@ export class AdminService implements OnModuleInit {
     return this.maitamaService.getBalance();
   }
 
+  async triggerNabatuluSync(adminUser: any) {
+    this.logger.log(`Manual NabatuluSub sync triggered by admin: ${adminUser.email}`);
+    const result = await this.smePlugSyncService.seedNabatuluPlans();
+    await this.auditLogService.log(adminUser.id, adminUser.email, 'nabatulu_manual_sync', result);
+    return result;
+  }
+
+  async getNabatuluBalance(): Promise<number> {
+    return this.nabatuluService.getBalance();
+  }
+
   async getDataPlans(): Promise<DataPlan[]> {
     return this.dataPlanRepository.find({
       order: { network: 'ASC', sellingPrice: 'ASC' },
@@ -1099,6 +1113,9 @@ export class AdminService implements OnModuleInit {
       } else if (txProvider === 'maitama') {
         // Maitama Data Hub does not have a standard requery endpoint — keep current status
         message = 'Maitama Data Hub transactions cannot be requeried automatically. Please verify manually on the Maitama Data Hub dashboard.';
+      } else if (txProvider === 'nabatulu') {
+        // NabatuluSub API does not have a standard requery endpoint — keep current status
+        message = 'NabatuluSub transactions cannot be requeried automatically. Please verify manually on the NabatuluSub dashboard.';
       } else {
         // SMEPlug: query /transactions by customer_reference
         try {

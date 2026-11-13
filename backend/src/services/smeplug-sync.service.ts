@@ -8,6 +8,7 @@ import { SyncLog } from '../entities/sync-log.entity';
 import { SmePlugService } from './smeplug.service';
 import { DanmalamaService } from './danmalama.service';
 import { MaitamaService } from './maitama.service';
+import { NabatuluService } from './nabatulu.service';
 import { AdminService } from '../admin/admin.service';
 
 @Injectable()
@@ -19,6 +20,7 @@ export class SmePlugSyncService implements OnModuleInit {
     private smePlugService: SmePlugService,
     private danmalamaService: DanmalamaService,
     private maitamaService: MaitamaService,
+    private nabatuluService: NabatuluService,
     @Inject(forwardRef(() => AdminService))
     private adminService: AdminService,
     @InjectRepository(DataPlan)
@@ -57,6 +59,11 @@ export class SmePlugSyncService implements OnModuleInit {
     // Seed Maitama Data Hub plans on startup
     this.seedMaitamaPlans().catch(err => {
       this.logger.error('Failed to seed Maitama Data Hub plans:', err);
+    });
+
+    // Seed NabatuluSub API plans on startup
+    this.seedNabatuluPlans().catch(err => {
+      this.logger.error('Failed to seed NabatuluSub plans:', err);
     });
 
     // Run first sync in background after a brief delay
@@ -439,6 +446,66 @@ export class SmePlugSyncService implements OnModuleInit {
           this.logger.log(`Updated Maitama plan: ${p.bundleName} (ID ${p.smeplugPlanId}).`);
         } else {
           this.logger.log(`Skipped Maitama plan update (admin override active): ${p.bundleName} (ID ${p.smeplugPlanId}).`);
+        }
+      }
+    }
+
+    return { added, updated, total: plansToSeed.length };
+  }
+
+  async seedNabatuluPlans(): Promise<{ added: number; updated: number; total: number }> {
+    const provider = 'nabatulu';
+
+    // Only the two specific plans the admin requested
+    const plansToSeed = [
+      {
+        smeplugPlanId: 83,
+        network: 'mtn',
+        bundleName: 'MTN COOPERATE GIFTING 5GB 30 Days',
+        smeplugCost: 1430,
+        sellingPrice: 1430,
+        agentPrice: 0,
+      },
+      {
+        smeplugPlanId: 87,
+        network: 'mtn',
+        bundleName: 'MTN COOPERATE GIFTING 10GB 30 Days',
+        smeplugCost: 2860,
+        sellingPrice: 2860,
+        agentPrice: 0,
+      },
+    ];
+
+    let added = 0;
+    let updated = 0;
+
+    for (const p of plansToSeed) {
+      const existing = await this.dataPlanRepository.findOne({
+        where: { smeplugPlanId: p.smeplugPlanId, provider },
+      });
+
+      if (!existing) {
+        const newPlan = this.dataPlanRepository.create({
+          ...p,
+          overrideStatus: false,
+          visibilityStatus: true,
+          provider,
+          lastSyncedAt: new Date(),
+        });
+        await this.dataPlanRepository.save(newPlan);
+        added++;
+        this.logger.log(`Seeded NabatuluSub plan: ${p.bundleName} (ID ${p.smeplugPlanId}) at ₦${p.smeplugCost}.`);
+      } else {
+        if (!existing.overrideStatus) {
+          existing.bundleName = p.bundleName;
+          existing.smeplugCost = p.smeplugCost;
+          existing.network = p.network;
+          existing.lastSyncedAt = new Date();
+          await this.dataPlanRepository.save(existing);
+          updated++;
+          this.logger.log(`Updated NabatuluSub plan: ${p.bundleName} (ID ${p.smeplugPlanId}).`);
+        } else {
+          this.logger.log(`Skipped NabatuluSub plan update (admin override active): ${p.bundleName} (ID ${p.smeplugPlanId}).`);
         }
       }
     }

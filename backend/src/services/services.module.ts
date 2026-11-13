@@ -17,6 +17,7 @@ import { IacafeService } from './iacafe.service';
 import { SwiftbillsService } from './swiftbills.service';
 import { DanmalamaService } from './danmalama.service';
 import { MaitamaService } from './maitama.service';
+import { NabatuluService } from './nabatulu.service';
 import { AdminModule } from '../admin/admin.module';
 
 @Module({
@@ -43,6 +44,7 @@ import { AdminModule } from '../admin/admin.module';
     SwiftbillsService,
     DanmalamaService,
     MaitamaService,
+    NabatuluService,
   ],
   exports: [
     ServicesService,
@@ -52,6 +54,7 @@ import { AdminModule } from '../admin/admin.module';
     SwiftbillsService,
     DanmalamaService,
     MaitamaService,
+    NabatuluService,
   ],
 })
 export class ServicesModule {}

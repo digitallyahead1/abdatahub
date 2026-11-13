@@ -275,6 +275,27 @@ export class AdminController {
     };
   }
 
+  @Post('nabatulu/sync')
+  @Permissions('manage:settings')
+  async triggerNabatuluSync(@Req() req: any) {
+    const data = await this.adminService.triggerNabatuluSync(req.user);
+    return {
+      success: true,
+      message: 'NabatuluSub API plans synchronization complete!',
+      data,
+    };
+  }
+
+  @Get('nabatulu/balance')
+  @Permissions('manage:settings')
+  async getNabatuluBalance() {
+    const balance = await this.adminService.getNabatuluBalance();
+    return {
+      success: true,
+      balance,
+    };
+  }
+
   @Get('data-plans')
   @Permissions('manage:settings')
   async getDataPlans() {

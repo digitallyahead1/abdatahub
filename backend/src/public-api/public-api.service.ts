@@ -11,6 +11,7 @@ import { SmePlugService } from '../services/smeplug.service';
 import { SwiftbillsService } from '../services/swiftbills.service';
 import { DanmalamaService } from '../services/danmalama.service';
 import { MaitamaService } from '../services/maitama.service';
+import { NabatuluService } from '../services/nabatulu.service';
 import { UsersService } from '../users/users.service';
 import { WebhookService } from '../webhooks/webhook.service';
 import { AdminService } from '../admin/admin.service';
@@ -42,6 +43,7 @@ export class PublicApiService {
     private swiftbillsService: SwiftbillsService,
     private danmalamaService: DanmalamaService,
     private maitamaService: MaitamaService,
+    private nabatuluService: NabatuluService,
     private usersService: UsersService,
     private webhookService: WebhookService,
     @Inject(forwardRef(() => AdminService))
@@ -132,6 +134,7 @@ export class PublicApiService {
     if (p === 'swiftbills') return `sw${smeplugPlanId}`;
     if (p === 'danmalama') return `d${smeplugPlanId}`;
     if (p === 'maitama') return `m${smeplugPlanId}`;
+    if (p === 'nabatulu') return `nab${smeplugPlanId}`;
     return `s${smeplugPlanId}`;
   }
 
@@ -213,6 +216,9 @@ export class PublicApiService {
       if (rawIdStr.toLowerCase().startsWith('sw')) {
         targetProvider = 'swiftbills';
         rawIdStr = rawIdStr.slice(2);
+      } else if (rawIdStr.toLowerCase().startsWith('nab')) {
+        targetProvider = 'nabatulu';
+        rawIdStr = rawIdStr.slice(3);
       } else if (rawIdStr.toLowerCase().startsWith('d')) {
         targetProvider = 'danmalama';
         rawIdStr = rawIdStr.slice(1);
@@ -303,6 +309,8 @@ export class PublicApiService {
         providerResult = await this.danmalamaService.purchaseData(plan.network, cleanPhone, plan.smeplugPlanId, ref);
       } else if (plan.provider === 'maitama') {
         providerResult = await this.maitamaService.purchaseData(plan.network, cleanPhone, plan.smeplugPlanId, ref);
+      } else if (plan.provider === 'nabatulu') {
+        providerResult = await this.nabatuluService.purchaseData(plan.network, cleanPhone, plan.smeplugPlanId, ref);
       } else {
         providerResult = await this.smePlugService.purchaseData(
           this.NETWORK_MAP[plan.network]?.id || 1,

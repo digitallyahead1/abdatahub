@@ -13,6 +13,7 @@ import { IacafeService } from './iacafe.service';
 import { SwiftbillsService } from './swiftbills.service';
 import { DanmalamaService } from './danmalama.service';
 import { MaitamaService } from './maitama.service';
+import { NabatuluService } from './nabatulu.service';
 import { AdminService } from '../admin/admin.service';
 import { UsersService } from '../users/users.service';
 import { formatToWatIso } from '../common/date.util';
@@ -28,6 +29,7 @@ export class ServicesService {
     private swiftbillsService: SwiftbillsService,
     private danmalamaService: DanmalamaService,
     private maitamaService: MaitamaService,
+    private nabatuluService: NabatuluService,
     @Inject(forwardRef(() => AdminService))
     private adminService: AdminService,
     private usersService: UsersService,
@@ -291,6 +293,9 @@ export class ServicesService {
       if (rawIdStr.toLowerCase().startsWith('sw')) {
         targetProvider = 'swiftbills';
         rawIdStr = rawIdStr.slice(2);
+      } else if (rawIdStr.toLowerCase().startsWith('nab')) {
+        targetProvider = 'nabatulu';
+        rawIdStr = rawIdStr.slice(3);
       } else if (rawIdStr.toLowerCase().startsWith('d')) {
         targetProvider = 'danmalama';
         rawIdStr = rawIdStr.slice(1);
@@ -400,6 +405,14 @@ export class ServicesService {
         plan.smeplugPlanId,
         ref,
       );
+    } else if (plan.provider === 'nabatulu') {
+      this.logger.log(`Purchasing data via NabatuluSub API for plan ${plan.smeplugPlanId} (${plan.bundleName}) on phone ${phoneNumber}`);
+      result = await this.nabatuluService.purchaseData(
+        plan.network,
+        phoneNumber,
+        plan.smeplugPlanId,
+        ref,
+      );
     } else {
       // 4. Map network to SMEPlug ID
       const networkMap: Record<string, number> = {
@@ -468,7 +481,7 @@ export class ServicesService {
 
         let rawErr = result?.data?.msg || result?.msg || 'Data purchase transaction failed on provider gateway';
         if (typeof rawErr === 'string' && rawErr.toLowerCase().includes('insufficient')) {
-          rawErr = 'Provider Gateway Error: Insufficient balance on API provider account (maitama/danmalama/swiftbills/smeplug). Please contact admin to top up provider API wallet.';
+          rawErr = 'Provider Gateway Error: Insufficient balance on API provider account (nabatulu/maitama/danmalama/swiftbills/smeplug). Please contact admin to top up provider API wallet.';
         }
         throw new BadRequestException(rawErr);
       }
@@ -529,7 +542,7 @@ export class ServicesService {
 
       let rawErr = result?.data?.msg || result?.msg || 'Unable to complete data purchase with the provider.';
       if (typeof rawErr === 'string' && rawErr.toLowerCase().includes('insufficient')) {
-        rawErr = 'Provider Gateway Error: Insufficient balance on API provider account (maitama/danmalama/swiftbills/smeplug). Please contact admin to top up provider API wallet.';
+        rawErr = 'Provider Gateway Error: Insufficient balance on API provider account (nabatulu/maitama/danmalama/swiftbills/smeplug). Please contact admin to top up provider API wallet.';
       }
       throw new BadRequestException(rawErr);
     }

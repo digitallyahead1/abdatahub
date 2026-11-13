@@ -29,7 +29,7 @@ interface DeletedDataPlan {
   deletedAt: string
 }
 
-type TabType = 'mtn' | 'airtel' | 'glo' | '9mobile' | 'swiftbills' | 'danmalama' | 'maitama'
+type TabType = 'mtn' | 'airtel' | 'glo' | '9mobile' | 'swiftbills' | 'danmalama' | 'maitama' | 'nabatulu'
 type ViewMode = 'active' | 'deleted'
 
 // ─── Permanent Delete Confirmation Modal ──────────────────────────────────────
@@ -284,6 +284,8 @@ export default function AdminDataPlansPage() {
         ? '/admin/swiftbills/sync'
         : activeTab === 'maitama'
         ? '/admin/maitama/sync'
+        : activeTab === 'nabatulu'
+        ? '/admin/nabatulu/sync'
         : '/admin/smeplug/sync'
       const res = await api.post(endpoint)
       toast.success(res.data.message || 'Synchronization complete!')
@@ -418,6 +420,7 @@ export default function AdminDataPlansPage() {
     if (activeTab === 'swiftbills') return p.provider === 'swiftbills'
     if (activeTab === 'danmalama') return p.provider === 'danmalama'
     if (activeTab === 'maitama') return p.provider === 'maitama'
+    if (activeTab === 'nabatulu') return p.provider === 'nabatulu'
     return p.network === activeTab && (!p.provider || p.provider === 'smeplug')
   })
 
@@ -547,6 +550,8 @@ export default function AdminDataPlansPage() {
                         ? 'Sync Swiftbills plans'
                         : activeTab === 'maitama'
                         ? 'Sync Maitama plans'
+                        : activeTab === 'nabatulu'
+                        ? 'Sync NabatuluSub plans'
                         : 'Sync SMEPlug plans'}
                     </span>
                   </>
@@ -569,6 +574,7 @@ export default function AdminDataPlansPage() {
                 { id: 'swiftbills', name: 'Swiftbills (MTN)' },
                 { id: 'danmalama', name: 'Danmalama (MTN/Airtel/Glo)' },
                 { id: 'maitama', name: 'Maitama Data Hub' },
+                { id: 'nabatulu', name: 'NabatuluSub (MTN)' },
               ].map((tab) => (
                 <button
                   key={tab.id}
@@ -619,8 +625,8 @@ export default function AdminDataPlansPage() {
                       </th>
                       <th className="px-6 py-4">Plan ID</th>
                       <th className="px-6 py-4">Bundle Name</th>
-                      {(activeTab === 'danmalama' || activeTab === 'maitama') && <th className="px-6 py-4">Network</th>}
-                      <th className="px-6 py-4">{activeTab === 'swiftbills' ? 'Swiftbills Cost' : activeTab === 'danmalama' ? 'Danmalama Cost' : activeTab === 'maitama' ? 'Maitama Cost' : 'SMEPlug Cost'}</th>
+                      {(activeTab === 'danmalama' || activeTab === 'maitama' || activeTab === 'nabatulu') && <th className="px-6 py-4">Network</th>}
+                      <th className="px-6 py-4">{activeTab === 'swiftbills' ? 'Swiftbills Cost' : activeTab === 'danmalama' ? 'Danmalama Cost' : activeTab === 'maitama' ? 'Maitama Cost' : activeTab === 'nabatulu' ? 'NabatuluSub Cost' : 'SMEPlug Cost'}</th>
                       <th className="px-6 py-4">Selling Price</th>
                       <th className="px-6 py-4">Agent Price</th>
                       <th className="px-6 py-4">Override</th>
@@ -631,8 +637,8 @@ export default function AdminDataPlansPage() {
                   <tbody className="divide-y divide-white/5">
                     {filteredPlans.length === 0 ? (
                       <tr>
-                        <td colSpan={(activeTab === 'danmalama' || activeTab === 'maitama') ? 10 : 9} className="px-6 py-10 text-center text-silver-muted font-medium">
-                          No active plans synced for this network yet. Try clicking "{activeTab === 'danmalama' ? 'Sync Danmalama plans' : activeTab === 'swiftbills' ? 'Sync Swiftbills plans' : activeTab === 'maitama' ? 'Sync Maitama plans' : 'Sync SMEPlug plans'}".
+                        <td colSpan={(activeTab === 'danmalama' || activeTab === 'maitama' || activeTab === 'nabatulu') ? 10 : 9} className="px-6 py-10 text-center text-silver-muted font-medium">
+                          No active plans synced for this network yet. Try clicking "{activeTab === 'danmalama' ? 'Sync Danmalama plans' : activeTab === 'swiftbills' ? 'Sync Swiftbills plans' : activeTab === 'maitama' ? 'Sync Maitama plans' : activeTab === 'nabatulu' ? 'Sync NabatuluSub plans' : 'Sync SMEPlug plans'}".
                         </td>
                       </tr>
                     ) : (
@@ -673,7 +679,7 @@ export default function AdminDataPlansPage() {
                               plan.bundleName
                             )}
                           </td>
-                          {(activeTab === 'danmalama' || activeTab === 'maitama') && (
+                          {(activeTab === 'danmalama' || activeTab === 'maitama' || activeTab === 'nabatulu') && (
                             <td className="px-6 py-4">
                               <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider border ${
                                 plan.network === 'mtn' ? 'bg-yellow-400/10 text-yellow-300 border-yellow-400/20'
