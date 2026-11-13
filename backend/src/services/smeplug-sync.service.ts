@@ -333,8 +333,16 @@ export class SmePlugSyncService implements OnModuleInit {
   async seedMaitamaPlans(): Promise<{ added: number; updated: number; total: number }> {
     const provider = 'maitama';
 
-    // Comprehensive fallback plans (prioritizing user specified plans: 453 & 345)
+    // Comprehensive fallback plans (prioritizing user specified plans: 453, 486 & 345)
     const fallbackPlans = [
+      {
+        smeplugPlanId: 486,
+        network: 'mtn',
+        bundleName: 'MTN 5GB SME Monthly',
+        smeplugCost: 1400,
+        sellingPrice: 1400,
+        agentPrice: 0,
+      },
       {
         smeplugPlanId: 453,
         network: 'mtn',
